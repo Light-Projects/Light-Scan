@@ -1,0 +1,81 @@
+Light-Scan 1.1.8
+
+(Officiale)
+
+## IGMP detection in LightSniff 100%
+## IGMP and ICMP Solicitation for only ping swip without a scan 100%
+## add IGMP in Lightscan 100%
+## SCTP scans 100%
+## proper pdf saving 100%
+## add SSH to LightLab 100%
+## create FTP class and add it to LightLab 100%
+## FTP and SSH Detection in LightSniff 100%
+## QUIC detection in LightSniff 100%
+## LightPanel enhancement 100%
+## add Services Iptable for SCTP 100%
+## add Banner Grabbing for SCTP 100%
+## add ttl verification 100%
+## add hlim verification 100%
+## add ip flags verification 100%
+## add ip id verification
+## new banner grabber 100%
+## adding more then 250 new service probe 100%
+## Enhanced OS fingerprint 100%
+## add TCP,UDP and ICMP probe detection 100%
+## adding dns parser in VersionParser 100%
+## Enhanced LSSE 100%
+## Mirrage randomation and mimicing 100%
+## add .toml saving in LightSave 100%
+## add .gitignore 100%
+## add Third party licenses .md 100%
+## add separeted licenses for every dependency 100%
+## LightPacket lib 100%
+## ARP in LightPacket 100%
+## Ether in LightPacket 100%
+## Dot3, LLC and SNAP in LightPacket 100%
+## LightPanelWin and LightPanelLin 100%
+## Mint attack utility 100%
+## Linux support for LightPacket 100%
+## Enhanced os fingerprint by custom new model 100%
+## Null flag for LightBin (No compression or metadata) 100%
+
+(Optionnal)
+
+## 5 new LSSE Scripts 100%
+## upgrade LightLab templates 100%
+## add mr,mq and gr for IGMPv3 in LightLab 100%
+## LightHex Saving utility 100%
+## Lightscan can run in the background as a daemon process 100%
+## General LightBin Loader 100%
+## hexdump in LightHex 100%
+## .hex one line saving in LightSave 100%
+## .hex one line saving in LightHex 100%
+## .hex print in LightHex 100%
+## .hex Loading from file in LightHex 100%
+## Load Raw bytes as ScapyPackets by ScapyPacketLoader for LightHex 100%
+## Load Raw bytes as ScapyPackets by ScapyPacketLoader for LightBin 100%
+## Detect Scapy Layers by ScapyPacketLoader 100%
+## add LightHex loading to LightSniff 100%
+## add LightHex loading to LightSniff 100%
+## add LightHex saving to LightSniff 100%
+## add LightHex saving to LightLab 100%
+## 40 http user agent for banner grabber 100%
+## 27 ssh client for banner grabber 100%
+## SCTP in LightLab 100%
+## Fixing Multi targets saving in LightSave 100%
+## Using LightPacket NetworkInterfaces to replace scapy IFACES 100%
+## Using LightPacket.GetMac to get default interface mac and replace getmac lib 100%
+## SCTP detection in LightSniff 100%
+## IGMPv3 ,IGMPv2 ,IGMPv1 in LightLab 100%
+## Mac Flood Attack in Mint using LightPacket 100%
+## Replacing Scapy arp with LightPacket module 100%
+## adding Layer 2 to Mirage 100%
+## fixing speed presets threads logical bug 100%
+## Masive Web-Doc with all tools 100%
+## update Version Parser 100%
+## Tutoriel for making your own LSSE script (Web-doc) 100%
+## Profile loading in LightPanel 100%
+## Profile saving in LightPanel 100%
+## rDNS in LightPanel 100%
+## Enhanced Windows OS detection 100%
+## Loopback sniffing 100%
