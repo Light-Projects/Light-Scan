@@ -4,7 +4,7 @@
 [![Open Source](https://img.shields.io/badge/Open%20Source-❤️-green)](https://opensource.org/)
 [![OSI Approved](https://img.shields.io/badge/OSI-Approved-3c9f3c?logo=opensourceinitiative)](https://opensource.org/licenses/gpl-2.0.php)
 
-![](image/Light-Scan-Logo.png)
+![](images/Light-Scan-Logo.png)
 
 # Light-Scan — Advanced Network Toolkit & Mini-Framework
 
