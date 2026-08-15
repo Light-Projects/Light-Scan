@@ -411,12 +411,12 @@ LightScan offers **six speed presets** to balance performance against network co
 
 | Preset | Threads | Timeout | Best For |
 |--------|---------|---------|----------|
-|  **paranoid** | 2 | 4.0s | Stealth scans, IDS/IPS evasion, unstable networks |
-|  **slow** | 30 | 3.0s | Noisy environments, careful reconnaissance |
-|  **normal** | 60 | 2.5s | **Default** — balanced for most scenarios |
-|  **fast** | 120 | 2.5s | Internal networks, trusted environments |
-|  **insane** | 240 | 1.25s | High-speed LAN scans, aggressive timing |
-|  **Light-mode** | 500 | 1.25s | Maximum speed — use on reliable, low-latency networks |
+|  **paranoid** | 2 | 4.5s | Stealth scans, IDS/IPS evasion, unstable networks |
+|  **slow** | 30 | 3.3s | Noisy environments, careful reconnaissance |
+|  **normal** | 60 | 2.8s | **Default** — balanced for most scenarios |
+|  **fast** | 120 | 2.8s | Internal networks, trusted environments |
+|  **insane** | 240 | 1.5s | High-speed LAN scans, aggressive timing |
+|  **Light-mode** | 400 | 1.5s | Maximum speed — use on reliable, low-latency networks |
 
 
 
