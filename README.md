@@ -513,14 +513,13 @@ for multiple jobs (Scanning,Scripting,Saving,Sniffing and Creating) .
 ## Table of Contents
 
 ### 1. LightSniff - Packet Capture Tool
-### 2. LightSave - Results Exporter
-### 3. LightPanel - Graphical Interface
-### 4. LightLab - Packet Crafting Laboratory
-### 5. LightBin - Custom Binary Format
-### 6. LSSE - Light-Scan Scripting Engine
+### 2. LightPanel - Graphical Interface
+### 3. LightLab - Packet Crafting Laboratory
+### 4. LightBin - Custom Binary Format
+### 5. LSSE - Light-Scan Scripting Engine
 
 
-## LightSniff - Packet Capture Tool v1.0.1
+## LightSniff - Packet Capture Tool v1.0.2
 
 ### Overview
 LightSniff is a lightweight, feature-rich packet sniffer built for network analysis and troubleshooting. It uses BPF (Berkeley Packet Filter) syntax for precise traffic filtering and supports both live capture and PCAP export.
@@ -543,22 +542,28 @@ LightSniff is a lightweight, feature-rich packet sniffer built for network analy
 
 ### Command-Line Options
 
-    usage: LightSniff.py [-h] [-i INTERFACE] [-f FILTER] [-c COUNT] [-w WRITE] [-r READ] [--bin-save BIN_SAVE]
-                         [--bin-load BIN_LOAD] [-C] [-v] [--no-promisc] [-q] [--eth] [--vlan] [--arp] [--tcp] [--udp]
-                         [--icmp] [--mac MAC]
-    
+    usage: LightSniff.py [-h] [-i INTERFACE] [-I] [-f FILTER] [-c COUNT] [-w WRITE] [-r READ] [--bin-save BIN_SAVE] [--bin-load BIN_LOAD] [--hex-save HEX_SAVE]
+                     [--hex-load HEX_LOAD] [-C] [-v] [--no-promisc] [-q] [--eth] [--vlan] [--arp] [--tcp] [--udp] [--icmp] [--mac MAC]
+
     LightSniff - Light-Scan Packet Capture Tool
     
     options:
       -h, --help            show this help message and exit
-      -i, --interface INTERFACE
+      -i INTERFACE, --interface INTERFACE
                             Network interface (e.g., eth0, Wi-Fi, wlan0)
-      -f, --filter FILTER   BPF filter (e.g., 'tcp port 80', 'icmp', 'arp')
-      -c, --count COUNT     Number of packets to capture (0 = infinite)
-      -w, --write WRITE     Save to PCAP/PCAPNG file
-      -r, --read READ       Read packets from PCAP/PCAPNG file (offline mode)
+      -I, --interfaces      Show all available Network Interfaces
+      -f FILTER, --filter FILTER
+                            BPF filter (e.g., 'tcp port 80', 'icmp', 'arp')
+      -c COUNT, --count COUNT
+                            Number of packets to capture/process (0 = infinite/all). Was previously defaulted to 100, which silently truncated --read/--bin-load/--hex-
+                            load files to their first 100 packets.
+      -w WRITE, --write WRITE
+                            Save to PCAP/PCAPNG file
+      -r READ, --read READ  Read packets from PCAP/PCAPNG file (offline mode)
       --bin-save BIN_SAVE   Save to LightBin binary format (.lbn)
       --bin-load BIN_LOAD   Load from LightBin binary format (.lbn)
+      --hex-save HEX_SAVE   Save to hexadecimal format (.lhex)
+      --hex-load HEX_LOAD   Load from hexadecimal format (.lhex)
       -C, --compress        To compress saved output (only for .lbn)
       -v, --verbose         Show detailed packet info
       --no-promisc          Disable promiscuous mode
@@ -571,8 +576,8 @@ LightSniff is a lightweight, feature-rich packet sniffer built for network analy
       --icmp                Show only ICMP packets
       --mac MAC             Filter by source or destination MAC address (e.g., aa:bb:cc:dd:ee:ff)
     
-    Examples: LightSniff -i eth0 LightSniff -i eth0 -f 'tcp port 80' -w http.pcap LightSniff -i Wi-Fi -c 100 -v LightSniff
-    -r capture.pcap LightSniff --bin-load capture.lbn
+    Examples: LightSniff -i eth0 LightSniff -i eth0 -f 'tcp port 80' -w http.pcap LightSniff -i Wi-Fi -c 100 -v LightSniff -r capture.pcap LightSniff --bin-load
+    capture.lbn
 
 
 ### Usage Examples
@@ -596,49 +601,7 @@ LightSniff is a lightweight, feature-rich packet sniffer built for network analy
     LightSniff -i eth0 --tcp --udp --icmp
 
 
-## LightSave - Results Exporter v1.0.1
-
-### Overview
-LightSave captures the output of any Lightscan command and saves it in a structured format. It supports 8 export formats and is designed for easy integration with reporting pipelines and SIEM systems.
-
-### Features
-- Captures output of any Lightscan command
-- 8 export formats: LIGHT, TXT, HTML, XML, CSV, JSON, PDF, YAML
-- Automated saving with timestamps
-- Machine-readable output for automation
-- Clean, well-formatted files
-- Integrated with LightPanel GUI
-- Cross-platform (Windows, Linux, macOS, BSD)
-
-### Command-Line Options
-    
-    usage: LightSave.py [-h] -C C [-S {txt,light,html,xml,csv,json,pdf,yaml}]
-    
-    LightSave : Light-Scan Scans Saving Tool
-    
-    options:
-      -h, --help            show this help message and exit
-      -C C                  Lightscan command
-      -S {txt,light,html,xml,csv,json,pdf,yaml}
-                            Saving Format (txt,light,html,xml,csv,json,pdf,yaml)
-
-
-### Usage Examples
-
-#### Save UDP Scan Results as XML
-    LightSave -C "python Lightscan.py -T 127.0.0.1 -F -st UDP" -S xml
-
-#### Save Network Scan as HTML Report
-    LightSave -C "python Lightscan.py -T 192.168.1.0/24 -s fast" -S html
-
-#### Save Scan Results as JSON for Automation
-    LightSave -C "python Lightscan.py -T scanme.nmap.org -p 22,80,443" -S json
-
-#### Save OS and Banner Grab Results as PDF
-    LightSave -C "python Lightscan.py -T 192.168.1.100 -O -b" -S pdf
-
-
-## LightPanel - Graphical Interface v1.0.1
+## LightPanel - Graphical Interface v1.0.2
 
 ### Overview
 LightPanel is a basic graphical user interface for Lightscan. It provides a visual alternative to the command-line, making the toolkit accessible to users who prefer a point-and-click experience.
