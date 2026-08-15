@@ -297,98 +297,110 @@ Before running Light-Scan, install libpcap:
 
 ## Command Line Options
   
-    usage: Lightscan.py [-h] [-T TARGET] [--rff RFF] [-V6] [-p PORT] [-pp PING_PORT]
-                    [-s {paranoid,slow,normal,fast,insane,Light-mode}] [-v] [-n] [-V] [-st SCAN_TYPE]
-                    [--zombie ZOMBIE] [-sn] [--ftp-bounce FTP_SERVER] [-F] [-mx MAX_RETRIES] [-t THREADS] [-lst]
-                    [--lsse-lst] [--profiles-lst] [-tm TIMEOUT] [-Rc] [-f] [-Pn] [-b] [-O] [-mac]
-                    [--load-profile LOAD_PROFILE] [--save-profile SAVE_PROFILE] [-ttl TTL] [-hlim HLIM] [-sport SPORT]
-                    [-payload PAYLOAD] [-id ID] [-ip-flags IP_FLAGS] [-Pan] [-Pi] [-Pip PIP] [-A] [-Pt] [-Ps] [-Pk]
-                    [-Pu] [-PIt] [-PA] [-Pin] [-Pas] [-q] [--script SCRIPT] [--domain DOMAIN]
-                    [--dns-server DNS_SERVER] [-W WORDLIST] [--extensions EXTENSIONS] [--status-codes STATUS_CODES]
-                    [--redirect] [--url URL] [--mxp MXP] [--mxd MXD] [-sp SP] [--lsse]
-    
-    Light-Scan Port Scanner
-    
-    options:
-      -h, --help            show this help message and exit
-      -T, --target TARGET   Target IP or Hostname
-      --rff RFF             Read Target/s from a file
-      -V6                   used when the target is an IPv6
-      -p, --port PORT       Port/s to scan
-      -pp, --ping-port PING_PORT
-                            Port/s to Ping on it
-      -s, --speed {paranoid,slow,normal,fast,insane,Light-mode}
-                            Scan speed preset
-      -v, --verbose         Show verbose output
-      -n                    Disable reverse dns
-      -V, --version         show Light-Scan version with all additionnal tools
-      -st, --scan-type SCAN_TYPE
-                            Scan types {TCP,SYN,UDP,NULL,FIN,ACK,XMAS,WINDOW,MAIMON,FDD,FTP-BOUNCE,IPPROTO,PING,IDLE}
-      --zombie ZOMBIE       Zombie IP for idle scan (required for --st IDLE)
-      -sn                   do only a host discovery without port scaning
-      --ftp-bounce FTP_SERVER
-                            FTP server for bounce scan (required for --st FTP-BOUNCE)
-      -F                    Scan The Top 100 ports for fast scanning
-      -mx, --max-retries MAX_RETRIES
-                            Max number of retries if port show a no response
-      -t, --threads THREADS
-                            Number of threads to use
-      -lst                  List all targets
-      --lsse-lst            List all LSSE Scripts
-      --profiles-lst        List all scan profiles from Profiles directory
-      -tm, --timeout TIMEOUT
-                            Timeout with second
-      -Rc, --recursively    recursively scan host that shown to be down or not responding and disable flags like
-                            -v,-Pn,etc ...
-      -f, --fragmente       fragment the sending packet for more stealth
-      -Pn, --no-ping        Do not ping the target/s
-      -b, --banner          Banner Grabing
-      -O, --os              OS Fingerprint
-      -mac                  Light-Scan will skip getting the target mac on Local Networks
-      --load-profile LOAD_PROFILE
-                            Load the scan profile from Profiles/ directory
-      --save-profile SAVE_PROFILE
-                            Save the scan profile to Profiles/ directory
-      -ttl TTL              Time To Live for IPv4 packets
-      -hlim HLIM            Hop Limit for IPv6 packets
-      -sport SPORT          Source Port
-      -payload PAYLOAD      Add a raw custum Payload
-      -id ID                ID Field for IPv4 packets
-      -ip-flags IP_FLAGS    IP Flags Field for IPv4 packets (DF=2,MF=1,None=0)
-      -Pan, --local-ping    Performe an ARP Ping on Local Networks by default or NDP Ping on Local Networks for IPv6 mode
-      -Pi, --ip-ping        IP Protocol Ping
-      -Pip PIP              For Specefiy The IP Protocols that -Pi is going to use rather then default
-      -A, --agressive       Agressive scan activate all of OS Fingerprints, Banner Grabing, Insane Speed , SYN Scan and
-                            Scan Top 100 Ports
-      -Pt, --tcp-ping       Do a TCP Ping
-      -Ps, --syn-ping       Do a Syn Ping
-      -Pk, --ack-ping       DO a ACK Ping
-      -Pu, --udp-ping       Do a UDP Ping
-      -PIt, --icmp-timestamp-ping
-                            Do scan a ICMP Timestamp Ping
-      -PA, --icmp-address-ping
-                            Do scan a ICMP Address Ping
-      -Pin, --icmp-information-ping
-                            Do scan a ICMP Information Ping
-      -Pas, --icmp-solicitation-ping
-                            Do scan a ICMP Solicitation Ping
-      -q, --quiet           Quiet mode {does't print the Tool Banner}
-      --script SCRIPT       LSSE Script ,Ex: --script http-cert
-      --domain DOMAIN       Domain for http/https and Dns based scripts
-      --dns-server DNS_SERVER
-                            dns server that Light-Scan is going to use (Is Set by Default
-      -W, --wordlist WORDLIST
-                            Wordlist for scripts
-      --extensions EXTENSIONS
-                            Extensions for web based scripts
-      --status-codes STATUS_CODES
-                            Status Codes for web based scripts
-      --redirect            Redirect http/https requests for http scripts
-      --url URL             Victime URL
-      --mxp MXP             max pages to get
-      --mxd MXD             max depth to crawl
-      -sp SP                Port/s that are going to use by scripts
-      --lsse                Use that flag when you want just to performe a script
+        usage: Lightscan.py [-h] [-T TARGET] [--rff RFF] [--daemon] [-V6] [-p PORT] [-pp PING_PORT] [-s     {paranoid,slow,normal,fast,insane,Light-mode}]
+                                    [--save {txt,light,html,xml,csv,json,pdf,yaml,toml,hex-str}] [-v] [-n] [-V] [-st SCAN_TYPE] [--zombie ZOMBIE] [-sn] [--ftp-bounce FTP_SERVER] [-F]
+                                    [-mx MAX_RETRIES] [-t THREADS] [-lst] [--lsse-lst] [--profiles-lst] [-tm TIMEOUT] [-Rc] [-f] [-Pn] [-b] [-O] [--min-score MIN_SCORE]
+                                    [--min-confi MIN_CONFI] [-mac] [--load-profile LOAD_PROFILE] [--save-profile SAVE_PROFILE] [-ttl TTL] [-hlim HLIM] [-sport SPORT]
+                                    [-payload PAYLOAD] [-id ID] [-ip-flags IP_FLAGS] [-Pan] [-Pi] [-Pip PIP] [-A] [-Pt] [-Ps] [-Pk] [-Pu] [-PIt] [-PA] [-Pin] [-Pas] [-Pg] [-q]
+                                    [--script SCRIPT] [--domain DOMAIN] [--dns-server DNS_SERVER] [-W WORDLIST] [--extensions EXTENSIONS] [--status-codes STATUS_CODES] [--redirect]
+                                    [--url URL] [--mxp MXP] [--mxd MXD] [-sp SP] [--starget STARGET] [--username USERNAME] [--password PASSWORD] [--userlist USERLIST]
+                                    [--passwordlist PASSWORDLIST] [--lsse]
+        
+        Lightscan Port Scanner
+        
+        options:
+          -h, --help            show this help message and exit
+          -T TARGET, --target TARGET
+                                Target IP or Hostname
+          --rff RFF             Read Target/s from a file
+          --daemon              Run Lightscan as a background task
+          -V6                   used when the target is an IPv6
+          -p PORT, --port PORT  Port/s to scan
+          -pp PING_PORT, --ping-port PING_PORT
+                                Port/s to Ping on it
+          -s {paranoid,slow,normal,fast,insane,Light-mode}, --speed {paranoid,slow,normal,fast,insane,Light-mode}
+                                Scan speed preset
+          --save {txt,light,html,xml,csv,json,pdf,yaml,toml,hex-str}
+                                Saving Format (txt,light,html,xml,csv,json,pdf,yaml,toml,hex-str)
+          -v, --verbose         Show verbose output
+          -n                    Disable reverse dns
+          -V, --version         show Light-Scan version with all additionnal tools
+          -st SCAN_TYPE, --scan-type SCAN_TYPE
+                                Scan types {TCP,SYN,UDP,NULL,FIN,ACK,XMAS,WINDOW,MAIMON,FDD,FTP-BOUNCE,IPPROTO,PING,IDLE,SCTP-INIT}
+          --zombie ZOMBIE       Zombie IP for idle scan (required for --st IDLE)
+          -sn                   do only a host discovery without port scaning
+          --ftp-bounce FTP_SERVER
+                                FTP server for bounce scan (required for --st FTP-BOUNCE)
+          -F                    Scan The Top 100 ports for fast scanning
+          -mx MAX_RETRIES, --max-retries MAX_RETRIES
+                                Max number of retries if port show a no response
+          -t THREADS, --threads THREADS
+                                Number of threads to use
+          -lst                  List all targets
+          --lsse-lst            List all LSSE Scripts
+          --profiles-lst        List all scan profiles from Profiles directory
+          -tm TIMEOUT, --timeout TIMEOUT
+                                Timeout with second
+          -Rc, --recursively    recursively scan host that shown to be down or not responding and disable flags like -v,-Pn,etc ...
+          -f, --fragmente       fragment the sending packet for more stealth
+          -Pn, --no-ping        Do not ping the target/s
+          -b, --banner          Banner Grabing
+          -O, --os              OS Fingerprint
+          --min-score MIN_SCORE
+                                Minimum OS Fingerprint Score
+          --min-confi MIN_CONFI
+                                Minimum OS Confidence Score
+          -mac                  Light-Scan will skip getting the target mac on Local Networks
+          --load-profile LOAD_PROFILE
+                                Load the scan profile from Profiles/ directory
+          --save-profile SAVE_PROFILE
+                                Save the scan profile to Profiles/ directory
+          -ttl TTL              Time To Live for IPv4 packets
+          -hlim HLIM            Hop Limit for IPv6 packets
+          -sport SPORT          Source Port
+          -payload PAYLOAD      Add a raw custum Payload
+          -id ID                ID Field for IPv4 packets
+          -ip-flags IP_FLAGS    IP Flags Field for IPv4 packets (DF=2,MF=1,None=0)
+          -Pan, --local-ping    Performe an ARP Ping on Local Networks by default or NDP Ping on Local Networks for IPv6 mode
+          -Pi, --ip-ping        IP Protocol Ping
+          -Pip PIP              For Specefiy The IP Protocols that -Pi is going to use rather then default
+          -A, --agressive       Agressive scan activate all of OS Fingerprints, Banner Grabing, Insane Speed , SYN Scan and Scan Top 100 Ports
+          -Pt, --tcp-ping       Do a TCP Ping
+          -Ps, --syn-ping       Do a Syn Ping
+          -Pk, --ack-ping       DO a ACK Ping
+          -Pu, --udp-ping       Do a UDP Ping
+          -PIt, --icmp-timestamp-ping
+                                Do scan a ICMP Timestamp Ping
+          -PA, --icmp-address-ping
+                                Do scan a ICMP Address Ping
+          -Pin, --icmp-information-ping
+                                Do scan a ICMP Information Ping
+          -Pas, --icmp-solicitation-ping
+                                Do scan a ICMP Solicitation Ping on the network
+          -Pg, --igmp-ping      Do scan a IGMP Ping on the network
+          -q, --quiet           Quiet mode {does't print the Tool Banner}
+          --script SCRIPT       LSSE Script ,Ex: --script http-cert
+          --domain DOMAIN       Domain for http/https and Dns based scripts
+          --dns-server DNS_SERVER
+                                dns server that Light-Scan is going to use (Is Set by Default
+          -W WORDLIST, --wordlist WORDLIST
+                                Wordlist for scripts
+          --extensions EXTENSIONS
+                                Extensions for web based scripts
+          --status-codes STATUS_CODES
+                                Status Codes for web based scripts
+          --redirect            Redirect http/https requests for http scripts
+          --url URL             Victime URL
+          --mxp MXP             max pages to get
+          --mxd MXD             max depth to crawl
+          -sp SP                Port/s that are going to use by scripts
+          --starget STARGET     Targets for scripts
+          --username USERNAME   Single username for LSSE scripts
+          --password PASSWORD   Single password for LSSE scripts
+          --userlist USERLIST   Userlist for LSSE scripts
+          --passwordlist PASSWORDLIST
+                                Passwordlist for LSSE scripts
+          --lsse                Use that flag when you want just to performe a script
   
 ##  Speed Presets
 
