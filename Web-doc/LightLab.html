@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LightLab — Light-Scan Packet Crafting Laboratory v1.0.1</title>
+    <link rel="icon" type="image/x-icon" href="Assets/Light-Scan-Logo.ico" />
+    <style>
+        /* ── Reset & Base ── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0b0e14;
+            color: #d4d8e0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #131a22;
+            padding: 2.5rem 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            border: 1px solid #29323e;
+        }
+
+        /* ── Navigation ── */
+        .top-nav {
+            display: flex;
+            gap: 1.5rem;
+            margin: 0 0 2rem 0;
+            flex-wrap: wrap;
+            padding: 0.75rem 1.5rem;
+            background: rgba(19, 26, 34, 0.8);
+            border-radius: 12px;
+            border: 1px solid #29323e;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .top-nav a {
+            color: #93c5fd;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid transparent;
+        }
+
+        .top-nav a:hover {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+            border-bottom-color: #60a5fa;
+            transform: translateY(-2px);
+        }
+
+        .top-nav a.nav-right {
+            margin-left: auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1.5rem;
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 2px solid #2a3543;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
+            color: #f0f4fa;
+        }
+
+        h1 small {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #7f8fa3;
+            margin-left: auto;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #b9c7db;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #1e2937;
+        }
+
+        .subtitle strong {
+            color: #7ab7ff;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            margin-top: 2.5rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+            color: #f0f4fa;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            margin-top: 2rem;
+            margin-bottom: 0.5rem;
+            color: #cbd5e1;
+            border-bottom: 1px solid #1e2937;
+            padding-bottom: 0.3rem;
+        }
+
+        h4 {
+            font-size: 1.1rem;
+            margin-top: 1.2rem;
+            margin-bottom: 0.3rem;
+            color: #b9c7db;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.2rem 0 1.8rem 0;
+            border-radius: 12px;
+            border: 1px solid #232e3c;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.90rem;
+            background: #10171f;
+        }
+
+        th {
+            background: #1a2532;
+            color: #dce3ed;
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid #2c3a4a;
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid #1e2937;
+            vertical-align: top;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            background: #0d141e;
+            padding: 0.1rem 0.5rem;
+            border-radius: 6px;
+            border: 1px solid #25303f;
+            white-space: nowrap;
+        }
+
+        pre {
+            background: #0b1119;
+            padding: 1.2rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #24303f;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            color: #d4e0f0;
+            margin: 0.75rem 0 1.5rem 0;
+            line-height: 1.5;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #1e293b;
+            color: #b9c7db;
+            padding: 0.15rem 0.7rem;
+            border-radius: 30px;
+            font-size: 0.65rem;
+            font-weight: 500;
+            border: 1px solid #2d3a4a;
+        }
+
+        .badge-blue {
+            background: #0f2440;
+            color: #7ab7ff;
+            border-color: #1f3f6a;
+        }
+
+        .badge-green {
+            background: #0f2a1f;
+            color: #7ee8b0;
+            border-color: #1f4a35;
+        }
+
+        .badge-yellow {
+            background: #2a2410;
+            color: #fbbf24;
+            border-color: #4a3f1f;
+        }
+
+        .badge-red {
+            background: #2a1010;
+            color: #f87171;
+            border-color: #4a1f1f;
+        }
+
+        .badge-purple {
+            background: #1f1f3a;
+            color: #a78bfa;
+            border-color: #3a2a5a;
+        }
+
+        .badge-orange {
+            background: #2a1f0f;
+            color: #fb923c;
+            border-color: #4a3a1f;
+        }
+
+        .logo-icon {
+            height: 48px;
+            width: 48px;
+            object-fit: contain;
+        }
+
+        .card {
+            background: #0f1822;
+            border: 1px solid #1e2a38;
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            margin: 1rem 0;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: #3b82f6;
+        }
+
+        .card h4 {
+            margin-top: 0;
+            color: #7ab7ff;
+            border-bottom: 1px solid #1e2937;
+            padding-bottom: 0.3rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 0.75rem 0 1.5rem 0;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+            margin: 0.75rem 0 1.5rem 0;
+        }
+
+        .example-box {
+            background: #0a111a;
+            border-left: 3px solid #3b82f6;
+            padding: 0.8rem 1.2rem;
+            margin: 0.5rem 0 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .example-box .mono {
+            background: #0d141e;
+            border-color: #1f2a38;
+        }
+
+        .lab-session {
+            background: #0a111a;
+            border: 1px solid #1e2a38;
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            margin: 1rem 0;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            color: #b9c7db;
+            line-height: 1.6;
+        }
+
+        .lab-session .prompt {
+            color: #7ee8b0;
+        }
+
+        .lab-session .command {
+            color: #7ab7ff;
+        }
+
+        .lab-session .output {
+            color: #b9c7db;
+        }
+
+        .lab-session .highlight {
+            color: #fbbf24;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #24303f;
+            margin: 2rem 0 1.5rem 0;
+        }
+
+        .text-muted {
+            color: #8a9aaf;
+        }
+
+        .text-small {
+            font-size: 0.9rem;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem 1.5rem;
+            margin: 0.3rem 0 0.5rem 0;
+        }
+
+        .feature-grid li {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .feature-grid li::before {
+            content: "▸ ";
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .param-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.3rem 1rem;
+            margin: 0.3rem 0;
+        }
+
+        .param-grid .param-item {
+            font-size: 0.85rem;
+            color: #b9c7db;
+        }
+
+        .param-grid .param-item .mono {
+            font-size: 0.75rem;
+        }
+
+        @media (max-width: 820px) {
+            .container {
+                padding: 1.5rem 1.2rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+                flex-wrap: wrap;
+            }
+
+            h1 small {
+                margin-left: 0;
+            }
+
+            .grid-2,
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .top-nav {
+                gap: 0.5rem;
+            }
+
+            .top-nav a.nav-right {
+                margin-left: 0;
+            }
+
+            .param-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <a href="index.html" class="back-link">← Back to Light-Scan Main Page</a>
+
+        <h1>
+            <img src="Assets/LightLab.png" alt="LightLab Logo" class="logo-icon" />
+            LightLab
+            <small>Light-Scan Packet Crafting Laboratory v1.0.1</small>
+        </h1>
+
+        <div class="subtitle">
+            <span class="badge badge-purple">Packet Crafting</span>
+            <span class="badge badge-blue">Interactive</span>
+            <span class="badge badge-green">11+ Layers</span>
+            <span style="margin-left:0.75rem;">
+                Build custom packets layer by layer, send them, and save to PCAP or LightBin
+            </span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- OVERVIEW -->
+        <!-- ============================================================ -->
+        <h2>Overview</h2>
+        <p>
+            <strong>LightLab</strong> is an interactive packet crafting laboratory that allows users
+            to build custom packets from scratch using a simple command-line interface. It supports
+            all major protocol layers and includes built-in templates for common network operations.
+        </p>
+
+        <div class="grid-2">
+            <div class="card">
+                <h4>🧪 Key Features</h4>
+                <ul>
+                    <li>Build packets from scratch with <span class="mono">new</span> command</li>
+                    <li>Set parameters with <span class="mono">set</span></li>
+                    <li>View packet structure with <span class="mono">show</span></li>
+                    <li>Send packets with <span class="mono">send</span> (count + verbose)</li>
+                    <li>Save/load PCAP, PCAPNG, and LightBin files</li>
+                    <li>Built-in templates for common operations</li>
+                    <li>Interactive shell with command history</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>📦 Supported Layers</h4>
+                <ul>
+                    <li><strong>Ethernet:</strong> ether</li>
+                    <li><strong>VLAN:</strong> vlan (802.1Q)</li>
+                    <li><strong>ARP:</strong> arp</li>
+                    <li><strong>IPv4:</strong> ip</li>
+                    <li><strong>IPv6:</strong> ipv6</li>
+                    <li><strong>TCP:</strong> tcp</li>
+                    <li><strong>UDP:</strong> udp</li>
+                    <li><strong>ICMP:</strong> icmp</li>
+                    <li><strong>ICMPv6:</strong> icmpv6, icmpv6_echo</li>
+                    <li><strong>NDP:</strong> ndp_rs, ndp_ra, ndp_na, ndp_ns</li>
+                    <li><strong>HTTP:</strong> http</li>
+                    <li><strong>DNS:</strong> dns</li>
+                    <li><strong>SSH:</strong> ssh</li>
+                    <li><strong>Raw:</strong> raw</li>
+                </ul>
+            </div>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- COMMANDS -->
+        <!-- ============================================================ -->
+        <h2>Commands</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Command</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="mono">new &lt;layer&gt;</span></td>
+                        <td>Add a layer: ether, vlan, arp, ip, ipv6, tcp, udp, icmp, ndp_rs, ndp_ra, ndp_na, ndp_ns, icmpv6, icmpv6_echo, http, dns, ftp, ssh, raw</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">delete &lt;layer&gt;</span></td>
+                        <td>Delete a layer</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">params &lt;layer&gt;</span></td>
+                        <td>Show available parameters for a layer</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">set &lt;layer&gt;.&lt;param&gt;=&lt;value&gt;</span></td>
+                        <td>Set a parameter value</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">show</span></td>
+                        <td>Show current packet structure</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">clear</span></td>
+                        <td>Clear all layers</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">send [count] [-v]</span></td>
+                        <td>Send packet (count=number, -v=verbose)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">timeout &lt;seconds&gt;</span></td>
+                        <td>Set response timeout</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">interval &lt;seconds&gt;</span></td>
+                        <td>Set interval time between packets</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">templates</span></td>
+                        <td>Show example configurations</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">history</span></td>
+                        <td>Show command history</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">help</span></td>
+                        <td>Show help message</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">exit</span></td>
+                        <td>Quit LightLab</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">save &lt;filename.pcap/.pcapng&gt;</span></td>
+                        <td>Save current packet to PCAP/PCAPNG</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">load &lt;filename.pcap/.pcapng&gt;</span></td>
+                        <td>Load packet from PCAP/PCAPNG</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">savebin &lt;filename.lbn&gt;</span></td>
+                        <td>Save current packet to LightBin</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">loadbin &lt;filename.lbn&gt;</span></td>
+                        <td>Load packet from LightBin</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr />
+
+
+        <h2>Layer Parameters</h2>
+
+        <h3>Ethernet (<span class="mono">ether</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">dst</span> — Destination MAC address</span>
+            <span class="param-item"><span class="mono">src</span> — Source MAC address</span>
+            <span class="param-item"><span class="mono">type</span> — Ethertype (e.g., 0x0800 for IPv4)</span>
+        </div>
+
+        <h3>VLAN (<span class="mono">vlan</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">prio</span> — Priority (0-7)</span>
+            <span class="param-item"><span class="mono">vlan</span> — VLAN ID (1-4094)</span>
+            <span class="param-item"><span class="mono">dei</span> — Drop Eligible Indicator</span>
+            <span class="param-item"><span class="mono">type</span> — Ethertype</span>
+        </div>
+
+        <h3>ARP (<span class="mono">arp</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">hwtype</span> — Hardware type (1 = Ethernet)</span>
+            <span class="param-item"><span class="mono">ptype</span> — Protocol type (0x0800 = IPv4)</span>
+            <span class="param-item"><span class="mono">hwlen</span> — Hardware address length (6)</span>
+            <span class="param-item"><span class="mono">plen</span> — Protocol address length (4)</span>
+            <span class="param-item"><span class="mono">op</span> — Operation (1=request, 2=reply)</span>
+            <span class="param-item"><span class="mono">hwsrc</span> — Sender MAC address</span>
+            <span class="param-item"><span class="mono">psrc</span> — Sender IP address</span>
+            <span class="param-item"><span class="mono">hwdst</span> — Target MAC address</span>
+            <span class="param-item"><span class="mono">pdst</span> — Target IP address</span>
+        </div>
+
+        <h3>IPv4 (<span class="mono">ip</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">dst</span> — Destination IP address</span>
+            <span class="param-item"><span class="mono">src</span> — Source IP address</span>
+            <span class="param-item"><span class="mono">ttl</span> — Time To Live (1-255)</span>
+            <span class="param-item"><span class="mono">id</span> — Identification field</span>
+            <span class="param-item"><span class="mono">flags</span> — IP flags (DF=2, MF=1)</span>
+            <span class="param-item"><span class="mono">proto</span> — Protocol number (6=TCP, 17=UDP)</span>
+            <span class="param-item"><span class="mono">version</span> — IP version (4)</span>
+            <span class="param-item"><span class="mono">ihl</span> — Internet Header Length</span>
+            <span class="param-item"><span class="mono">len</span> — Total length</span>
+            <span class="param-item"><span class="mono">tos</span> — Type of Service</span>
+            <span class="param-item"><span class="mono">frag</span> — Fragment offset</span>
+            <span class="param-item"><span class="mono">chksum</span> — Header checksum</span>
+        </div>
+
+        <h3>IPv6 (<span class="mono">ipv6</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">dst</span> — Destination IPv6 address</span>
+            <span class="param-item"><span class="mono">src</span> — Source IPv6 address</span>
+            <span class="param-item"><span class="mono">hlim</span> — Hop Limit (1-255)</span>
+            <span class="param-item"><span class="mono">nh</span> — Next Header (6=TCP, 17=UDP, 58=ICMPv6)</span>
+            <span class="param-item"><span class="mono">version</span> — IP version (6)</span>
+            <span class="param-item"><span class="mono">tc</span> — Traffic Class</span>
+            <span class="param-item"><span class="mono">fl</span> — Flow Label</span>
+            <span class="param-item"><span class="mono">plen</span> — Payload Length</span>
+        </div>
+
+        <h3>TCP (<span class="mono">tcp</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">dport</span> — Destination port</span>
+            <span class="param-item"><span class="mono">sport</span> — Source port</span>
+            <span class="param-item"><span class="mono">seq</span> — Sequence number</span>
+            <span class="param-item"><span class="mono">ack</span> — Acknowledgment number</span>
+            <span class="param-item"><span class="mono">flags</span> — TCP flags (S, A, F, R, P, U)</span>
+            <span class="param-item"><span class="mono">window</span> — Window size</span>
+            <span class="param-item"><span class="mono">options</span> — TCP options (MSS, WScale, etc.)</span>
+            <span class="param-item"><span class="mono">dataofs</span> — Data offset</span>
+            <span class="param-item"><span class="mono">chksum</span> — Checksum</span>
+            <span class="param-item"><span class="mono">urgptr</span> — Urgent pointer</span>
+        </div>
+
+        <h3>UDP (<span class="mono">udp</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">dport</span> — Destination port</span>
+            <span class="param-item"><span class="mono">sport</span> — Source port</span>
+            <span class="param-item"><span class="mono">len</span> — Length</span>
+            <span class="param-item"><span class="mono">chksum</span> — Checksum</span>
+        </div>
+
+        <h3>ICMP (<span class="mono">icmp</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">type</span> — ICMP type (8=Echo Request, 0=Echo Reply)</span>
+            <span class="param-item"><span class="mono">code</span> — ICMP code</span>
+            <span class="param-item"><span class="mono">id</span> — Identifier</span>
+            <span class="param-item"><span class="mono">seq</span> — Sequence number</span>
+            <span class="param-item"><span class="mono">chksum</span> — Checksum</span>
+            <span class="param-item"><span class="mono">ts_ori</span> — Timestamp (original)</span>
+            <span class="param-item"><span class="mono">ts_rx</span> — Timestamp (received)</span>
+            <span class="param-item"><span class="mono">ts_tx</span> — Timestamp (transmitted)</span>
+            <span class="param-item"><span class="mono">gw</span> — Gateway address</span>
+            <span class="param-item"><span class="mono">ptr</span> — Pointer</span>
+            <span class="param-item"><span class="mono">reserved</span> — Reserved field</span>
+            <span class="param-item"><span class="mono">addr_mask</span> — Address mask</span>
+            <span class="param-item"><span class="mono">nexthopmtu</span> — Next-hop MTU</span>
+            <span class="param-item"><span class="mono">unused</span> — Unused field</span>
+            <span class="param-item"><span class="mono">extpad</span> — Extension padding</span>
+            <span class="param-item"><span class="mono">ext</span> — Extension</span>
+        </div>
+
+        <h3>ICMPv6 (<span class="mono">icmpv6</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">type</span> — ICMPv6 type</span>
+            <span class="param-item"><span class="mono">code</span> — ICMPv6 code</span>
+            <span class="param-item"><span class="mono">cksum</span> — Checksum</span>
+            <span class="param-item"><span class="mono">msgbody</span> — Message body</span>
+        </div>
+
+        <h3>ICMPv6 Echo (<span class="mono">icmpv6_echo</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">type</span> — ICMPv6 type (128=Echo Request, 129=Echo Reply)</span>
+            <span class="param-item"><span class="mono">code</span> — ICMPv6 code</span>
+            <span class="param-item"><span class="mono">cksum</span> — Checksum</span>
+            <span class="param-item"><span class="mono">id</span> — Identifier</span>
+            <span class="param-item"><span class="mono">seq</span> — Sequence number</span>
+            <span class="param-item"><span class="mono">data</span> — Data payload</span>
+        </div>
+
+        <h3>NDP Router Solicitation (<span class="mono">ndp_rs</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">type</span> — ICMPv6 type (133)</span>
+            <span class="param-item"><span class="mono">code</span> — ICMPv6 code (0)</span>
+            <span class="param-item"><span class="mono">cksum</span> — Checksum</span>
+            <span class="param-item"><span class="mono">res</span> — Reserved field</span>
+        </div>
+
+        <h3>NDP Router Advertisement (<span class="mono">ndp_ra</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">type</span> — ICMPv6 type (134)</span>
+            <span class="param-item"><span class="mono">code</span> — ICMPv6 code (0)</span>
+            <span class="param-item"><span class="mono">cksum</span> — Checksum</span>
+            <span class="param-item"><span class="mono">chlim</span> — Cur Hop Limit</span>
+            <span class="param-item"><span class="mono">M</span> — Managed address configuration flag</span>
+            <span class="param-item"><span class="mono">O</span> — Other configuration flag</span>
+            <span class="param-item"><span class="mono">H</span> — Home agent flag</span>
+            <span class="param-item"><span class="mono">P</span> — Proxy flag</span>
+            <span class="param-item"><span class="mono">prf</span> — Default router preference</span>
+            <span class="param-item"><span class="mono">res</span> — Reserved field</span>
+            <span class="param-item"><span class="mono">reachabletime</span> — Reachable time (milliseconds)</span>
+            <span class="param-item"><span class="mono">retranstimer</span> — Retransmission timer (milliseconds)</span>
+            <span class="param-item"><span class="mono">routerlifetime</span> — Router lifetime (seconds)</span>
+        </div>
+
+        <h3>NDP Neighbor Solicitation (<span class="mono">ndp_ns</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">type</span> — ICMPv6 type (135)</span>
+            <span class="param-item"><span class="mono">code</span> — ICMPv6 code (0)</span>
+            <span class="param-item"><span class="mono">cksum</span> — Checksum</span>
+            <span class="param-item"><span class="mono">res</span> — Reserved field</span>
+            <span class="param-item"><span class="mono">tgt</span> — Target IPv6 address</span>
+        </div>
+
+        <h3>NDP Neighbor Advertisement (<span class="mono">ndp_na</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">type</span> — ICMPv6 type (136)</span>
+            <span class="param-item"><span class="mono">code</span> — ICMPv6 code (0)</span>
+            <span class="param-item"><span class="mono">cksum</span> — Checksum</span>
+            <span class="param-item"><span class="mono">res</span> — Reserved field</span>
+            <span class="param-item"><span class="mono">R</span> — Router flag</span>
+            <span class="param-item"><span class="mono">S</span> — Solicited flag</span>
+            <span class="param-item"><span class="mono">O</span> — Override flag</span>
+            <span class="param-item"><span class="mono">tgt</span> — Target IPv6 address</span>
+        </div>
+
+        <h3>DNS (<span class="mono">dns</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">id</span> — DNS transaction ID</span>
+            <span class="param-item"><span class="mono">qr</span> — Query/Response flag (0=query, 1=response)</span>
+            <span class="param-item"><span class="mono">opcode</span> — Operation code</span>
+            <span class="param-item"><span class="mono">aa</span> — Authoritative Answer flag</span>
+            <span class="param-item"><span class="mono">tc</span> — Truncation flag</span>
+            <span class="param-item"><span class="mono">rd</span> — Recursion Desired flag</span>
+            <span class="param-item"><span class="mono">ra</span> — Recursion Available flag</span>
+            <span class="param-item"><span class="mono">z</span> — Reserved (zero) field</span>
+            <span class="param-item"><span class="mono">rcode</span> — Response code</span>
+            <span class="param-item"><span class="mono">qdcount</span> — Question count</span>
+            <span class="param-item"><span class="mono">ancount</span> — Answer count</span>
+            <span class="param-item"><span class="mono">nscount</span> — Authority count</span>
+            <span class="param-item"><span class="mono">arcount</span> — Additional count</span>
+            <span class="param-item"><span class="mono">qd</span> — Question section (DNSQR)</span>
+            <span class="param-item"><span class="mono">an</span> — Answer section (DNSRR)</span>
+            <span class="param-item"><span class="mono">ns</span> — Authority section (DNSRR)</span>
+            <span class="param-item"><span class="mono">ar</span> — Additional section (DNSRR)</span>
+        </div>
+
+        <h3>HTTP (<span class="mono">http</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">Method</span> — GET, POST, PUT, DELETE, HEAD, OPTIONS</span>
+            <span class="param-item"><span class="mono">Path</span> — Request path (e.g., /, /index.html)</span>
+            <span class="param-item"><span class="mono">Http_Version</span> — HTTP/1.0, HTTP/1.1, HTTP/2</span>
+            <span class="param-item"><span class="mono">Host</span> — Host header (e.g., example.com)</span>
+            <span class="param-item"><span class="mono">Connection</span> — Keep-Alive, Close</span>
+            <span class="param-item"><span class="mono">Content_Type</span> — application/json, text/html, etc.</span>
+            <span class="param-item"><span class="mono">Content_Length</span> — Content length in bytes</span>
+            <span class="param-item"><span class="mono">User_Agent</span> — User-Agent string</span>
+            <span class="param-item"><span class="mono">Cookie</span> — Cookie header</span>
+            <span class="param-item"><span class="mono">Referer</span> — Referer header</span>
+            <span class="param-item"><span class="mono">Accept</span> — Accept header</span>
+            <span class="param-item"><span class="mono">Accept_Language</span> — Accept-Language header</span>
+            <span class="param-item"><span class="mono">Accept_Encoding</span> — Accept-Encoding header</span>
+            <span class="param-item"><span class="mono">Upgrade_Insecure_Requests</span> — Upgrade-Insecure-Requests header</span>
+            <span class="param-item"><span class="mono">Origin</span> — Origin header</span>
+            <span class="param-item"><span class="mono">Cache_Control</span> — Cache-Control header</span>
+            <span class="param-item"><span class="mono">Pragma</span> — Pragma header</span>
+            <span class="param-item"><span class="mono">Authorization</span> — Authorization header</span>
+            <span class="param-item"><span class="mono">X_Forwarded_For</span> — X-Forwarded-For header</span>
+            <span class="param-item"><span class="mono">Proxy_Authorization</span> — Proxy-Authorization header</span>
+            <span class="param-item"><span class="mono">Proxy_Connection</span> — Proxy-Connection header</span>
+            <span class="param-item"><span class="mono">Keep_Alive</span> — Keep-Alive header</span>
+            <span class="param-item"><span class="mono">X_Wap_Profile</span> — X-Wap-Profile header</span>
+            <span class="param-item"><span class="mono">X_Request_ID</span> — X-Request-ID header</span>
+            <span class="param-item"><span class="mono">DNT</span> — Do Not Track header</span>
+            <span class="param-item"><span class="mono">TE</span> — TE header</span>
+            <span class="param-item"><span class="mono">Date</span> — Date header</span>
+            <span class="param-item"><span class="mono">Upgrade</span> — Upgrade header</span>
+            <span class="param-item"><span class="mono">X_ATT_DeviceId</span> — X-ATT-DeviceId header</span>
+            <span class="param-item"><span class="mono">X_Correlation_ID</span> — X-Correlation-ID header</span>
+            <span class="param-item"><span class="mono">X_Csrf_Token</span> — X-Csrf-Token header</span>
+            <span class="param-item"><span class="mono">X_Forwarded_Host</span> — X-Forwarded-Host header</span>
+            <span class="param-item"><span class="mono">X_Forwarded_Proto</span> — X-Forwarded-Proto header</span>
+            <span class="param-item"><span class="mono">X_Http_Method_Override</span> — X-Http-Method-Override header</span>
+            <span class="param-item"><span class="mono">X_Requested_With</span> — X-Requested-With header</span>
+            <span class="param-item"><span class="mono">X_UIDH</span> — X-UIDH header</span>
+            <span class="param-item"><span class="mono">Unknown_Headers</span> — Additional custom headers</span>
+            <span class="param-item"><span class="mono">Content_MD5</span> — Content-MD5 header</span>
+        </div>
+
+        <h3>SSH (<span class="mono">ssh</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">packet_length</span> — Packet length (4 bytes)</span>
+            <span class="param-item"><span class="mono">padding_length</span> — Padding length (1 byte)</span>
+            <span class="param-item"><span class="mono">padding</span> — Padding bytes</span>
+            <span class="param-item"><span class="mono">data</span> — Data payload</span>
+        </div>
+
+        <h3>Raw (<span class="mono">raw</span>)</h3>
+        <div class="param-grid">
+            <span class="param-item"><span class="mono">load</span> — Raw payload data (bytes or string)</span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- TEMPLATES -->
+        <!-- ============================================================ -->
+        <h2>Templates</h2>
+        <p>
+            LightLab includes built-in templates for common packet crafting operations.
+            Use the <span class="mono">templates</span> command to list them, or follow the examples below.
+        </p>
+
+        <h3>1. TCP SYN Scan</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new ip</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ip.dst=192.168.1.1</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new tcp</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set tcp.dport=80</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set tcp.flags=S</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <h3>2. HTTP GET Request</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new ip</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ip.dst=example.com</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new tcp</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set tcp.dport=80</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new http</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set http.Method=GET</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set http.Path=/</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set http.Host=example.com</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <h3>3. HTTP POST Request</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new ip</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ip.dst=example.com</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new tcp</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set tcp.dport=80</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new http</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set http.Method=POST</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set http.Path=/login</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set http.Host=example.com</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set http.Content_Type=application/x-www-form-urlencoded</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new raw</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set raw.load=username=admin&amp;password=test</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <h3>4. UDP DNS Query</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new ip</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ip.dst=8.8.8.8</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new udp</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set udp.dport=53</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new dns</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set dns.id=1234</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set dns.rd=1</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set dns.qd=DNSQR(qname="google.com", qtype=1)</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <h3>5. ICMP Ping</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new ip</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ip.dst=192.168.1.1</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new icmp</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set icmp.type=8</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set icmp.id=1234</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set icmp.seq=1</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <h3>6. ARP Request</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new ether</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ether.dst=ff:ff:ff:ff:ff:ff</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new arp</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set arp.pdst=192.168.1.1</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <h3>7. VLAN Tagged Packet</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new vlan</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set vlan.vlan=100</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set vlan.prio=5</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new ip</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ip.dst=192.168.1.1</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new icmp</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <h3>8. Custom TCP with Options</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new ip</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ip.dst=192.168.1.1</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new tcp</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set tcp.dport=443</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set tcp.flags=S</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set tcp.window=65535</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set tcp.options=[('MSS', 1460), ('SAckOK', ''), ('WScale', 7)]</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <h3>9. IPv6 ICMPv6 Echo</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new ipv6</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ipv6.dst=::1</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new icmpv6_echo</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <h3>10. IPv6 Neighbor Solicitation</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new ipv6</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ipv6.dst=ff02::1:ff00:1234</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new ndp_ns</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ndp_ns.tgt=fe80::1234</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <h3>11. DNS ANY Query (Amplification Test)</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new ip</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ip.src=192.168.1.100</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ip.dst=8.8.8.8</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new udp</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set udp.dport=53</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new dns</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set dns.id=5678</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set dns.rd=1</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set dns.qd=DNSQR(qname="isc.org", qtype=255)</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <h3>12. Double VLAN (QinQ)</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new vlan</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set vlan.vlan=1</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new vlan</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set vlan.vlan=100</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new ip</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ip.dst=192.168.100.1</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new icmp</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- USAGE EXAMPLES -->
+        <!-- ============================================================ -->
+        <h2>Usage Examples</h2>
+
+        <h3>Launch LightLab</h3>
+        <div class="example-box">
+            <span class="mono">LightLab</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Launch the interactive packet crafting laboratory</span>
+        </div>
+
+        <h3>Basic Workflow</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">new ip</span><br />
+            <span class="prompt">LightLab></span> <span class="command">params tcp</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set ip.dst=192.168.1.1</span><br />
+            <span class="prompt">LightLab></span> <span class="command">new tcp</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set tcp.dport=80</span><br />
+            <span class="prompt">LightLab></span> <span class="command">set tcp.flags=S</span><br />
+            <span class="prompt">LightLab></span> <span class="command">show</span><br />
+            <span class="prompt">LightLab></span> <span class="command">send -v</span>
+        </div>
+
+        <h3>File Operations</h3>
+        <div class="lab-session">
+            <span class="prompt">LightLab></span> <span class="command">save custom_syn.pcap</span><br />
+            <span class="prompt">LightLab></span> <span class="command">savebin custom_syn.lbn</span><br />
+            <span class="prompt">LightLab></span> <span class="command">load custom_syn.pcap</span><br />
+            <span class="prompt">LightLab></span> <span class="command">loadbin custom_syn.lbn</span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- TROUBLESHOOTING -->
+        <!-- ============================================================ -->
+        <h2>Troubleshooting</h2>
+
+        <div class="card">
+            <h4>❌ "No such layer"</h4>
+            <p>Use <span class="mono">params</span> to see available parameters for a layer. Available layers: ether, vlan, arp, ip, ipv6, tcp, udp, icmp, ndp_rs, ndp_ra, ndp_na, ndp_ns, icmpv6, icmpv6_echo, http, dns, ssh, raw.</p>
+        </div>
+
+        <div class="card">
+            <h4>❌ "Permission denied"</h4>
+            <p>Sending packets requires administrative/root privileges. Run as Administrator (Windows) or with <span class="mono">sudo</span> (Linux/macOS).</p>
+        </div>
+
+        <div class="card">
+            <h4>❌ "No response received"</h4>
+            <p>Check that the target is reachable and that you have the correct interface. Use <span class="mono">timeout</span> to increase the response wait time.</p>
+        </div>
+
+        <hr />
+
+        <h2>Quick Reference</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Action</th>
+                        <th>Command</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Add layer</strong></td>
+                        <td><span class="mono">new &lt;layer&gt;</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Set parameter</strong></td>
+                        <td><span class="mono">set &lt;layer&gt;.&lt;param&gt;=&lt;value&gt;</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Show packet</strong></td>
+                        <td><span class="mono">show</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Send packet</strong></td>
+                        <td><span class="mono">send -v</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>List templates</strong></td>
+                        <td><span class="mono">templates</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Save to PCAP</strong></td>
+                        <td><span class="mono">save file.pcap</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Save to LightBin</strong></td>
+                        <td><span class="mono">savebin file.lbn</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Load from PCAP</strong></td>
+                        <td><span class="mono">load file.pcap</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Load from LightBin</strong></td>
+                        <td><span class="mono">loadbin file.lbn</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Set timeout</strong></td>
+                        <td><span class="mono">timeout 5</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Clear packet</strong></td>
+                        <td><span class="mono">clear</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Exit</strong></td>
+                        <td><span class="mono">exit</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr />
+
+        <p class="text-muted text-small text-center" style="margin-top:1rem;">
+            LightLab v1.0.1 &bull; Light-Scan v1.1.8 &bull; Open Source &bull; GPLv2 License
+        </p>
+
+    </div>
+
+</body>
+</html>

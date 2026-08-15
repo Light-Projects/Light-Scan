@@ -1,0 +1,10 @@
+{
+  "Proto": {
+    "Name"  : "Dot3",
+    "Description": "IEEE 802.3 raw frame using length field instead of EtherType. Used with LLC/SNAP for legacy protocols.",
+    "Fields": [
+      "dst           {48 bits}  = ff:ff:ff:ff:ff:ff ",
+      "src           {48 bits}  = default-gateway ",
+      "lenght        {16 bits}  = auto-calculated"]
+  }
+}

@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LightPanel — Light-Scan GUI v1.0.2</title>
+    <link rel="icon" type="image/x-icon" href="Assets/Light-Scan-Logo.ico" />
+    <style>
+        /* ── Reset & Base ── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0b0e14;
+            color: #d4d8e0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #131a22;
+            padding: 2.5rem 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            border: 1px solid #29323e;
+        }
+
+        /* ── Navigation ── */
+        .top-nav {
+            display: flex;
+            gap: 1.5rem;
+            margin: 0 0 2rem 0;
+            flex-wrap: wrap;
+            padding: 0.75rem 1.5rem;
+            background: rgba(19, 26, 34, 0.8);
+            border-radius: 12px;
+            border: 1px solid #29323e;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .top-nav a {
+            color: #93c5fd;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid transparent;
+        }
+
+        .top-nav a:hover {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+            border-bottom-color: #60a5fa;
+            transform: translateY(-2px);
+        }
+
+        .top-nav a.nav-right {
+            margin-left: auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1.5rem;
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 2px solid #2a3543;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
+            color: #f0f4fa;
+        }
+
+        h1 small {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #7f8fa3;
+            margin-left: auto;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #b9c7db;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #1e2937;
+        }
+
+        .subtitle strong {
+            color: #7ab7ff;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            margin-top: 2.5rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+            color: #f0f4fa;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            margin-top: 2rem;
+            margin-bottom: 0.5rem;
+            color: #cbd5e1;
+            border-bottom: 1px solid #1e2937;
+            padding-bottom: 0.3rem;
+        }
+
+        h4 {
+            font-size: 1.1rem;
+            margin-top: 1.2rem;
+            margin-bottom: 0.3rem;
+            color: #b9c7db;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.2rem 0 1.8rem 0;
+            border-radius: 12px;
+            border: 1px solid #232e3c;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.90rem;
+            background: #10171f;
+        }
+
+        th {
+            background: #1a2532;
+            color: #dce3ed;
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid #2c3a4a;
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid #1e2937;
+            vertical-align: top;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            background: #0d141e;
+            padding: 0.1rem 0.5rem;
+            border-radius: 6px;
+            border: 1px solid #25303f;
+            white-space: nowrap;
+        }
+
+        pre {
+            background: #0b1119;
+            padding: 1.2rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #24303f;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            color: #d4e0f0;
+            margin: 0.75rem 0 1.5rem 0;
+            line-height: 1.5;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #1e293b;
+            color: #b9c7db;
+            padding: 0.15rem 0.7rem;
+            border-radius: 30px;
+            font-size: 0.65rem;
+            font-weight: 500;
+            border: 1px solid #2d3a4a;
+        }
+
+        .badge-blue {
+            background: #0f2440;
+            color: #7ab7ff;
+            border-color: #1f3f6a;
+        }
+
+        .badge-green {
+            background: #0f2a1f;
+            color: #7ee8b0;
+            border-color: #1f4a35;
+        }
+
+        .badge-yellow {
+            background: #2a2410;
+            color: #fbbf24;
+            border-color: #4a3f1f;
+        }
+
+        .badge-red {
+            background: #2a1010;
+            color: #f87171;
+            border-color: #4a1f1f;
+        }
+
+        .badge-purple {
+            background: #1f1f3a;
+            color: #a78bfa;
+            border-color: #3a2a5a;
+        }
+
+        .badge-orange {
+            background: #2a1f0f;
+            color: #fb923c;
+            border-color: #4a3a1f;
+        }
+
+        .logo-icon {
+            height: 48px;
+            width: 48px;
+            object-fit: contain;
+        }
+
+        .card {
+            background: #0f1822;
+            border: 1px solid #1e2a38;
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            margin: 1rem 0;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: #3b82f6;
+        }
+
+        .card h4 {
+            margin-top: 0;
+            color: #7ab7ff;
+            border-bottom: 1px solid #1e2937;
+            padding-bottom: 0.3rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 0.75rem 0 1.5rem 0;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+            margin: 0.75rem 0 1.5rem 0;
+        }
+
+        .example-box {
+            background: #0a111a;
+            border-left: 3px solid #3b82f6;
+            padding: 0.8rem 1.2rem;
+            margin: 0.5rem 0 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .example-box .mono {
+            background: #0d141e;
+            border-color: #1f2a38;
+        }
+
+        /* ── GUI Mockup ── */
+        .gui-mockup {
+            background: #0a111a;
+            border: 1px solid #1e2a38;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        .gui-mockup .gui-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #1e2937;
+            margin-bottom: 1rem;
+        }
+
+        .gui-mockup .gui-header .gui-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #7ab7ff;
+        }
+
+        .gui-mockup .gui-header .gui-version {
+            font-size: 0.75rem;
+            color: #7f8fa3;
+        }
+
+        .gui-mockup .gui-command-bar {
+            background: #0d141e;
+            border: 1px solid #1a2532;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            margin-bottom: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: #b9c7db;
+        }
+
+        .gui-mockup .gui-command-bar .prompt {
+            color: #7ee8b0;
+        }
+
+        .gui-mockup .gui-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .gui-mockup .gui-row .gui-field {
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .gui-mockup .gui-row .gui-field label {
+            display: block;
+            font-size: 0.75rem;
+            color: #8a9aaf;
+            margin-bottom: 0.15rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .gui-mockup .gui-row .gui-field .gui-input {
+            background: #0d141e;
+            border: 1px solid #1a2532;
+            border-radius: 6px;
+            padding: 0.3rem 0.6rem;
+            color: #d4d8e0;
+            font-size: 0.85rem;
+            width: 100%;
+            font-family: inherit;
+        }
+
+        .gui-mockup .gui-row .gui-field .gui-select {
+            background: #0d141e;
+            border: 1px solid #1a2532;
+            border-radius: 6px;
+            padding: 0.3rem 0.6rem;
+            color: #d4d8e0;
+            font-size: 0.85rem;
+            width: 100%;
+            font-family: inherit;
+            appearance: none;
+        }
+
+        .gui-mockup .gui-row .gui-field .gui-select option {
+            background: #131a22;
+        }
+
+        .gui-mockup .gui-checkbox-row {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin: 0.5rem 0 1rem 0;
+            padding: 0.5rem 0;
+            border-top: 1px solid #1a2532;
+            border-bottom: 1px solid #1a2532;
+        }
+
+        .gui-mockup .gui-checkbox-row .gui-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.85rem;
+            color: #b9c7db;
+        }
+
+        .gui-mockup .gui-checkbox-row .gui-checkbox input[type="checkbox"] {
+            accent-color: #3b82f6;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .gui-mockup .gui-bottom-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #1a2532;
+        }
+
+        .gui-mockup .gui-bottom-row .gui-field {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .gui-mockup .gui-bottom-row .gui-field label {
+            display: block;
+            font-size: 0.75rem;
+            color: #8a9aaf;
+            margin-bottom: 0.15rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .gui-mockup .gui-bottom-row .gui-field .gui-input,
+        .gui-mockup .gui-bottom-row .gui-field .gui-select {
+            background: #0d141e;
+            border: 1px solid #1a2532;
+            border-radius: 6px;
+            padding: 0.3rem 0.6rem;
+            color: #d4d8e0;
+            font-size: 0.85rem;
+            width: 100%;
+            font-family: inherit;
+        }
+
+        .gui-mockup .gui-bottom-row .gui-field .gui-select {
+            appearance: none;
+        }
+
+        .gui-mockup .gui-button {
+            background: #0f2440;
+            border: 1px solid #1f3f6a;
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
+            color: #7ab7ff;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: default;
+            transition: all 0.2s;
+            display: inline-block;
+        }
+
+        .gui-mockup .gui-button:hover {
+            background: #1a3a6a;
+            border-color: #3b82f6;
+        }
+
+        .gui-mockup .gui-button.primary {
+            background: #1a4a7a;
+            border-color: #3b82f6;
+            color: #f0f4fa;
+        }
+
+        .gui-mockup .gui-button.primary:hover {
+            background: #2a5a8a;
+        }
+
+        .gui-mockup .gui-status {
+            font-size: 0.8rem;
+            color: #8a9aaf;
+            padding: 0.3rem 0;
+        }
+
+        .gui-mockup .gui-status .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.4rem;
+        }
+
+        .gui-mockup .gui-status .status-dot.green {
+            background: #7ee8b0;
+        }
+
+        .gui-mockup .gui-status .status-dot.yellow {
+            background: #fbbf24;
+        }
+
+        .gui-mockup .gui-status .status-dot.red {
+            background: #f87171;
+        }
+
+        .screenshot-placeholder {
+            background: #0a111a;
+            border: 2px dashed #1a2532;
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            text-align: center;
+            color: #4a5a6a;
+            margin: 1rem 0;
+            transition: border-color 0.3s;
+        }
+
+        .screenshot-placeholder:hover {
+            border-color: #3b82f6;
+        }
+
+        .screenshot-placeholder .placeholder-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .screenshot-placeholder .placeholder-text {
+            font-size: 0.9rem;
+            color: #6a7a8a;
+        }
+
+        .screenshot-placeholder .placeholder-hint {
+            font-size: 0.75rem;
+            color: #4a5a6a;
+            margin-top: 0.3rem;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #24303f;
+            margin: 2rem 0 1.5rem 0;
+        }
+
+        .text-muted {
+            color: #8a9aaf;
+        }
+
+        .text-small {
+            font-size: 0.9rem;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem 1.5rem;
+            margin: 0.3rem 0 0.5rem 0;
+        }
+
+        .feature-grid li {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .feature-grid li::before {
+            content: "▸ ";
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        @media (max-width: 820px) {
+            .container {
+                padding: 1.5rem 1.2rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+                flex-wrap: wrap;
+            }
+
+            h1 small {
+                margin-left: 0;
+            }
+
+            .grid-2,
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .top-nav {
+                gap: 0.5rem;
+            }
+
+            .top-nav a.nav-right {
+                margin-left: 0;
+            }
+
+            .gui-mockup .gui-row {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .gui-mockup .gui-row .gui-field {
+                min-width: unset;
+            }
+
+            .gui-mockup .gui-checkbox-row {
+                flex-direction: column;
+                gap: 0.3rem;
+            }
+
+            .gui-mockup .gui-bottom-row {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .gui-mockup .gui-bottom-row .gui-field {
+                min-width: unset;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+
+        <a href="Light-Scan.html" class="back-link">← Back to Light-Scan Main Page</a>
+
+        <h1>
+            <img src="Assets/Light-Scan-Logo.png" alt="LightPanel Logo" class="logo-icon" />
+            LightPanel
+            <small>Light-Scan GUI v1.0.2</small>
+        </h1>
+
+        <div class="subtitle">
+            <span class="badge badge-blue">Graphical Interface</span>
+            <span class="badge badge-green">Cross-Platform</span>
+            <span class="badge badge-purple">Integrated</span>
+            <span style="margin-left:0.75rem;">
+                Point-and-click scanning without sacrificing power
+            </span>
+        </div>
+
+        <hr />
+
+        <h2>Overview</h2>
+        <p>
+            <strong>LightPanel</strong> is a complete graphical user interface for Lightscan.
+            It provides a visual alternative to the command-line, making the toolkit accessible
+            to users who prefer a point-and-click experience without sacrificing functionality.
+        </p>
+
+        <div class="grid-2">
+            <div class="card">
+                <h4>🖥️ Key Features</h4>
+                <ul>
+                    <li>Complete graphical interface for Lightscan</li>
+                    <li>Integrated LightSave functionality</li>
+                    <li>Dark theme optimized for long sessions</li>
+                    <li>Intuitive target and port specification</li>
+                    <li>Real-time scan progress</li>
+                    <li>Export results with one click</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>⚡ Platform Support</h4>
+                <ul>
+                    <li><strong>Windows</strong> — 7, 10, 11, Server</li>
+                    <li><strong>Linux</strong> — Ubuntu, Debian, Arch, RHEL, Fedora, SUSE, Alpine</li>
+                    <li><strong>macOS</strong> — 10.15+</li>
+                    <li><strong>BSD</strong> — FreeBSD, OpenBSD, NetBSD</li>
+                    <li><strong>Solaris</strong> — Solaris 11, Illumos</li>
+                </ul>
+            </div>
+        </div>
+
+        <hr />
+
+
+        <h2>Interface Preview</h2>
+        <p>
+            LightPanel provides a clean, intuitive interface for all Lightscan functionality.
+            Below is a visual representation of the main window.
+        </p>
+
+        <br>
+
+        <img src="Assets/LightPanel1.png" width="1000" height="600" style="border: 5px solid grey;">
+
+        
+        <div class="gui-mockup">
+            <div class="gui-header">
+                <span class="gui-title">⚡ LightPanel — Light-Scan GUI</span>
+                <span class="gui-version">v1.0.2</span>
+            </div>
+
+            <div class="gui-command-bar">
+                <span class="prompt">$</span> python Lightscan.py -T example.com -F -st SYN
+            </div>
+
+            <div class="gui-row">
+                <div class="gui-field">
+                    <label>Target</label>
+                    <input class="gui-input" type="text" value="example.com or 192.168.1.1" />
+                </div>
+                <div class="gui-field">
+                    <label>Ports</label>
+                    <input class="gui-input" type="text" value="80,443 or 1-1000" />
+                </div>
+                <div class="gui-field">
+                    <label>Scan Type</label>
+                    <select class="gui-select">
+                        <option>TCP Connect (default)</option>
+                        <option>SYN Stealth</option>
+                        <option>UDP</option>
+                        <option>NULL</option>
+                        <option>FIN</option>
+                        <option>ACK</option>
+                        <option>XMAS</option>
+                        <option>WINDOW</option>
+                        <option>MAIMON</option>
+                        <option>FDD</option>
+                        <option>FTP-BOUNCE</option>
+                        <option>IPPROTO</option>
+                        <option>PING</option>
+                        <option>IDLE</option>
+                        <option>SCTP-INIT</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="gui-row">
+                <div class="gui-field">
+                    <label>Speed</label>
+                    <select class="gui-select">
+                        <option>Normal (60 threads, 2.5s timeout)</option>
+                        <option>Paranoid (2 threads, 4.0s timeout)</option>
+                        <option>Slow (30 threads, 3.0s timeout)</option>
+                        <option>Fast (120 threads, 2.5s timeout)</option>
+                        <option>Insane (240 threads, 1.25s timeout)</option>
+                        <option>Light-mode (500 threads, 1.25s timeout)</option>
+                    </select>
+                </div>
+                <div class="gui-field" style="flex:0.5;">
+                    <label>Top 100 Ports (-F)</label>
+                    <select class="gui-select">
+                        <option>Disabled</option>
+                        <option>Enabled</option>
+                    </select>
+                </div>
+                <div class="gui-field" style="flex:0.5;">
+                    <label>Recursively (-Rc)</label>
+                    <select class="gui-select">
+                        <option>Disabled</option>
+                        <option>Enabled</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="gui-checkbox-row">
+                <label class="gui-checkbox">
+                    <input type="checkbox" checked /> OS Detect (-O)
+                </label>
+                <label class="gui-checkbox">
+                    <input type="checkbox" checked /> Banner Grab (-b)
+                </label>
+                <label class="gui-checkbox">
+                    <input type="checkbox" /> No Ping (-Pn)
+                </label>
+                <label class="gui-checkbox">
+                    <input type="checkbox" /> IPv6 Target (-V6)
+                </label>
+                <label class="gui-checkbox">
+                    <input type="checkbox" /> Fragmentation (-f)
+                </label>
+                <label class="gui-checkbox">
+                    <input type="checkbox" /> No rDNS (-n)
+                </label>
+            </div>
+
+            <div class="gui-bottom-row">
+                <div class="gui-field">
+                    <label>Saving Format</label>
+                    <select class="gui-select">
+                        <option>None</option>
+                        <option>LIGHT</option>
+                        <option>TXT</option>
+                        <option>HTML</option>
+                        <option>XML</option>
+                        <option>CSV</option>
+                        <option>JSON</option>
+                        <option>PDF</option>
+                        <option>YAML</option>
+                    </select>
+                </div>
+                <div class="gui-field">
+                    <label>Profiles</label>
+                    <select class="gui-select">
+                        <option>None</option>
+                        <option>internal_scan</option>
+                        <option>external_scan</option>
+                        <option>stealth_scan</option>
+                    </select>
+                </div>
+                <div class="gui-field">
+                    <label>Save Profile</label>
+                    <input class="gui-input" type="text" value="heretic_scan" />
+                </div>
+                <div class="gui-field" style="flex:0.5; display:flex; align-items:flex-end;">
+                    <span class="gui-button primary">▶ Scan</span>
+                </div>
+            </div>
+
+            <div class="gui-status">
+                <span class="status-dot green"></span> Ready — 0 hosts scanned
+            </div>
+        </div>
+
+        <img src="Assets/LightPanel2.png" width="1000" height="600" style="border: 5px solid grey;">
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- FEATURES -->
+        <!-- ============================================================ -->
+        <h2>Features</h2>
+
+        <div class="grid-3">
+            <div class="card">
+                <h4>🎯 Target Management</h4>
+                <ul>
+                    <li>Single IP or hostname</li>
+                    <li>CIDR notation (/8, /16, /24)</li>
+                    <li>Octet ranges (192.168.1.0-100)</li>
+                    <li>Multiple targets (comma-separated)</li>
+                    <li>IPv6 support</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>🔍 Scan Configuration</h4>
+                <ul>
+                    <li>14 scan types</li>
+                    <li>6 speed presets</li>
+                    <li>Custom thread count</li>
+                    <li>Custom timeout</li>
+                    <li>Top 100 ports toggle</li>
+                    <li>OS detection &amp; banner grabbing</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>💾 Export &amp; Profiles</h4>
+                <ul>
+                    <li>8 export formats</li>
+                    <li>One-click saving</li>
+                    <li>Profile management</li>
+                    <li>Save/load profiles</li>
+                    <li>Integrated LightSave</li>
+                </ul>
+            </div>
+        </div>
+
+        <hr />
+
+        <h2>Usage</h2>
+
+        <h3>Launching LightPanel</h3>
+
+        <div class="example-box">
+            <span class="mono">LightPanel</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Launch LightPanel from the command line</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">python LightPanel.py</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Launch from source (development)</span>
+        </div>
+
+        <h3>Basic Workflow</h3>
+
+        <div class="card">
+            <h4>Step 1: Enter Target</h4>
+            <p>Enter an IP address, hostname, or CIDR range in the <strong>Target</strong> field.</p>
+        </div>
+
+        <div class="card">
+            <h4>Step 2: Configure Ports</h4>
+            <p>Enter ports as a single port, range (<span class="mono">1-1000</span>), or list (<span class="mono">22,80,443</span>).</p>
+        </div>
+
+        <div class="card">
+            <h4>Step 3: Select Scan Type</h4>
+            <p>Choose from 14 scan types. <strong>TCP Connect</strong> is the default.</p>
+        </div>
+
+        <div class="card">
+            <h4>Step 4: Set Speed</h4>
+            <p>Select from 6 presets or manually adjust threads and timeout.</p>
+        </div>
+
+        <div class="card">
+            <h4>Step 5: Enable Options</h4>
+            <p>Toggle OS detection, banner grabbing, no ping, IPv6, fragmentation, and more.</p>
+        </div>
+
+        <div class="card">
+            <h4>Step 6: Export Results</h4>
+            <p>Choose an export format and click <strong>Scan</strong> — results are saved automatically.</p>
+        </div>
+
+        <hr />
+
+
+        <h2>Integration</h2>
+
+        <h3>With LightSave</h3>
+        <p>
+            LightPanel includes <strong>integrated LightSave</strong> functionality.
+            Results can be exported in 8 formats with one click.
+        </p>
+
+        <div class="example-box">
+            <span class="mono">Select format → Click Scan → Results saved automatically</span>
+        </div>
+
+        <h3>With Profiles</h3>
+        <p>
+            Save and load scan profiles directly from the interface. Profiles are stored
+            in the <span class="mono">Profiles/</span> directory as JSON files.
+        </p>
+
+        <div class="example-box">
+            <span class="mono">Enter profile name → Click Save → Load anytime</span>
+        </div>
+
+        <hr />
+
+        <h2>Troubleshooting</h2>
+
+        <div class="card">
+            <h4>❌ "LightPanel not found"</h4>
+            <p>Make sure you're in the Light-Scan directory and the virtual environment is activated.</p>
+            <div class="example-box">
+                <span class="mono">cd Light-Scan &amp;&amp; source venv/bin/activate</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>❌ "GUI not rendering correctly"</h4>
+            <p>Ensure all dependencies are installed. Run <span class="mono">pip install -r requirements.txt</span>.</p>
+        </div>
+
+        <div class="card">
+            <h4>❌ "Scan not starting"</h4>
+            <p>Verify the target is valid and the interface has proper permissions.</p>
+        </div>
+
+        <hr />
+
+
+        <h2>Quick Reference</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Action</th>
+                        <th>GUI Element</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Set target</strong></td>
+                        <td>Target input field</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Set ports</strong></td>
+                        <td>Ports input field</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Choose scan type</strong></td>
+                        <td>Scan Type dropdown</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Set speed</strong></td>
+                        <td>Speed dropdown</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Enable OS detection</strong></td>
+                        <td>OS Detect (-O) checkbox</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Enable banner grab</strong></td>
+                        <td>Banner Grab (-b) checkbox</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Export results</strong></td>
+                        <td>Saving Format dropdown</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Load profile</strong></td>
+                        <td>Profiles dropdown</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Save profile</strong></td>
+                        <td>Save Profile input</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Start scan</strong></td>
+                        <td>Scan button</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr />
+
+        <p class="text-muted text-small text-center" style="margin-top:1rem;">
+            LightPanel v1.0.2 &bull; Light-Scan v1.1.8 &bull; Open Source &bull; GPLv2 License
+        </p>
+
+    </div>
+
+</body>
+</html>

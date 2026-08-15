@@ -1,0 +1,11 @@
+{
+    "name": "quick-scan",
+    "description": "Fast SYN scan on top 100 ports with banner grabbing",
+    "settings": {
+        "scan_type": "SYN",
+        "F": true,
+        "banner": true,
+        "threads": 240,
+        "timeout": 1.25
+    }
+}

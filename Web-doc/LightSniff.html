@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LightSniff — Light-Scan Packet Capture Tool v1.0.2</title>
+    <link rel="icon" type="image/x-icon" href="Assets/Light-Scan-Logo.ico" />
+    <style>
+        /* ── Reset & Base ── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0b0e14;
+            color: #d4d8e0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #131a22;
+            padding: 2.5rem 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            border: 1px solid #29323e;
+        }
+
+        /* ── Navigation ── */
+        .top-nav {
+            display: flex;
+            gap: 1.5rem;
+            margin: 0 0 2rem 0;
+            flex-wrap: wrap;
+            padding: 0.75rem 1.5rem;
+            background: rgba(19, 26, 34, 0.8);
+            border-radius: 12px;
+            border: 1px solid #29323e;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .top-nav a {
+            color: #93c5fd;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid transparent;
+        }
+
+        .top-nav a:hover {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+            border-bottom-color: #60a5fa;
+            transform: translateY(-2px);
+        }
+
+        .top-nav a.nav-right {
+            margin-left: auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1.5rem;
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 2px solid #2a3543;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
+            color: #f0f4fa;
+        }
+
+        h1 small {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #7f8fa3;
+            margin-left: auto;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #b9c7db;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #1e2937;
+        }
+
+        .subtitle strong {
+            color: #7ab7ff;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            margin-top: 2.5rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+            color: #f0f4fa;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            margin-top: 2rem;
+            margin-bottom: 0.5rem;
+            color: #cbd5e1;
+            border-bottom: 1px solid #1e2937;
+            padding-bottom: 0.3rem;
+        }
+
+        h4 {
+            font-size: 1.1rem;
+            margin-top: 1.2rem;
+            margin-bottom: 0.3rem;
+            color: #b9c7db;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.2rem 0 1.8rem 0;
+            border-radius: 12px;
+            border: 1px solid #232e3c;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.90rem;
+            background: #10171f;
+        }
+
+        th {
+            background: #1a2532;
+            color: #dce3ed;
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid #2c3a4a;
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid #1e2937;
+            vertical-align: top;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            background: #0d141e;
+            padding: 0.1rem 0.5rem;
+            border-radius: 6px;
+            border: 1px solid #25303f;
+            white-space: nowrap;
+        }
+
+        pre {
+            background: #0b1119;
+            padding: 1.2rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #24303f;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            color: #d4e0f0;
+            margin: 0.75rem 0 1.5rem 0;
+            line-height: 1.5;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #1e293b;
+            color: #b9c7db;
+            padding: 0.15rem 0.7rem;
+            border-radius: 30px;
+            font-size: 0.65rem;
+            font-weight: 500;
+            border: 1px solid #2d3a4a;
+        }
+
+        .badge-blue {
+            background: #0f2440;
+            color: #7ab7ff;
+            border-color: #1f3f6a;
+        }
+
+        .badge-green {
+            background: #0f2a1f;
+            color: #7ee8b0;
+            border-color: #1f4a35;
+        }
+
+        .badge-yellow {
+            background: #2a2410;
+            color: #fbbf24;
+            border-color: #4a3f1f;
+        }
+
+        .badge-red {
+            background: #2a1010;
+            color: #f87171;
+            border-color: #4a1f1f;
+        }
+
+        .badge-purple {
+            background: #1f1f3a;
+            color: #a78bfa;
+            border-color: #3a2a5a;
+        }
+
+        .badge-orange {
+            background: #2a1f0f;
+            color: #fb923c;
+            border-color: #4a3a1f;
+        }
+
+        .logo-icon {
+            height: 48px;
+            width: 48px;
+            object-fit: contain;
+        }
+
+        .card {
+            background: #0f1822;
+            border: 1px solid #1e2a38;
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            margin: 1rem 0;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: #3b82f6;
+        }
+
+        .card h4 {
+            margin-top: 0;
+            color: #7ab7ff;
+            border-bottom: 1px solid #1e2937;
+            padding-bottom: 0.3rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 0.75rem 0 1.5rem 0;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+            margin: 0.75rem 0 1.5rem 0;
+        }
+
+        .example-box {
+            background: #0a111a;
+            border-left: 3px solid #3b82f6;
+            padding: 0.8rem 1.2rem;
+            margin: 0.5rem 0 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .example-box .mono {
+            background: #0d141e;
+            border-color: #1f2a38;
+        }
+
+        .packet-preview {
+            background: #0a111a;
+            border: 1px solid #1e2a38;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.72rem;
+            color: #b9c7db;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+
+        .packet-preview .highlight {
+            color: #7ab7ff;
+        }
+
+        .packet-preview .highlight-green {
+            color: #7ee8b0;
+        }
+
+        .packet-preview .highlight-yellow {
+            color: #fbbf24;
+        }
+
+        .packet-preview .highlight-red {
+            color: #f87171;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #24303f;
+            margin: 2rem 0 1.5rem 0;
+        }
+
+        .text-muted {
+            color: #8a9aaf;
+        }
+
+        .text-small {
+            font-size: 0.9rem;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem 1.5rem;
+            margin: 0.3rem 0 0.5rem 0;
+        }
+
+        .feature-grid li {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .feature-grid li::before {
+            content: "▸ ";
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        @media (max-width: 820px) {
+            .container {
+                padding: 1.5rem 1.2rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+                flex-wrap: wrap;
+            }
+
+            h1 small {
+                margin-left: 0;
+            }
+
+            .grid-2,
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .top-nav {
+                gap: 0.5rem;
+            }
+
+            .top-nav a.nav-right {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <a href="Light-Scan.html" class="back-link">← Back to Light-Scan Main Page</a>
+
+        <h1>
+            <img src="Assets/LightSniff.png" alt="LightSniff Logo" class="logo-icon" />
+            LightSniff
+            <small>Light-Scan Packet Capture Tool v1.0.2</small>
+        </h1>
+
+        <div class="subtitle">
+            <span class="badge badge-purple">Packet Capture</span>
+            <span class="badge badge-blue">BPF Filter</span>
+            <span class="badge badge-green">PCAP / LightBin</span>
+            <span style="margin-left:0.75rem;">
+                Lightweight, feature-rich network packet sniffer
+            </span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- OVERVIEW -->
+        <!-- ============================================================ -->
+        <h2>Overview</h2>
+        <p>
+            <strong>LightSniff</strong> is a lightweight, feature-rich packet sniffer built for
+            network analysis and troubleshooting. It leverages <strong>BPF (Berkeley Packet Filter)</strong>
+            syntax for precise traffic filtering and supports both live capture and PCAP export.
+        </p>
+
+        <div class="grid-2">
+            <div class="card">
+                <h4>🔍 Key Features</h4>
+                <ul>
+                    <li>Live packet capture with BPF filtering</li>
+                    <li>Protocol filtering: TCP, UDP, ICMP, ARP</li>
+                    <li>MAC address filtering</li>
+                    <li>VLAN tag detection (802.1Q)</li>
+                    <li>TLS/SSL detection (1.0, 1.1, 1.2, 1.3, SSLv3)</li>
+                    <li>HTTP traffic detection and parsing</li>
+                    <li>DNS query/response detection</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>💾 File Support</h4>
+                <ul>
+                    <li>Save to <strong>PCAP</strong>, <strong>PCAPNG</strong>, and <strong>LightBin (.lbn)</strong></li>
+                    <li>Read from <strong>PCAP</strong>, <strong>PCAPNG</strong>, and <strong>LightBin (.lbn)</strong></li>
+                    <li>zlib compression for LightBin files</li>
+                    <li>Ethernet frame info (MAC addresses, frame type)</li>
+                    <li>Auto-interface detection</li>
+                    <li>Promiscuous mode support</li>
+                </ul>
+            </div>
+        </div>
+
+        <hr />
+
+        <h2>Command-Line Options</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Option</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="mono">-h, --help</span></td>
+                        <td>Show this help message and exit</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">-i, --interface INTERFACE</span></td>
+                        <td>Network interface (e.g., eth0, Wi-Fi, wlan0)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">-I, --interfaces</span></td>
+                        <td>Show all available Network Interfaces</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">-f, --filter FILTER</span></td>
+                        <td>BPF filter (e.g., 'tcp port 80', 'icmp', 'arp')</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">-c, --count COUNT</span></td>
+                        <td>Number of packets to capture (0 = infinite)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">-w, --write WRITE</span></td>
+                        <td>Save to PCAP/PCAPNG file</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">-r, --read READ</span></td>
+                        <td>Read packets from PCAP/PCAPNG file (offline mode)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--bin-save BIN_SAVE</span></td>
+                        <td>Save to LightBin binary format (.lbn)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--bin-load BIN_LOAD</span></td>
+                        <td>Load from LightBin binary format (.lbn)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">-C, --compress</span></td>
+                        <td>To compress saved output (only for .lbn)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">-v, --verbose</span></td>
+                        <td>Show detailed packet info</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--no-promisc</span></td>
+                        <td>Disable promiscuous mode</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">-q, --quiet</span></td>
+                        <td>Quiet mode (no banner)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--eth</span></td>
+                        <td>Show Ethernet frame info (MAC addresses, frame type)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--vlan</span></td>
+                        <td>Show VLAN tags (802.1Q)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--arp</span></td>
+                        <td>Show only ARP packets</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--tcp</span></td>
+                        <td>Show only TCP packets</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--udp</span></td>
+                        <td>Show only UDP packets</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--icmp</span></td>
+                        <td>Show only ICMP packets</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--mac MAC</span></td>
+                        <td>Filter by source or destination MAC address (e.g., aa:bb:cc:dd:ee:ff)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- USAGE EXAMPLES -->
+        <!-- ============================================================ -->
+        <h2>Usage Examples</h2>
+
+        <h3>Basic Capture</h3>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -i eth0</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Capture all traffic on interface eth0</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -i Wi-Fi -c 100 -v</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Capture 100 packets with verbose output</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -I</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Show all available network interfaces</span>
+        </div>
+
+        <h3>Protocol Filtering</h3>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -i eth0 --tcp --udp --icmp</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Capture TCP, UDP, and ICMP packets together</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -i eth0 --arp --eth</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Show ARP packets with Ethernet frame details</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -i eth0 --mac aa:bb:cc:dd:ee:ff</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Filter by MAC address</span>
+        </div>
+
+        <h3>BPF Filtering</h3>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -i eth0 -f 'tcp port 80' -w http.pcap</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Capture HTTP traffic and save to PCAP</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -i eth0 -f 'icmp'</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Capture only ICMP traffic</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -i eth0 -f 'arp'</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Capture only ARP traffic</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -i eth0 -f 'tcp port 80 or tcp port 443'</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Capture HTTP and HTTPS traffic</span>
+        </div>
+
+        <h3>File Operations</h3>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -i eth0 -c 100 -w capture.pcap</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Save 100 packets to PCAP file</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -r capture.pcap -v</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Read and display PCAP file</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -i eth0 -c 100 --bin-save capture.lbn -C</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Capture and save as LightBin with compression</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff --bin-load capture.lbn -v</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Load and display LightBin file</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff --bin-load capture.lbn -w output.pcap</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Load LightBin and save as PCAP</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -r input.pcap --bin-save output.lbn -C</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Read PCAP and save as LightBin with compression</span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- SAMPLE OUTPUT -->
+        <!-- ============================================================ -->
+        <h2>Sample Output</h2>
+
+        <h3>Verbose Mode (<span class="mono">-v</span>)</h3>
+            <pre>
+[02:56:36] TCP    10.148.175.145   → 151.101.133.91   | a0:a8:cd:04:d7:a1 → 16:93:03:9d:bf:1e | IPv4     | S:19911 → D:443 Flags:[FA]               | Size:    0 bytes
+[02:56:36] TCP    151.101.133.91   → 10.148.175.145   | 16:93:03:9d:bf:1e → a0:a8:cd:04:d7:a1 | IPv4     | S:443 → D:19911 Flags:[A]                | Size:    0 bytes
+[02:56:36] TCP    151.101.133.91   → 10.148.175.145   | 16:93:03:9d:bf:1e → a0:a8:cd:04:d7:a1 | IPv4     | S:443 → D:19911 Flags:[A]                | Size:    0 bytes
+[02:56:36] TLS    151.101.133.91   → 10.148.175.145   | 16:93:03:9d:bf:1e → a0:a8:cd:04:d7:a1 | IPv4     | Application Data [TLS 1.2]               | Size:   24 bytes
+[02:56:36] TCP    151.101.133.91   → 10.148.175.145   | 16:93:03:9d:bf:1e → a0:a8:cd:04:d7:a1 | IPv4     | S:443 → D:19911 Flags:[FA]               | Size:    0 bytes
+[02:56:36] TCP    151.101.133.91   → 10.148.175.145   | 16:93:03:9d:bf:1e → a0:a8:cd:04:d7:a1 | IPv4     | S:443 → D:19911 Flags:[A]                | Size:    0 bytes
+[02:56:36] TCP    10.148.175.145   → 151.101.133.91   | a0:a8:cd:04:d7:a1 → 16:93:03:9d:bf:1e | IPv4     | S:19911 → D:443 Flags:[RA]               | Size:    0 bytes
+[02:56:36] UDP    10.148.175.145   → 162.159.129.233  | a0:a8:cd:04:d7:a1 → 16:93:03:9d:bf:1e | IPv4     | S:54998 → D:443                          | Size: 1250 bytes
+[02:56:36] UDP    10.148.175.145   → 162.159.129.233  | a0:a8:cd:04:d7:a1 → 16:93:03:9d:bf:1e | IPv4     | S:54998 → D:443                          | Size: 1250 byte</pre>
+
+        <h3>VLAN Mode (<span class="mono">--vlan</span>)</h3>
+        <pre>
+[02:59:34] TLS  16:93:03:9d:bf:1e:443       → a0:a8:cd:04:d7:a1:20085     VLAN     Alert [Fatal: 0x03] [VLAN:0]
+[02:59:34] TCP  16:93:03:9d:bf:1e:443       → a0:a8:cd:04:d7:a1:20085     VLAN     S:443 → D:20085 Flags:[FA] [VLAN:0]
+        </pre>
+
+        <h3>HTTP Detection</h3>
+        <pre>
+[03:02:17] HTTP   10.148.175.145   → 45.33.32.156     | a0:a8:cd:04:d7:a1 → 16:93:03:9d:bf:1e | IPv4     | GET /shared/images/tiny-eyeicon.pn...    | Size:  486 bytes
+[03:02:17] HTTP   45.33.32.156     → 10.148.175.145   | 16:93:03:9d:bf:1e → a0:a8:cd:04:d7:a1 | IPv4     | HTTP/1.1 200 OK                          | Size:  657 bytes
+        </pre>
+
+        <hr />
+
+        <h2>LightBin Integration</h2>
+        <p>
+            LightSniff fully supports <strong>LightBin (.lbn)</strong>, Light-Scan's native
+            binary packet format. LightBin files load <strong>1.2–2× faster</strong> than PCAP
+            and store rich metadata including capture arguments, statistics, and packet types.
+        </p>
+
+        <div class="grid-2">
+            <div class="card">
+                <h4>⚡ Benefits of LightBin</h4>
+                <ul>
+                    <li><strong>Faster loading:</strong> 1.2–2× faster than PCAP</li>
+                    <li><strong>Rich metadata:</strong> Stores args, stats, tool version</li>
+                    <li><strong>Compression:</strong> zlib compression support</li>
+                    <li><strong>Checksum:</strong> CRC32 integrity verification</li>
+                    <li><strong>Auto-detection:</strong> Smart packet type detection</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>💾 LightBin Commands</h4>
+                <div class="example-box" style="margin:0.5rem 0;">
+                    <span class="mono">--bin-save capture.lbn</span>
+                    <span style="color:#8a9aaf; margin-left:1rem;">Save to LightBin</span>
+                </div>
+                <div class="example-box" style="margin:0.5rem 0;">
+                    <span class="mono">--bin-load capture.lbn</span>
+                    <span style="color:#8a9aaf; margin-left:1rem;">Load from LightBin</span>
+                </div>
+                <div class="example-box" style="margin:0.5rem 0;">
+                    <span class="mono">-C, --compress</span>
+                    <span style="color:#8a9aaf; margin-left:1rem;">Compress LightBin output</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSniff -i eth0 -c 1000 --bin-save capture.lbn -C</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Capture 1000 packets, save as compressed LightBin</span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- TROUBLESHOOTING -->
+        <!-- ============================================================ -->
+        <h2>Troubleshooting</h2>
+
+        <div class="card">
+            <h4>❌ "No interface specified"</h4>
+            <p>You must specify an interface with <span class="mono">-i</span> or use <span class="mono">-I</span> to list available interfaces.</p>
+            <div class="example-box">
+                <span class="mono">LightSniff -I</span>
+                <span style="color:#8a9aaf; margin-left:1rem;">List all interfaces</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>❌ "Permission denied"</h4>
+            <p>Packet capture requires administrative/root privileges. Run as Administrator (Windows) or with <span class="mono">sudo</span> (Linux/macOS).</p>
+            <div class="example-box">
+                <span class="mono">sudo LightSniff -i eth0</span>
+                <span style="color:#8a9aaf; margin-left:1rem;">Linux/macOS</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>❌ "No packets captured"</h4>
+            <p>Try disabling promiscuous mode with <span class="mono">--no-promisc</span> or check if the interface is up and receiving traffic.</p>
+            <div class="example-box">
+                <span class="mono">LightSniff -i eth0 --no-promisc</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>❌ "Invalid filter"</h4>
+            <p>BPF filter syntax must be correct. Common filters: <span class="mono">'tcp port 80'</span>, <span class="mono">'icmp'</span>, <span class="mono">'arp'</span>.</p>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- QUICK REFERENCE -->
+        <!-- ============================================================ -->
+        <h2>Quick Reference</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Use Case</th>
+                        <th>Command</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Capture all traffic</strong></td>
+                        <td><span class="mono">LightSniff -i eth0</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Capture with count</strong></td>
+                        <td><span class="mono">LightSniff -i eth0 -c 100</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>HTTP traffic capture</strong></td>
+                        <td><span class="mono">LightSniff -i eth0 -f 'tcp port 80' -w http.pcap</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Verbose capture</strong></td>
+                        <td><span class="mono">LightSniff -i Wi-Fi -c 100 -v</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Save to LightBin</strong></td>
+                        <td><span class="mono">LightSniff -i eth0 -c 100 --bin-save capture.lbn -C</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Load LightBin</strong></td>
+                        <td><span class="mono">LightSniff --bin-load capture.lbn -v</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Read PCAP</strong></td>
+                        <td><span class="mono">LightSniff -r capture.pcap -v</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>ARP only</strong></td>
+                        <td><span class="mono">LightSniff -i eth0 --arp --eth</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>MAC filter</strong></td>
+                        <td><span class="mono">LightSniff -i eth0 --mac aa:bb:cc:dd:ee:ff</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>List interfaces</strong></td>
+                        <td><span class="mono">LightSniff -I</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr />
+
+        <p class="text-muted text-small text-center" style="margin-top:1rem;">
+            LightSniff v1.0.2 &bull; Light-Scan v1.1.8 &bull; Open Source &bull; GPLv2 License
+        </p>
+
+    </div>
+
+</body>
+</html>

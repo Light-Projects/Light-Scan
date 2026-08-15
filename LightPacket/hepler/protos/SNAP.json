@@ -1,0 +1,10 @@
+{
+  "Proto": {
+    "Name": "SNAP",
+    "Description": "Subnetwork Access Protocol (used with LLC)",
+    "Fields": [
+      "oui           {24 bits}  = 0x000000",
+      "pid           {16 bits}  = auto-detected"
+    ]
+  }
+}

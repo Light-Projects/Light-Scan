@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LightSave — Light-Scan Results Exporter v1.0.1</title>
+    <link rel="icon" type="image/x-icon" href="Assets/Light-Scan-Logo.ico" />
+    <style>
+        /* ── Reset & Base ── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0b0e14;
+            color: #d4d8e0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #131a22;
+            padding: 2.5rem 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            border: 1px solid #29323e;
+        }
+
+        /* ── Navigation ── */
+        .top-nav {
+            display: flex;
+            gap: 1.5rem;
+            margin: 0 0 2rem 0;
+            flex-wrap: wrap;
+            padding: 0.75rem 1.5rem;
+            background: rgba(19, 26, 34, 0.8);
+            border-radius: 12px;
+            border: 1px solid #29323e;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .top-nav a {
+            color: #93c5fd;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid transparent;
+        }
+
+        .top-nav a:hover {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+            border-bottom-color: #60a5fa;
+            transform: translateY(-2px);
+        }
+
+        .top-nav a.nav-right {
+            margin-left: auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1.5rem;
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 2px solid #2a3543;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
+            color: #f0f4fa;
+        }
+
+        h1 small {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #7f8fa3;
+            margin-left: auto;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #b9c7db;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #1e2937;
+        }
+
+        .subtitle strong {
+            color: #7ab7ff;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            margin-top: 2.5rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+            color: #f0f4fa;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            margin-top: 2rem;
+            margin-bottom: 0.5rem;
+            color: #cbd5e1;
+            border-bottom: 1px solid #1e2937;
+            padding-bottom: 0.3rem;
+        }
+
+        h4 {
+            font-size: 1.1rem;
+            margin-top: 1.2rem;
+            margin-bottom: 0.3rem;
+            color: #b9c7db;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.2rem 0 1.8rem 0;
+            border-radius: 12px;
+            border: 1px solid #232e3c;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.90rem;
+            background: #10171f;
+        }
+
+        th {
+            background: #1a2532;
+            color: #dce3ed;
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid #2c3a4a;
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid #1e2937;
+            vertical-align: top;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            background: #0d141e;
+            padding: 0.1rem 0.5rem;
+            border-radius: 6px;
+            border: 1px solid #25303f;
+            white-space: nowrap;
+        }
+
+        pre {
+            background: #0b1119;
+            padding: 1.2rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #24303f;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            color: #d4e0f0;
+            margin: 0.75rem 0 1.5rem 0;
+            line-height: 1.5;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #1e293b;
+            color: #b9c7db;
+            padding: 0.15rem 0.7rem;
+            border-radius: 30px;
+            font-size: 0.65rem;
+            font-weight: 500;
+            border: 1px solid #2d3a4a;
+        }
+
+        .badge-blue {
+            background: #0f2440;
+            color: #7ab7ff;
+            border-color: #1f3f6a;
+        }
+
+        .badge-green {
+            background: #0f2a1f;
+            color: #7ee8b0;
+            border-color: #1f4a35;
+        }
+
+        .badge-yellow {
+            background: #2a2410;
+            color: #fbbf24;
+            border-color: #4a3f1f;
+        }
+
+        .badge-red {
+            background: #2a1010;
+            color: #f87171;
+            border-color: #4a1f1f;
+        }
+
+        .badge-purple {
+            background: #1f1f3a;
+            color: #a78bfa;
+            border-color: #3a2a5a;
+        }
+
+        .badge-orange {
+            background: #2a1f0f;
+            color: #fb923c;
+            border-color: #4a3a1f;
+        }
+
+        .logo-icon {
+            height: 48px;
+            width: 48px;
+            object-fit: contain;
+        }
+
+        .card {
+            background: #0f1822;
+            border: 1px solid #1e2a38;
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            margin: 1rem 0;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: #3b82f6;
+        }
+
+        .card h4 {
+            margin-top: 0;
+            color: #7ab7ff;
+            border-bottom: 1px solid #1e2937;
+            padding-bottom: 0.3rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 0.75rem 0 1.5rem 0;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+            margin: 0.75rem 0 1.5rem 0;
+        }
+
+        .example-box {
+            background: #0a111a;
+            border-left: 3px solid #3b82f6;
+            padding: 0.8rem 1.2rem;
+            margin: 0.5rem 0 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .example-box .mono {
+            background: #0d141e;
+            border-color: #1f2a38;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #24303f;
+            margin: 2rem 0 1.5rem 0;
+        }
+
+        .text-muted {
+            color: #8a9aaf;
+        }
+
+        .text-small {
+            font-size: 0.9rem;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem 1.5rem;
+            margin: 0.3rem 0 0.5rem 0;
+        }
+
+        .feature-grid li {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .feature-grid li::before {
+            content: "▸ ";
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .format-preview {
+            background: #0a111a;
+            border: 1px solid #1e2a38;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.75rem;
+            color: #b9c7db;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        @media (max-width: 820px) {
+            .container {
+                padding: 1.5rem 1.2rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+                flex-wrap: wrap;
+            }
+
+            h1 small {
+                margin-left: 0;
+            }
+
+            .grid-2,
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .top-nav {
+                gap: 0.5rem;
+            }
+
+            .top-nav a.nav-right {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+
+        <a href="Light-Scan.html" class="back-link">← Back to Light-Scan Main Page</a>
+
+        <h1>
+            <img src="Assets/LightSave.png" alt="LightSave Logo" class="logo-icon" />
+            LightSave
+            <small>Light-Scan Results Exporter v1.0.1</small>
+        </h1>
+
+        <div class="subtitle">
+            <span class="badge badge-orange">Results Exporter</span>
+            <span class="badge badge-blue">8 Formats</span>
+            <span class="badge badge-green">Automated</span>
+            <span style="margin-left:0.75rem;">
+                Capture Lightscan output and save in structured formats
+            </span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- OVERVIEW -->
+        <!-- ============================================================ -->
+        <h2>Overview</h2>
+        <p>
+            <strong>LightSave</strong> is a dedicated result exporter that captures the output of
+            any <strong>Lightscan</strong> command and saves it in a structured format. It supports
+            <strong>8 export formats</strong> and is designed for easy integration with reporting
+            pipelines, SIEM systems, and security documentation workflows.
+        </p>
+
+        <div class="grid-2">
+            <div class="card">
+                <h4>📊 8 Export Formats</h4>
+                <ul>
+                    <li><strong>LIGHT</strong> — Native Light-Scan format</li>
+                    <li><strong>TXT</strong> — Plain text (human-readable)</li>
+                    <li><strong>HTML</strong> — Web-friendly reports</li>
+                    <li><strong>XML</strong> — Machine-readable structured data</li>
+                    <li><strong>CSV</strong> — Spreadsheet-ready tables</li>
+                    <li><strong>JSON</strong> — API-ready structured data</li>
+                    <li><strong>PDF</strong> — Professional printable reports</li>
+                    <li><strong>YAML</strong> — Human-readable structured data</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>⚡ Key Features</h4>
+                <ul>
+                    <li>Captures any Lightscan command output</li>
+                    <li>Automated saving with timestamps</li>
+                    <li>Machine-readable output for automation</li>
+                    <li>Clean, well-formatted files</li>
+                    <li>Integrated with LightPanel GUI</li>
+                    <li>Cross-platform (Windows, Linux, macOS, BSD)</li>
+                </ul>
+            </div>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- COMMAND-LINE OPTIONS -->
+        <!-- ============================================================ -->
+        <h2>Command-Line Options</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Option</th>
+                        <th>Required</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="mono">-C C</span></td>
+                        <td><span class="badge badge-red">Yes</span></td>
+                        <td>Full Lightscan command (must be enclosed in quotes)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">-S {txt,light,html,xml,csv,json,pdf,yaml}</span></td>
+                        <td><span class="badge badge-red">Yes</span></td>
+                        <td>Export format</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSave -C "Lightscan -T 192.168.1.1 -F" -S html</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Save scan results as HTML report</span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- EXPORT FORMATS -->
+        <!-- ============================================================ -->
+        <h2>Export Formats</h2>
+
+        <h3>1. LIGHT — Native Format</h3>
+        <p>
+            The <strong>LIGHT</strong> format is Light-Scan's native output format. It preserves
+            the exact console output with color codes and formatting, making it ideal for
+            archiving and debugging.
+        </p>
+        <div class="format-preview">[+] Light-Scan v1.1.8
+        [*] Scan completed in 2.08 seconds
+        [*] Total Time in 2.12 seconds
+
+        ============================================================
+        [+] Scan result for : 192.168.1.1
+        [+] Scan Type: SYN | Protocol: TCP
+        [+] Reverse DNS: None
+        [+] IP Status: Local
+        [+] Mac Address: aa:bb:cc:dd:ee:ff
+        ============================================================
+
+        [+] Open Ports: 4
+            Port 135 msrpc\tcp
+            Port 139 netbios-ssn\tcp
+            Port 445 microsoft-ds\tcp
+            Port 5357 wsdapi\tcp</div>
+
+        <h3>2. TXT — Plain Text</h3>
+        <p>
+            The <strong>TXT</strong> format provides clean, human-readable plain text output.
+            Ideal for documentation and quick viewing.
+        </p>
+
+        <h3>3. HTML — Web Reports</h3>
+        <p>
+            The <strong>HTML</strong> format generates a styled, web-friendly report.
+            Perfect for sharing with non-technical stakeholders or publishing to internal portals.
+        </p>
+
+        <h3>4. XML — Machine-Readable</h3>
+        <p>
+            The <strong>XML</strong> format provides structured data for parsing by other
+            tools and systems. Ideal for SIEM integration and automated processing.
+        </p>
+        <div class="format-preview">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+        &lt;scan_results&gt;
+            &lt;target&gt;
+                &lt;ip&gt;192.168.1.1&lt;/ip&gt;
+                &lt;scan_type&gt;SYN&lt;/scan_type&gt;
+                &lt;protocol&gt;TCP&lt;/protocol&gt;
+                &lt;open_ports&gt;
+                    &lt;port number="135"&gt;msrpc&lt;/port&gt;
+                    &lt;port number="139"&gt;netbios-ssn&lt;/port&gt;
+                    &lt;port number="445"&gt;microsoft-ds&lt;/port&gt;
+                    &lt;port number="5357"&gt;wsdapi&lt;/port&gt;
+                &lt;/open_ports&gt;
+            &lt;/target&gt;
+        &lt;/scan_results&gt;</div>
+
+        <h3>5. CSV — Spreadsheet-Ready</h3>
+        <p>
+            The <strong>CSV</strong> format exports results as comma-separated values,
+            perfect for importing into spreadsheets, databases, and data analysis tools.
+        </p>
+        <div class="format-preview">Target,Port,Service,State,Protocol
+        192.168.1.1,135,msrpc,open,tcp
+        192.168.1.1,139,netbios-ssn,open,tcp
+        192.168.1.1,445,microsoft-ds,open,tcp
+        192.168.1.1,5357,wsdapi,open,tcp</div>
+
+        <h3>6. JSON — API-Ready</h3>
+        <p>
+            The <strong>JSON</strong> format provides structured data in a lightweight,
+            machine-readable format. Ideal for APIs, automation, and modern tools.
+        </p>
+        <div class="format-preview">{
+            "scan_results": [
+                {
+                    "target": "192.168.1.1",
+                    "scan_type": "SYN",
+                    "protocol": "TCP",
+                    "open_ports": [
+                        {"port": 135, "service": "msrpc"},
+                        {"port": 139, "service": "netbios-ssn"},
+                        {"port": 445, "service": "microsoft-ds"},
+                        {"port": 5357, "service": "wsdapi"}
+                    ]
+                }
+            ]
+        }</div>
+
+        <h3>7. PDF — Professional Reports</h3>
+        <p>
+            The <strong>PDF</strong> format generates a professionally formatted report
+            that is perfect for documentation, client deliverables, and compliance reporting.
+        </p>
+
+        <h3>8. YAML — Human-Readable Structured Data</h3>
+        <p>
+            The <strong>YAML</strong> format provides structured data that is both
+            machine-readable and human-friendly. Ideal for configuration and documentation.
+        </p>
+        <div class="format-preview">scan_results:
+            - target: 192.168.1.1
+              scan_type: SYN
+              protocol: TCP
+              open_ports:
+                - port: 135
+                  service: msrpc
+                - port: 139
+                  service: netbios-ssn
+                - port: 445
+                  service: microsoft-ds
+                - port: 5357
+                  service: wsdapi</div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- USAGE EXAMPLES -->
+        <!-- ============================================================ -->
+        <h2>Usage Examples</h2>
+
+        <h3>Basic Scanning &amp; Export</h3>
+
+        <div class="example-box">
+            <span class="mono">LightSave -C "Lightscan -T 192.168.1.1 -F" -S html</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Save scan results as HTML report</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSave -C "Lightscan -T 192.168.1.1 -F -st UDP" -S xml</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Save UDP scan results as XML</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSave -C "Lightscan -T scanme.nmap.org -p 22,80,443" -S json</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Save scan results as JSON for automation</span>
+        </div>
+
+        <h3>Advanced Scanning &amp; Export</h3>
+
+        <div class="example-box">
+            <span class="mono">LightSave -C "Lightscan -T 192.168.1.1 -O -b" -S pdf</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Save OS and banner grab results as PDF</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSave -C "Lightscan -T 192.168.1.0/24 -s fast -F" -S csv</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Save network scan as CSV for analysis</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSave -C "Lightscan -T 10.0.0.0/16 -st SYN -t 200 -tm 0.5" -S yaml</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Save large scan results as YAML</span>
+        </div>
+
+        <h3>LSSE Scripts &amp; Export</h3>
+
+        <div class="example-box">
+            <span class="mono">LightSave -C "Lightscan --lsse --script http-headers --domain google.com -sp 443" -S json</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Save HTTP headers analysis as JSON</span>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LightSave -C "Lightscan --lsse --script dns-zone-transfer --domain example.com" -S xml</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Save DNS zone transfer results as XML</span>
+        </div>
+
+        <h3>Integration with LightPanel</h3>
+
+        <div class="example-box">
+            <span class="mono">LightPanel</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Launch the GUI — export results with one click</span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- FILE NAMING CONVENTION -->
+        <!-- ============================================================ -->
+        <h2>File Naming Convention</h2>
+        <p>
+            LightSave automatically generates filenames with timestamps to prevent overwriting:
+        </p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Format</th>
+                        <th>Example Filename</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="mono">LIGHT</span></td>
+                        <td><span class="mono">Lightscan_scan_2026-07-07_01-28-15.light</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">TXT</span></td>
+                        <td><span class="mono">Lightscan_scan_2026-07-07_01-28-15.txt</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">HTML</span></td>
+                        <td><span class="mono">Lightscan_scan_2026-07-07_01-28-15.html</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">XML</span></td>
+                        <td><span class="mono">Lightscan_scan_2026-07-07_01-28-15.xml</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">CSV</span></td>
+                        <td><span class="mono">Lightscan_scan_2026-07-07_01-28-15.csv</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">JSON</span></td>
+                        <td><span class="mono">Lightscan_scan_2026-07-07_01-28-15.json</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">PDF</span></td>
+                        <td><span class="mono">Lightscan_scan_2026-07-07_01-28-15.pdf</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">YAML</span></td>
+                        <td><span class="mono">Lightscan_scan_2026-07-07_01-28-15.yaml</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- INTEGRATION -->
+        <!-- ============================================================ -->
+        <h2>Integration</h2>
+
+        <h3>With LightPanel GUI</h3>
+        <p>
+            LightSave is fully integrated into <strong>LightPanel</strong>, the graphical
+            interface for Light-Scan. You can run scans and export results with one click.
+        </p>
+        <div class="example-box">
+            <span class="mono">LightPanel</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Launch the GUI</span>
+        </div>
+
+        <h3>With CI/CD Pipelines</h3>
+        <p>
+            LightSave's JSON and XML outputs are perfect for CI/CD security scanning:
+        </p>
+        <div class="example-box">
+            <span class="mono">LightSave -C "Lightscan -T 10.0.0.1 -p 22,80,443" -S json > scan_results.json</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Export to JSON for automated processing</span>
+        </div>
+
+        <h3>With SIEM Systems</h3>
+        <p>
+            Export scan results in XML or JSON for ingestion into SIEM platforms:
+        </p>
+        <div class="example-box">
+            <span class="mono">LightSave -C "Lightscan -T 192.168.1.0/24 -st SYN -F" -S xml > scan_results.xml</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">XML format for SIEM integration</span>
+        </div>
+
+        <h3>With Reporting Tools</h3>
+        <p>
+            Generate professional reports in HTML or PDF for client deliverables:
+        </p>
+        <div class="example-box">
+            <span class="mono">LightSave -C "Lightscan -T 192.168.1.1 -O -b -A" -S pdf</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Generate comprehensive PDF report</span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- TROUBLESHOOTING -->
+        <!-- ============================================================ -->
+        <h2>Troubleshooting</h2>
+
+        <div class="card">
+            <h4>❌ "LightSave: error: argument -C is required"</h4>
+            <p>The <span class="mono">-C</span> option is required. You must specify a Lightscan command.</p>
+            <div class="example-box">
+                <span class="mono">LightSave -C "Lightscan -T 192.168.1.1" -S html</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>❌ "LightSave: error: argument -S is required"</h4>
+            <p>The <span class="mono">-S</span> option is required. You must specify an export format.</p>
+            <div class="example-box">
+                <span class="mono">LightSave -C "Lightscan -T 192.168.1.1" -S json</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4>❌ "Invalid format"</h4>
+            <p>Valid formats are: <span class="mono">txt</span>, <span class="mono">light</span>, <span class="mono">html</span>, <span class="mono">xml</span>, <span class="mono">csv</span>, <span class="mono">json</span>, <span class="mono">pdf</span>, <span class="mono">yaml</span>.</p>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- QUICK REFERENCE -->
+        <!-- ============================================================ -->
+        <h2>Quick Reference</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Use Case</th>
+                        <th>Command</th>
+                        <th>Format</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Basic scan report</strong></td>
+                        <td><span class="mono">LightSave -C "Lightscan -T 192.168.1.1 -F" -S html</span></td>
+                        <td>HTML</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Machine-readable output</strong></td>
+                        <td><span class="mono">LightSave -C "Lightscan -T 192.168.1.1" -S json</span></td>
+                        <td>JSON</td>
+                    </tr>
+                    <tr>
+                        <td><strong>SIEM integration</strong></td>
+                        <td><span class="mono">LightSave -C "Lightscan -T 192.168.1.0/24" -S xml</span></td>
+                        <td>XML</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Data analysis</strong></td>
+                        <td><span class="mono">LightSave -C "Lightscan -T 192.168.1.1 -p 1-1000" -S csv</span></td>
+                        <td>CSV</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Professional report</strong></td>
+                        <td><span class="mono">LightSave -C "Lightscan -T 192.168.1.1 -O -b" -S pdf</span></td>
+                        <td>PDF</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Configuration export</strong></td>
+                        <td><span class="mono">LightSave -C "Lightscan -T 192.168.1.1 -st SYN" -S yaml</span></td>
+                        <td>YAML</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Debug/Archive</strong></td>
+                        <td><span class="mono">LightSave -C "Lightscan -T 192.168.1.1 -v" -S light</span></td>
+                        <td>LIGHT</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Quick view</strong></td>
+                        <td><span class="mono">LightSave -C "Lightscan -T 192.168.1.1" -S txt</span></td>
+                        <td>TXT</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr />
+
+        <p class="text-muted text-small text-center" style="margin-top:1rem;">
+            LightSave v1.0.1 &bull; Light-Scan v1.1.8 &bull; Open Source &bull; GPLv2 License
+        </p>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "Proto": {
+    "Name": "PPPoE",
+    "Description": "Encapsulates PPP frames over Ethernet for broadband connections (DSL, cable). Uses discovery stage to establish session before data transfer.",
+    "Fields": [
+      "version        {4 bits}   = 0x1",
+      "type           {4 bits}   = 0x1",
+      "code           {8 bits}   = 0x00",
+      "ssid           {16 bits}  = 0x0000",
+      "length         {16 bits}  = 0"
+    ]
+  }
+}

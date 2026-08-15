@@ -1,0 +1,14 @@
+scapy
+argparse
+pyfiglet
+requests
+urllib3
+beautifulsoup4
+pyopenssl
+customtkinter
+CTkMessagebox
+dnspython
+reportlab
+pyyaml
+paramiko
+toml

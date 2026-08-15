@@ -1,0 +1,10 @@
+{
+  "Proto": {
+    "Name"  : "Ethernet",
+    "Description": "Layer 2 frame format using EtherType to identify next protocol. Most common wired network format.",
+    "Fields": [
+      "dst           {48 bits}  = ff:ff:ff:ff:ff:ff ",
+      "src           {48 bits}  = default-gateway ",
+      "ethertype     {16 bits}  = 0x0800"]
+  }
+}

@@ -1,0 +1,13 @@
+{
+    "name": "custom-packet",
+    "description": "Custom packet with TTL, payload, and IP flags",
+    "settings": {
+        "scan_type": "SYN",
+        "ttl": 128,
+        "sport": 31337,
+        "payload": "Admin!!!!####",
+        "id": 9999,
+        "ip_flags": 2,
+        "banner": true
+    }
+}

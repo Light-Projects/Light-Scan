@@ -1,0 +1,10 @@
+{
+    "name": "full-scan",
+    "description": "Complete OS fingerprinting and banner grabbing",
+    "settings": {
+        "scan_type": "SYN",
+        "banner": true,
+        "os": true,
+        "speed": "normal"
+    }
+}

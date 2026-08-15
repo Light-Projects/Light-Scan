@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LSSE — Light-Scan Scripting Engine v1.0.6</title>
+    <link rel="icon" type="image/x-icon" href="Assets/Light-Scan-Logo.ico" />
+    <style>
+        /* ── Reset & Base ── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0b0e14;
+            color: #d4d8e0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #131a22;
+            padding: 2.5rem 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            border: 1px solid #29323e;
+        }
+
+        /* ── Navigation ── */
+        .top-nav {
+            display: flex;
+            gap: 1.5rem;
+            margin: 0 0 2rem 0;
+            flex-wrap: wrap;
+            padding: 0.75rem 1.5rem;
+            background: rgba(19, 26, 34, 0.8);
+            border-radius: 12px;
+            border: 1px solid #29323e;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .top-nav a {
+            color: #93c5fd;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid transparent;
+        }
+
+        .top-nav a:hover {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+            border-bottom-color: #60a5fa;
+            transform: translateY(-2px);
+        }
+
+        .top-nav a.nav-right {
+            margin-left: auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1.5rem;
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 2px solid #2a3543;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
+            color: #f0f4fa;
+        }
+
+        h1 small {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #7f8fa3;
+            margin-left: auto;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #b9c7db;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #1e2937;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            margin-top: 2.5rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+            color: #f0f4fa;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            margin-top: 2rem;
+            margin-bottom: 0.5rem;
+            color: #cbd5e1;
+            border-bottom: 1px solid #1e2937;
+            padding-bottom: 0.3rem;
+        }
+
+        h4 {
+            font-size: 1.1rem;
+            margin-top: 1.2rem;
+            margin-bottom: 0.3rem;
+            color: #b9c7db;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.2rem 0 1.8rem 0;
+            border-radius: 12px;
+            border: 1px solid #232e3c;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.90rem;
+            background: #10171f;
+        }
+
+        th {
+            background: #1a2532;
+            color: #dce3ed;
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid #2c3a4a;
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid #1e2937;
+            vertical-align: top;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            background: #0d141e;
+            padding: 0.1rem 0.5rem;
+            border-radius: 6px;
+            border: 1px solid #25303f;
+            white-space: nowrap;
+        }
+
+        pre {
+            background: #0b1119;
+            padding: 1.2rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #24303f;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            color: #d4e0f0;
+            margin: 0.75rem 0 1.5rem 0;
+            line-height: 1.5;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.1rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-right: 0.25rem;
+        }
+
+        .tag-safe {
+            background: #0f2a1f;
+            color: #7ee8b0;
+            border: 1px solid #1f4a35;
+        }
+
+        .tag-medium {
+            background: #2a2410;
+            color: #fbbf24;
+            border: 1px solid #4a3f1f;
+        }
+
+        .tag-discovery {
+            background: #0f2440;
+            color: #7ab7ff;
+            border: 1px solid #1f3f6a;
+        }
+
+        .tag-analysis {
+            background: #1f1f3a;
+            color: #a78bfa;
+            border: 1px solid #3a2a5a;
+        }
+
+        .tag-extract {
+            background: #2a1f1f;
+            color: #fca5a5;
+            border: 1px solid #4a2a2a;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #1e293b;
+            color: #b9c7db;
+            padding: 0.15rem 0.7rem;
+            border-radius: 30px;
+            font-size: 0.65rem;
+            font-weight: 500;
+            border: 1px solid #2d3a4a;
+        }
+
+        .badge-blue {
+            background: #0f2440;
+            color: #7ab7ff;
+            border-color: #1f3f6a;
+        }
+
+        .badge-green {
+            background: #0f2a1f;
+            color: #7ee8b0;
+            border-color: #1f4a35;
+        }
+
+        .badge-yellow {
+            background: #2a2410;
+            color: #fbbf24;
+            border-color: #4a3f1f;
+        }
+
+        .badge-red {
+            background: #2a1010;
+            color: #f87171;
+            border-color: #4a1f1f;
+        }
+
+        .badge-purple {
+            background: #1f1f3a;
+            color: #a78bfa;
+            border-color: #3a2a5a;
+        }
+
+        .script-detail {
+            background: #0d151f;
+            border: 1px solid #1e2a38;
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin: 1.5rem 0;
+            transition: border-color 0.2s;
+        }
+
+        .script-detail:hover {
+            border-color: #3b82f6;
+        }
+
+        .script-detail .script-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.5rem;
+        }
+
+        .script-detail .script-header h4 {
+            margin: 0;
+            color: #f0f4fa;
+        }
+
+        .script-detail .script-meta {
+            color: #8a9aaf;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .script-detail .script-desc {
+            color: #b9c7db;
+            margin-bottom: 0.75rem;
+        }
+
+        .script-detail .script-example {
+            background: #0a111a;
+            border-left: 3px solid #3b82f6;
+            padding: 0.5rem 1rem;
+            border-radius: 0 6px 6px 0;
+            margin-top: 0.5rem;
+        }
+
+        .script-detail .script-example .mono {
+            background: #0d141e;
+            border-color: #1f2a38;
+        }
+
+        .logo-icon {
+            height: 48px;
+            width: 48px;
+            object-fit: contain;
+        }
+
+        .step-box {
+            background: #0a111a;
+            border: 1px solid #1e2a38;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .step-box .step-number {
+            display: inline-block;
+            background: #0f2440;
+            color: #7ab7ff;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            text-align: center;
+            line-height: 28px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-right: 0.5rem;
+        }
+
+        .example-box {
+            background: #0a111a;
+            border-left: 3px solid #3b82f6;
+            padding: 0.8rem 1.2rem;
+            margin: 0.5rem 0 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #24303f;
+            margin: 2rem 0 1.5rem 0;
+        }
+
+        .text-muted {
+            color: #8a9aaf;
+        }
+
+        .text-small {
+            font-size: 0.9rem;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 0.75rem 0 1.5rem 0;
+        }
+
+        @media (max-width: 820px) {
+            .container {
+                padding: 1.5rem 1.2rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+                flex-wrap: wrap;
+            }
+
+            h1 small {
+                margin-left: 0;
+            }
+
+            pre {
+                font-size: 0.72rem;
+                padding: 0.8rem 1rem;
+            }
+
+            .script-detail {
+                padding: 1rem;
+            }
+
+            .top-nav {
+                gap: 0.5rem;
+            }
+
+            .top-nav a.nav-right {
+                margin-left: 0;
+            }
+
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <a href="Light-Scan.html" class="back-link">← Back to Light-Scan Main Page</a>
+
+        <h1>
+            <img src="Assets/Light-Scan-Logo.ico" alt="LSSE Logo" class="logo-icon" />
+            LSSE
+            <small>Light-Scan Scripting Engine v1.0.6</small>
+        </h1>
+
+        <div class="subtitle">
+            <span class="badge badge-blue">13 Built-in Scripts</span>
+            <span class="badge badge-green">HTTP/HTTPS</span>
+            <span class="badge badge-yellow">DNS</span>
+            <span class="badge badge-purple">Extensible</span>
+            <span style="margin-left:0.75rem;">Extend Light-Scan with powerful reconnaissance scripts</span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- OVERVIEW -->
+        <!-- ============================================================ -->
+        <h2>Overview</h2>
+        <p>
+            The <strong>Light-Scan Scripting Engine (LSSE)</strong> is what makes Light-Scan a true
+            <strong>mini-framework</strong>. It extends the core scanner's capabilities with
+            <strong>13 built-in scripts</strong> for web and DNS reconnaissance, security analysis,
+            and information gathering.
+        </p>
+        <p>
+            Each script is designed to be <strong>modular and focused</strong>, performing a single task
+            well. Scripts can be used independently or chained together for complex workflows.
+        </p>
+
+        <!-- ============================================================ -->
+        <!-- USAGE -->
+        <!-- ============================================================ -->
+        <h2>Usage</h2>
+        <pre>Lightscan --lsse --script &lt;name&gt; [required_args] [optional_args]
+
+# Examples:
+Lightscan --lsse --script http-headers --domain google.com -sp 443
+Lightscan --lsse --script dns-zone-transfer --domain example.com
+Lightscan --lsse --script spider --url https://scanme.nmap.org --mxp 50 --mxd 3</pre>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Option</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="mono">--lsse</span></td>
+                        <td>Enable LSSE scripting engine</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--script SCRIPT</span></td>
+                        <td>Script to execute</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--url URL</span></td>
+                        <td>Target URL for HTTP/HTTPS scripts</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--domain DOMAIN</span></td>
+                        <td>Target domain for HTTP and DNS scripts</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">-sp SP</span></td>
+                        <td>Port(s) for scripts</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--redirect</span></td>
+                        <td>Follow HTTP redirects</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">-W, --wordlist</span></td>
+                        <td>Wordlist for scripts</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--extensions</span></td>
+                        <td>File extensions for web scripts</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--starget</span></td>
+                        <td>Target IP or Domain name</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--status-codes</span></td>
+                        <td>Status codes for web scripts</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--mxp MXP</span></td>
+                        <td>Max pages to get (spider)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--mxd MXD</span></td>
+                        <td>Max depth to crawl (spider)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--dns-server</span></td>
+                        <td>DNS server for DNS scripts</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">--lsse-lst</span></td>
+                        <td>List all available scripts</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+
+        <h2>Built-in Scripts</h2>
+
+        <h3>HTTP / HTTPS Scripts</h3>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>1. spider</h4>
+                <span class="tag tag-safe">safe</span>
+                <span class="tag tag-discovery">discovery</span>
+                <span class="badge badge-blue">--url</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> safe/discovery/http_https &bull;
+                <strong>Required:</strong> --url &bull;
+                <strong>Optional:</strong> --mxd, --mxp
+            </div>
+            <div class="script-desc">
+                Recursively crawls websites for links, forms, and resources. Useful for mapping
+                web applications and discovering hidden endpoints.
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script spider --url https://scanme.nmap.org --mxp 50 --mxd 3</span>
+            </div>
+        </div>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>2. http-robots</h4>
+                <span class="tag tag-safe">safe</span>
+                <span class="tag tag-discovery">discovery</span>
+                <span class="badge badge-blue">--domain, -sp</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> safe/discovery/http_https &bull;
+                <strong>Required:</strong> --domain, -sp &bull;
+                <strong>Optional:</strong> None
+            </div>
+            <div class="script-desc">
+                Fetches and parses <span class="mono">robots.txt</span> for hidden paths and
+                directories that the site owner has disallowed for crawlers.
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script http-robots --domain example.com -sp 80</span>
+            </div>
+        </div>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>3. http-cert</h4>
+                <span class="tag tag-safe">safe</span>
+                <span class="tag tag-analysis">analysis</span>
+                <span class="badge badge-blue">--domain, -sp</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> safe/analysis/https &bull;
+                <strong>Required:</strong> --domain, -sp &bull;
+                <strong>Optional:</strong> None
+            </div>
+            <div class="script-desc">
+                Grabs SSL/TLS certificate information including issuer, validity period,
+                SANs, and cipher suite details. Useful for security auditing.
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script http-cert --domain google.com -sp 443</span>
+            </div>
+        </div>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>4. script</h4>
+                <span class="tag tag-safe">safe</span>
+                <span class="tag tag-discovery">discovery</span>
+                <span class="badge badge-blue">--url</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> safe/discovery/http_https &bull;
+                <strong>Required:</strong> --url &bull;
+                <strong>Optional:</strong> None
+            </div>
+            <div class="script-desc">
+                Detects <span class="mono">&lt;script&gt;</span> tags in HTML pages and
+                extracts their sources. Useful for discovering JavaScript files and
+                tracking external scripts.
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script script --url https://example.com</span>
+            </div>
+        </div>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>5. http-title</h4>
+                <span class="tag tag-safe">safe</span>
+                <span class="tag tag-discovery">discovery</span>
+                <span class="badge badge-blue">--domain, -sp</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> safe/discovery/http_https &bull;
+                <strong>Required:</strong> --domain, -sp &bull;
+                <strong>Optional:</strong> --redirect
+            </div>
+            <div class="script-desc">
+                Extracts webpage titles from HTTP responses. Useful for identifying
+                services, applications, and default pages.
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script http-title --domain example.com -sp 80 --redirect</span>
+            </div>
+        </div>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>6. http-dir</h4>
+                <span class="tag tag-medium">medium</span>
+                <span class="tag tag-discovery">discovery</span>
+                <span class="badge badge-blue">--url</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> medium/discovery/http_https &bull;
+                <strong>Required:</strong> --url &bull;
+                <strong>Optional:</strong> --wordlist, --status-codes, --extensions
+            </div>
+            <div class="script-desc">
+                Brute forces directories and files on web servers using a wordlist.
+                Supports custom extensions and status code filtering.
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script http-dir --url http://192.168.1.1 -W common.txt --extensions php,html,txt</span>
+            </div>
+        </div>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>7. http-headers</h4>
+                <span class="tag tag-safe">safe</span>
+                <span class="tag tag-analysis">analysis</span>
+                <span class="badge badge-blue">--domain, -sp</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> safe/analysis/http_https &bull;
+                <strong>Required:</strong> --domain, -sp &bull;
+                <strong>Optional:</strong> --redirect
+            </div>
+            <div class="script-desc">
+                Fetches HTTP headers and checks for missing security headers including:
+                HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy,
+                Permissions-Policy, and X-XSS-Protection.
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script http-headers --domain google.com -sp 443</span>
+            </div>
+        </div>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>8. http-methods</h4>
+                <span class="tag tag-safe">safe</span>
+                <span class="tag tag-discovery">discovery</span>
+                <span class="badge badge-blue">--domain, -sp</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> safe/discovery/http_https &bull;
+                <strong>Required:</strong> --domain, -sp &bull;
+                <strong>Optional:</strong> None
+            </div>
+            <div class="script-desc">
+                Checks which HTTP methods are allowed by the server. Identifies safe
+                methods (GET, HEAD, POST) and dangerous methods (PUT, DELETE, TRACE, OPTIONS).
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script http-methods --domain example.com -sp 80</span>
+            </div>
+        </div>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>9. http-cookie</h4>
+                <span class="tag tag-safe">safe</span>
+                <span class="tag tag-analysis">analysis</span>
+                <span class="badge badge-blue">--domain, -sp</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> safe/analysis/http_https &bull;
+                <strong>Required:</strong> --domain, -sp &bull;
+                <strong>Optional:</strong> --redirect
+            </div>
+            <div class="script-desc">
+                Checks cookies for <strong>Secure</strong> and <strong>HttpOnly</strong>
+                flags. Identifies session cookies that may be vulnerable to theft.
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script http-cookie --domain example.com -sp 443</span>
+            </div>
+        </div>
+
+        <h3>DNS Scripts</h3>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>10. dns-lookup</h4>
+                <span class="tag tag-safe">safe</span>
+                <span class="tag tag-discovery">discovery</span>
+                <span class="badge badge-yellow">--domain</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> safe/discovery/dns &bull;
+                <strong>Required:</strong> --domain &bull;
+                <strong>Optional:</strong> --dns-server
+            </div>
+            <div class="script-desc">
+                Fast DNS lookup for IPv4 and IPv6 addresses. Resolves domain names to
+                IP addresses and shows all associated A and AAAA records.
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script dns-lookup --domain google.com</span>
+            </div>
+        </div>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>11. dns-ns</h4>
+                <span class="tag tag-safe">safe</span>
+                <span class="tag tag-discovery">discovery</span>
+                <span class="badge badge-yellow">--domain</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> safe/discovery/dns &bull;
+                <strong>Required:</strong> --domain &bull;
+                <strong>Optional:</strong> --dns-server
+            </div>
+            <div class="script-desc">
+                Gets the Name-Server (NS) records of a domain. Identifies authoritative
+                DNS servers for the target domain.
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script dns-ns --domain example.com</span>
+            </div>
+        </div>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>12. dns-subdomain-fuzzing</h4>
+                <span class="tag tag-medium">medium</span>
+                <span class="tag tag-discovery">discovery</span>
+                <span class="badge badge-yellow">--domain</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> medium/discovery/dns &bull;
+                <strong>Required:</strong> --domain &bull;
+                <strong>Optional:</strong> --wordlist, --dns-server
+            </div>
+            <div class="script-desc">
+                Brute forces subdomains using a wordlist. Identifies hidden subdomains
+                and potential attack surfaces. Useful for reconnaissance and asset discovery.
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script dns-subdomain-fuzzing --domain example.com -W subdomains.txt</span>
+            </div>
+        </div>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>13. dns-zone-transfer</h4>
+                <span class="tag tag-medium">medium</span>
+                <span class="tag tag-extract">extracting</span>
+                <span class="badge badge-yellow">--domain</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> medium/extracting/dns &bull;
+                <strong>Required:</strong> --domain &bull;
+                <strong>Optional:</strong> --dns-server
+            </div>
+            <div class="script-desc">
+                Attempts an AXFR zone transfer to enumerate all DNS records for a domain.
+                This is a classic information disclosure vulnerability when misconfigured
+                DNS servers allow zone transfers.
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script dns-zone-transfer --domain example.com</span>
+            </div>
+        </div>
+
+        <h3>Firewalls Scripts</h3>
+
+        <div class="script-detail">
+            <div class="script-header">
+                <h4>14. firewall-detection</h4>
+                <span class="tag tag-safe">medium</span>
+                <span class="tag tag-discovery">analysis</span>
+                <span class="badge badge-yellow">--starget,-sp</span>
+            </div>
+            <div class="script-meta">
+                <strong>Category:</strong> medium/analysis/firewall &bull;
+                <strong>Required:</strong> --starget,-sp &bull;
+                <strong>Optional:</strong> None
+            </div>
+            <div class="script-desc">
+                Firewall detection using multiple probe techniques on a single port
+            </div>
+            <div class="script-example">
+                <span class="mono">Lightscan --lsse --script firewall-detection -sp 80 --starget scanme.nmap.org</span>
+            </div>
+        </div>
+
+        <hr />
+
+        <h2>Creating Custom Scripts</h2>
+        <p>
+            LSSE is designed to be <strong>extensible</strong>. You can create your own scripts
+            and integrate them into the framework. Follow the steps below to add a new script.
+        </p>
+
+        <h3>Step 1: Choose a Location for Your Script</h3>
+        <p>
+            LSSE scripts are organized by category in the <span class="mono">LSSE/scripts/</span> directory.
+            Choose the appropriate folder based on your script's purpose:
+        </p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Path</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge badge-green">Safe / Discovery</span></td>
+                        <td><span class="mono">LSSE/scripts/safe/discovery/</span></td>
+                        <td>Non-intrusive information gathering scripts</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-green">Safe / Analysis</span></td>
+                        <td><span class="mono">LSSE/scripts/safe/analysis/</span></td>
+                        <td>Non-intrusive security analysis scripts</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-green">Safe / Extracting</span></td>
+                        <td><span class="mono">LSSE/scripts/safe/extracting/</span></td>
+                        <td>Non-intrusive data extraction scripts</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-yellow">Medium / Discovery</span></td>
+                        <td><span class="mono">LSSE/scripts/medium/discovery/</span></td>
+                        <td>More aggressive discovery scripts (may generate traffic)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-yellow">Medium / Analysis</span></td>
+                        <td><span class="mono">LSSE/scripts/medium/analysis/</span></td>
+                        <td>More aggressive analysis scripts</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-yellow">Medium / Extracting</span></td>
+                        <td><span class="mono">LSSE/scripts/medium/extracting/</span></td>
+                        <td>More aggressive data extraction scripts</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-red">Harmful</span></td>
+                        <td><span class="mono">LSSE/scripts/harmful/</span></td>
+                        <td>Scripts that could cause damage (use with caution)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="example-box">
+            <span class="mono">LSSE/scripts/safe/discovery/http_https/</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">→ For safe HTTP/HTTPS discovery scripts</span>
+        </div>
+        <div class="example-box">
+            <span class="mono">LSSE/scripts/medium/discovery/dns/</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">→ For medium DNS discovery scripts</span>
+        </div>
+
+        <h3>Step 2: Create Your Script File</h3>
+        <p>
+            Create a Python file in the appropriate directory. Name it descriptively,
+            e.g., <span class="mono">my_custom_script.py</span>.
+        </p>
+
+        <div class="step-box">
+            <h4>Script Template</h4>
+            <pre>#!/usr/bin/env python3
+"""
+Light-Scan Scripting Engine (LSSE)
+Script Name : dns-subdomain-fuzzing
+Author : Adam Boulaaz
+Arguments
+--> Required Arguments
+----> --starget
+----> -sp
+--> Optional Arguments
+----> --verbose
+Categorie : ....
+"""
+
+import sys
+
+def main(target, port=None, verbose=False, **kwargs):
+    """
+    Main function for your script.
+
+    Args:
+        target (str): The target (domain, URL, or IP)
+        port (int, optional): Port number
+        verbose (bool, optional): Enable verbose output
+        **kwargs: Additional arguments passed from LSSE
+
+    Returns:
+        dict or None: Results of the script
+    """
+    print(f"[*] Running my-custom-script on {target}")
+
+    # Your script logic here
+    # ...
+
+    # Return results if needed
+    return {"status": "success", "target": target, "port": port}
+
+</pre>
+        </div>
+
+        <h3>Step 3: Import Your Script in <span class="mono">lsse.py</span></h3>
+        <p>
+            Open <span class="mono">LSSE/lsse.py</span> and add your script to the <span class="mono">scripts_list</span>
+            and the <span class="mono">script_list()</span> method.
+        </p>
+
+        <div class="step-box">
+            <h4>Add to <span class="mono">scripts_list</span></h4>
+            <pre>class LSSE:
+    def __init__(self):
+        self.scripts_list = [
+            "http-title",
+            "http-robots",
+            # ... existing scripts ...
+            "my-custom-script"  # ← Add your script here
+        ]</pre>
+        </div>
+
+        <div class="step-box">
+            <h4>Add to <span class="mono">script_list()</span> Method</h4>
+            <pre>def script_list(self, sname, t=None, ports=None, redirect=None, domain=None, dns=None, wordlist=None, url=None, max_pages=None, max_depth=None, extensions=None, status_codes=None):
+    if sname in self.scripts_list:
+        match sname:
+            # ... existing cases ...
+            case "my-custom-script":
+                from LSSE.scripts.safe.discovery.http_https.my_custom_script import main
+                main(
+                    target=domain or url,
+                    port=ports[0] if ports else None,
+                    verbose=True
+                )
+            case _:
+                print(f"\n{yellow}[!] Script not found {reset}\n")
+                sys.exit(2)
+    else:
+        print(f"\n{yellow}[!] Script not found {reset}\n")
+        sys.exit(3)</pre>
+        </div>
+
+        <h3>Step 4: Add Arguments to <span class="mono">Lightscan.py</span> (If Needed)</h3>
+        <p>
+            If your script requires custom arguments that aren't already available, you'll need to add them to
+            <span class="mono">Lightscan.py</span> in the <span class="mono">args_parse()</span> method.
+        </p>
+
+        <div class="step-box">
+            <h4>Add Custom Argument</h4>
+            <pre>def args_parse(self):
+    self.parser = argparse.ArgumentParser(description="Light-Scan Port Scanner")
+    # ... existing arguments ...
+    self.parser.add_argument("--my-arg", type=str, help="Custom argument for my script")
+    # ... more arguments ...
+    self.args = self.parser.parse_args()</pre>
+        </div>
+
+        <div class="step-box">
+            <h4>Parse and Pass to LSSE</h4>
+            <pre># In the Start() method, where LSSE is called:
+lsse.Lsse.script_list(
+    self.args.script,
+    t=self.args.starget,
+    ports=self.lsse_ports_to_scan,
+    redirect=self.args.redirect,
+    domain=self.args.domain,
+    dns=self.args.dns_server,
+    wordlist=self.args.wordlist,
+    url=self.args.url,
+    max_pages=self.args.mxp,
+    max_depth=self.args.mxd,
+    extensions=self.args.extensions,
+    status_codes=self.args.status_codes,
+    my_arg=self.args.my_arg  # ← Pass your custom argument
+)</pre>
+        </div>
+
+        <h3>Step 5: Update <span class="mono">--lsse-lst</span> Description</h3>
+        <p>
+            To make your script visible in the <span class="mono">--lsse-lst</span> output, update the
+            description in <span class="mono">Lightscan.py</span>:
+        </p>
+
+        <div class="step-box">
+            <h4>Add Script Description</h4>
+            <pre>if self.args.lsse_lst:
+    print(f\"\"\"
+{green}[+] LSSE Scripts (LightScan Scripting Engine){reset}
+{'-' * 50}
+
+# ... existing scripts ...
+
+{yellow}[15] my-custom-script{reset}
+    Required:   --domain
+    Optional:   --my-arg, --dns-server
+    Category:   safe/discovery/http_https
+    Description: Briefly describe what your script does
+
+{'-' * 50}
+{green}[+] Usage: Lightscan --lsse --script <name> {reset}
+    \"\"\")
+    sys.exit(0)</pre>
+        </div>
+
+        <h3>Step 6: Test Your Script</h3>
+        <div class="example-box">
+            <span class="mono">Lightscan --lsse --script my-custom-script --domain example.com --my-arg "value"</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Run your custom script</span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- CONTRIBUTING -->
+        <!-- ============================================================ -->
+        <h2>Contributing Your Script</h2>
+        <p>
+            If you've created a script that you think would be useful to the community, you can
+            <strong>fork the repository</strong> and submit a pull request. Here's how:
+        </p>
+
+        <ol style="padding-left:1.6rem; margin:0.5rem 0 1.2rem 0;">
+            <li><strong>Fork</strong> the <a href="https://github.com/adamboulaaz92-jpg/Light-Scan" target="_blank">Light-Scan repository</a> on GitHub</li>
+            <li><strong>Add your script</strong> following the steps above</li>
+            <li><strong>Test</strong> your script thoroughly</li>
+            <li><strong>Submit a pull request</strong> with a clear description of your script</li>
+        </ol>
+
+        <p>
+            The developer may review and add your script to the official LSSE distribution if it:
+        </p>
+        <ul>
+            <li><strong>Works correctly</strong> without errors</li>
+            <li><strong>Fits the LSSE architecture</strong> and coding standards</li>
+            <li><strong>Provides useful functionality</strong> for the community</li>
+            <li><strong>Has proper documentation</strong> and help text</li>
+        </ul>
+
+        <div class="example-box">
+            <span class="mono">git clone https://github.com/YOUR_USERNAME/Light-Scan.git</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Clone your fork</span>
+        </div>
+        <div class="example-box">
+            <span class="mono">git checkout -b my-custom-script</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Create a new branch</span>
+        </div>
+        <div class="example-box">
+            <span class="mono">git add LSSE/scripts/...</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Add your script files</span>
+        </div>
+        <div class="example-box">
+            <span class="mono">git commit -m "Add my-custom-script to LSSE"</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Commit your changes</span>
+        </div>
+        <div class="example-box">
+            <span class="mono">git push origin my-custom-script</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Push your branch</span>
+        </div>
+        <div class="example-box">
+            <span class="mono">Open a Pull Request on GitHub</span>
+            <span style="color:#8a9aaf; margin-left:1rem;">Submit for review</span>
+        </div>
+
+        <hr />
+
+        <!-- ============================================================ -->
+        <!-- QUICK REFERENCE -->
+        <!-- ============================================================ -->
+        <h2>Quick Reference</h2>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Script</th>
+                        <th>Required</th>
+                        <th>Optional</th>
+                        <th>Category</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="mono">spider</span></td>
+                        <td>--url</td>
+                        <td>--mxd, --mxp</td>
+                        <td><span class="tag tag-safe">safe</span> <span class="tag tag-discovery">discovery</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">http-robots</span></td>
+                        <td>--domain, -sp</td>
+                        <td>None</td>
+                        <td><span class="tag tag-safe">safe</span> <span class="tag tag-discovery">discovery</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">http-cert</span></td>
+                        <td>--domain, -sp</td>
+                        <td>None</td>
+                        <td><span class="tag tag-safe">safe</span> <span class="tag tag-analysis">analysis</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">script</span></td>
+                        <td>--url</td>
+                        <td>None</td>
+                        <td><span class="tag tag-safe">safe</span> <span class="tag tag-discovery">discovery</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">http-title</span></td>
+                        <td>--domain, -sp</td>
+                        <td>--redirect</td>
+                        <td><span class="tag tag-safe">safe</span> <span class="tag tag-discovery">discovery</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">http-dir</span></td>
+                        <td>--url</td>
+                        <td>--wordlist, --status-codes, --extensions</td>
+                        <td><span class="tag tag-medium">medium</span> <span class="tag tag-discovery">discovery</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">http-headers</span></td>
+                        <td>--domain, -sp</td>
+                        <td>--redirect</td>
+                        <td><span class="tag tag-safe">safe</span> <span class="tag tag-analysis">analysis</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">http-methods</span></td>
+                        <td>--domain, -sp</td>
+                        <td>None</td>
+                        <td><span class="tag tag-safe">safe</span> <span class="tag tag-discovery">discovery</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">http-cookie</span></td>
+                        <td>--domain, -sp</td>
+                        <td>--redirect</td>
+                        <td><span class="tag tag-safe">safe</span> <span class="tag tag-analysis">analysis</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">firewall-detection</span></td>
+                        <td>--starget, -sp</td>
+                        <td>None</td>
+                        <td><span class="tag tag-medium">medium</span> <span class="tag tag-analysis">analysis</span><</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">dns-lookup</span></td>
+                        <td>--domain</td>
+                        <td>--dns-server</td>
+                        <td><span class="tag tag-safe">safe</span> <span class="tag tag-discovery">discovery</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">dns-ns</span></td>
+                        <td>--domain</td>
+                        <td>--dns-server</td>
+                        <td><span class="tag tag-safe">safe</span> <span class="tag tag-discovery">discovery</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">dns-subdomain-fuzzing</span></td>
+                        <td>--domain</td>
+                        <td>--wordlist, --dns-server</td>
+                        <td><span class="tag tag-medium">medium</span> <span class="tag tag-discovery">discovery</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="mono">dns-zone-transfer</span></td>
+                        <td>--domain</td>
+                        <td>--dns-server</td>
+                        <td><span class="tag tag-medium">medium</span> <span class="tag tag-extract">extracting</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr />
+
+        <p class="text-muted text-small text-center" style="margin-top:1rem;">
+            LSSE v1.0.6 &bull; Light-Scan v1.1.8 &bull; Open Source &bull; GPLv2 License
+        </p>
+
+    </div>
+
+</body>
+</html>

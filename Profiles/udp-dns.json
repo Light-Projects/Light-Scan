@@ -1,0 +1,11 @@
+{
+    "name": "udp-dns",
+    "description": "UDP DNS enumeration",
+    "settings": {
+        "scan_type": "UDP",
+        "ports": "53",
+        "banner": true,
+        "timeout": 2.0,
+        "max_retries": 3
+    }
+}

@@ -1,0 +1,10 @@
+{
+    "name": "stealth",
+    "description": "Fin scan with low TTL",
+    "settings": {
+        "scan_type": "FIN",
+        "speed": "slow",
+        "ttl": 10,
+        "max_retries": 2
+    }
+}

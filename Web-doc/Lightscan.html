@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lightscan Core — Port Scanner Documentation</title>
+    <link rel="icon" type="image/x-icon" href="Assets/Lightscan.png" />
+    <style>
+        /* ----------------------------------------------
+           RESET & BASE
+        ------------------------------------------------ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0b0e14;
+            color: #d4d8e0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #131a22;
+            padding: 2.5rem 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            border: 1px solid #29323e;
+        }
+
+        h1, h2, h3, h4 {
+            color: #f0f4fa;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 2px solid #2a3543;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        h1 small {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #7f8fa3;
+            margin-left: auto;
+        }
+        .subtitle {
+            font-size: 1.1rem;
+            color: #b9c7db;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #1e2937;
+        }
+        .subtitle strong { color: #7ab7ff; }
+
+        h2 {
+            font-size: 1.8rem;
+            margin-top: 2.5rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+        }
+        h3 {
+            font-size: 1.4rem;
+            margin-top: 1.8rem;
+            margin-bottom: 0.5rem;
+            color: #cbd5e1;
+            border-bottom: 1px solid #1e2937;
+            padding-bottom: 0.3rem;
+        }
+        h4 {
+            font-size: 1.1rem;
+            margin-top: 1.2rem;
+            margin-bottom: 0.3rem;
+            color: #b9c7db;
+        }
+
+        a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+        a:hover { text-decoration: underline; }
+
+        /* ----------------------------------------------
+           UTILITY & BADGES
+        ------------------------------------------------ */
+        .badge {
+            display: inline-block;
+            background: #1e293b;
+            color: #b9c7db;
+            padding: 0.15rem 0.7rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            margin-right: 0.3rem;
+            border: 1px solid #2d3a4a;
+        }
+        .badge-green { background: #0f2a1f; color: #7ee8b0; border-color: #1f4a35; }
+        .badge-blue  { background: #0f2440; color: #7ab7ff; border-color: #1f3f6a; }
+        .badge-yellow{ background: #2a2410; color: #fbbf24; border-color: #4a3f1f; }
+        .badge-red   { background: #2a0f1a; color: #f87171; border-color: #4a1f2a; }
+        .badge-purple{ background: #1f1f3a; color: #a78bfa; border-color: #3a2a5a; }
+
+        .tag {
+            display: inline-block;
+            padding: 0.1rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-right: 0.25rem;
+        }
+        .tag-safe   { background: #0f2a1f; color: #7ee8b0; border: 1px solid #1f4a35; }
+        .tag-medium { background: #2a2410; color: #fbbf24; border: 1px solid #4a3f1f; }
+        .tag-discovery { background: #0f2440; color: #7ab7ff; border: 1px solid #1f3f6a; }
+        .tag-analysis { background: #1f1f3a; color: #a78bfa; border: 1px solid #3a2a5a; }
+        .tag-extract { background: #2a1f1f; color: #fca5a5; border: 1px solid #4a2a2a; }
+
+        .framework-badge {
+            display: inline-block;
+            background: #0f2440;
+            color: #7ab7ff;
+            padding: 0.2rem 1rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid #1f3f6a;
+            letter-spacing: 0.04em;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            background: #0d141e;
+            padding: 0.1rem 0.5rem;
+            border-radius: 6px;
+            border: 1px solid #25303f;
+            white-space: nowrap;
+        }
+
+        .text-muted { color: #8a9aaf; }
+        .text-small { font-size: 0.9rem; }
+
+        hr {
+            border: none;
+            border-top: 1px solid #24303f;
+            margin: 2rem 0 1.5rem 0;
+        }
+
+        /* ----------------------------------------------
+           TABLES
+        ------------------------------------------------ */
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.2rem 0 1.8rem 0;
+            border-radius: 12px;
+            border: 1px solid #232e3c;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.90rem;
+            background: #10171f;
+        }
+        th {
+            background: #1a2532;
+            color: #dce3ed;
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid #2c3a4a;
+        }
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid #1e2937;
+            vertical-align: top;
+        }
+        tr:last-child td { border-bottom: none; }
+
+        /* ----------------------------------------------
+           CODE / PRE
+        ------------------------------------------------ */
+        pre {
+            background: #0b1119;
+            padding: 1.2rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #24303f;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            color: #d4e0f0;
+            margin: 0.75rem 0 1.5rem 0;
+            line-height: 1.5;
+        }
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            background: #0d141e;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            border: 1px solid #1f2a38;
+        }
+
+        /* ----------------------------------------------
+           CARDS / GRIDS
+        ------------------------------------------------ */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .stat-card {
+            background: #0b1119;
+            border: 1px solid #1a2532;
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .stat-card .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+        .stat-card .stat-label {
+            font-size: 0.8rem;
+            color: #8a9aaf;
+        }
+
+        .example-box {
+            background: #0a111a;
+            border-left: 3px solid #3b82f6;
+            padding: 0.8rem 1.2rem;
+            margin: 0.5rem 0 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .example-box .mono {
+            background: #0d141e;
+            border-color: #1f2a38;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem 1.5rem;
+            margin: 0.3rem 0 0.5rem 0;
+        }
+        .feature-grid li {
+            list-style: none;
+            padding-left: 0;
+        }
+        .feature-grid li::before {
+            content: "▸ ";
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .option-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem 2rem;
+            margin: 0.5rem 0 1rem 0;
+        }
+        .option-grid .opt-item {
+            background: #0b1119;
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+            border: 1px solid #1a2532;
+        }
+        .option-grid .opt-item .mono {
+            background: transparent;
+            border: none;
+            padding: 0;
+            font-weight: 600;
+            color: #7ab7ff;
+        }
+        .option-grid .opt-item .opt-desc {
+            color: #b9c7db;
+            font-size: 0.85rem;
+            margin-left: 0.3rem;
+        }
+
+        /* ----------------------------------------------
+           RESPONSIVE
+        ------------------------------------------------ */
+        @media (max-width: 1024px) {
+            .option-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 820px) {
+            .container { padding: 1.5rem 1.2rem; }
+            h1 { font-size: 1.8rem; flex-wrap: wrap; }
+            h1 small { margin-left: 0; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .stat-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 480px) {
+            .stat-grid { grid-template-columns: 1fr; }
+        }
+        .logo-icon {
+            height: 70px;
+            width: auto;
+            max-height: 70px;
+            object-fit: contain;
+}
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <a href="Light-Scan.html" class="back-link">← Back to Light-Scan Main Page</a>
+
+    <h1>
+        <img src="Assets/Lightscan.png" class="logo-icon" />
+        <span>Lightscan</span>
+        <small>Core Port Scanner · v1.1.8</small>
+    </h1>
+
+    <div class="subtitle">
+        <span class="framework-badge">High-Performance</span>
+        <span class="framework-badge" style="background:#1a2a1a; border-color:#2a4a3a; color:#6ee7b7;">Multi-Threaded</span>
+        <span style="margin-left:0.75rem;">
+            Python &amp; Scapy &bull; 14 Scan Types &bull; 12 Discovery Methods
+        </span>
+    </div>
+
+    <p class="text-muted text-small">
+        <span class="badge">Enterprise</span>
+        <span class="badge badge-green">Stealth</span>
+        <span class="badge badge-blue">Extensible</span>
+        <span style="margin-left:0.75rem;">Cross-Platform: Windows · Linux · macOS · BSD · Solaris</span>
+    </p>
+
+    <hr />
+
+    <h2>Overview</h2>
+    <p>
+        <strong>Lightscan</strong> is the heart of the Light-Scan toolkit — a high-performance,
+        multi‑threaded port scanner built with Python and Scapy. It is designed to deliver
+        <strong>enterprise‑grade network reconnaissance</strong> in a lightweight, flexible package.
+    </p>
+    <p>
+        Unlike traditional scanners that sacrifice accuracy for speed or vice versa,
+        Lightscan strikes a careful balance. It supports <strong>14 distinct scan types</strong>,
+        from standard TCP Connect and SYN Stealth to advanced techniques like
+        <strong>FDD (Firewall Detection Scan)</strong> — a proprietary scan type exclusive to Light-Scan.
+    </p>
+    <p>
+        Lightscan also features <strong>12 host discovery methods</strong>, including ICMP Echo,
+        Timestamp, Address Mask, and the rare <strong>Information (Type 15)</strong> and
+        <strong>Solicitation (Type 10)</strong> pings — both of which are <strong>not supported by Nmap</strong>.
+        By default, Lightscan performs ICMP Echo (IPv4) and ICMPv6 Echo (IPv6) without requiring any additional flag.
+        With <strong>6 speed presets</strong> (from 2 to 500 threads), <strong>custom packet crafting</strong>
+        (TTL, HLIM, source port, payload, IP ID, and flags), and a <strong>+11500 port‑to‑service mapping database</strong>,
+        Lightscan gives you complete control over every scan.
+    </p>
+
+    <div class="stat-grid">
+        <div class="stat-card"><div class="stat-number">14</div><div class="stat-label">Scan Types</div></div>
+        <div class="stat-card"><div class="stat-number">12</div><div class="stat-label">Host Discovery Methods</div></div>
+        <div class="stat-card"><div class="stat-number">11,500+</div><div class="stat-label">Service Database</div></div>
+        <div class="stat-card"><div class="stat-number">500</div><div class="stat-label">Max Threads</div></div>
+        <div class="stat-card"><div class="stat-number">6</div><div class="stat-label">Speed Presets</div></div>
+        <div class="stat-card"><div class="stat-number">7</div><div class="stat-label">Port States</div></div>
+    </div>
+
+    <hr />
+
+    <h2>Scan Types — 15 in Total</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Scan Type</th><th>Flag</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>TCP Connect</strong></td><td><span class="mono">-st TCP</span></td><td>Full 3‑way handshake — most reliable</td></tr>
+                <tr><td><strong>SYN Stealth</strong></td><td><span class="mono">-st SYN</span></td><td>Half‑open scan — stealthier than TCP</td></tr>
+                <tr><td><strong>UDP</strong></td><td><span class="mono">-st UDP</span></td><td>UDP datagram scan — for DNS, DHCP, etc.</td></tr>
+                <tr><td><strong>NULL</strong></td><td><span class="mono">-st NULL</span></td><td>No flags set — evades some firewalls</td></tr>
+                <tr><td><strong>FIN</strong></td><td><span class="mono">-st FIN</span></td><td>FIN flag only — evades some firewalls</td></tr>
+                <tr><td><strong>ACK</strong></td><td><span class="mono">-st ACK</span></td><td>ACK flag only — firewall mapping</td></tr>
+                <tr><td><strong>XMAS</strong></td><td><span class="mono">-st XMAS</span></td><td>FIN+URG+PSH — evades some firewalls</td></tr>
+                <tr><td><strong>WINDOW</strong></td><td><span class="mono">-st WINDOW</span></td><td>TCP window size analysis</td></tr>
+                <tr><td><strong>MAIMON</strong></td><td><span class="mono">-st MAIMON</span></td><td>FIN+ACK — evades some firewalls</td></tr>
+                <tr><td><strong>FDD</strong> (Proprietary)</td><td><span class="mono">-st FDD</span></td><td>Firewall Detection Scan — exclusive to Light-Scan</td></tr>
+                <tr><td><strong>FTP‑BOUNCE</strong></td><td><span class="mono">-st FTP-BOUNCE</span></td><td>Scans through an FTP server</td></tr>
+                <tr><td><strong>IPPROTO</strong></td><td><span class="mono">-st IPPROTO</span></td><td>IP protocol scan</td></tr>
+                <tr><td><strong>PING</strong></td><td><span class="mono">-st PING</span></td><td>Ping sweep — host discovery only</td></tr>
+                <tr><td><strong>IDLE</strong></td><td><span class="mono">-st IDLE</span></td><td>Ultra‑stealth idle scan</td></tr>
+                <tr><td><strong>SCTP-INIT</strong></td><td><span class="mono">-st SCTP-INIT</span></td><td>Half-open SCTP scan</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Speed Presets</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Preset</th><th>Threads</th><th>Timeout</th><th>Best For</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><span class="mono">paranoid</span></td><td>2</td><td>4.0s</td><td>Stealth, IDS/IPS evasion</td></tr>
+                <tr><td><span class="mono">slow</span></td><td>30</td><td>3.0s</td><td>Noisy / unstable networks</td></tr>
+                <tr><td><span class="mono">normal</span></td><td>60</td><td>2.5s</td><td><strong>Default</strong> — balanced</td></tr>
+                <tr><td><span class="mono">fast</span></td><td>120</td><td>2.5s</td><td>Internal / trusted networks</td></tr>
+                <tr><td><span class="mono">insane</span></td><td>240</td><td>1.25s</td><td>High‑speed LAN scans</td></tr>
+                <tr><td><span class="mono">Light-mode</span></td><td>500</td><td>1.25s</td><td>Maximum speed on reliable networks</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Port States</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>State</th><th>Meaning</th><th>Common Causes</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Open</strong></td><td>Service actively listening</td><td>Web server, SSH, DB, etc.</td></tr>
+                <tr><td><strong>Closed</strong></td><td>Host up, no service listening</td><td>Unused port</td></tr>
+                <tr><td><strong>Filtered</strong></td><td>Firewall / ACL blocking</td><td>DROP rules, stateful firewall</td></tr>
+                <tr><td><strong>Open|Filtered</strong></td><td>No response (UDP scans)</td><td>Packet loss, no reply</td></tr>
+                <tr><td><strong>Defended</strong></td><td>Firewall detected (FDD scan)</td><td>Active firewall protection</td></tr>
+                <tr><td><strong>Undefended</strong></td><td>No firewall detected</td><td>Direct port access</td></tr>
+                <tr><td><strong>Unfiltered</strong></td><td>Accessible but not open (ACK)</td><td>Firewall rule mapping</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <hr />
+
+
+    <h2>Command‑Line Options</h2>
+    <pre style="font-size:0.75rem; max-height:400px; overflow-y:auto;">
+usage: Lightscan.py [-h] [-T TARGET] [--rff RFF] [-V6] [-p PORT] [-pp PING_PORT]
+                    [-s {paranoid,slow,normal,fast,insane,Light-mode}] [-v] [-n] [-V] [-st SCAN_TYPE]
+                    [--zombie ZOMBIE] [-sn] [--ftp-bounce FTP_SERVER] [-F] [-mx MAX_RETRIES] [-t THREADS] [-lst]
+                    [--lsse-lst] [--profiles-lst] [-tm TIMEOUT] [-Rc] [-f] [-Pn] [-b] [-O] [-mac]
+                    [--load-profile LOAD_PROFILE] [--save-profile SAVE_PROFILE] [-ttl TTL] [-hlim HLIM] [-sport SPORT]
+                    [-payload PAYLOAD] [-id ID] [-ip-flags IP_FLAGS] [-Pan] [-Pi] [-Pip PIP] [-A] [-Pt] [-Ps] [-Pk]
+                    [-Pu] [-PIt] [-PA] [-Pin] [-Pas] [-Pg] [-q] [--script SCRIPT] [--domain DOMAIN]
+                    [--dns-server DNS_SERVER] [-W WORDLIST] [--extensions EXTENSIONS] [--status-codes STATUS_CODES]
+                    [--redirect] [--url URL] [--mxp MXP] [--mxd MXD] [-sp SP] [--starget STARGET] [--lsse]
+
+Light-Scan Port Scanner
+
+options:
+  -h, --help            show this help message and exit
+  -T, --target TARGET   Target IP or Hostname
+  --rff RFF             Read Target/s from a file
+  -V6                   used when the target is an IPv6
+  -p, --port PORT       Port/s to scan
+  -pp, --ping-port PING_PORT
+                        Port/s to Ping on it
+  -s, --speed {paranoid,slow,normal,fast,insane,Light-mode}
+                        Scan speed preset
+  -v, --verbose         Show verbose output
+  -n                    Disable reverse dns
+  -V, --version         show Light-Scan version with all additionnal tools
+  -st, --scan-type SCAN_TYPE
+                        Scan types {TCP,SYN,UDP,NULL,FIN,ACK,XMAS,WINDOW,MAIMON,FDD,FTP-BOUNCE,IPPROTO,PING,IDLE,SCTP-
+                        INIT}
+  --zombie ZOMBIE       Zombie IP for idle scan (required for --st IDLE)
+  -sn                   do only a host discovery without port scaning
+  --ftp-bounce FTP_SERVER
+                        FTP server for bounce scan (required for --st FTP-BOUNCE)
+  -F                    Scan The Top 100 ports for fast scanning
+  -mx, --max-retries MAX_RETRIES
+                        Max number of retries if port show a no response
+  -t, --threads THREADS
+                        Number of threads to use
+  -lst                  List all targets
+  --lsse-lst            List all LSSE Scripts
+  --profiles-lst        List all scan profiles from Profiles directory
+  -tm, --timeout TIMEOUT
+                        Timeout with second
+  -Rc, --recursively    recursively scan host that shown to be down or not responding and disable flags like
+                        -v,-Pn,etc ...
+  -f, --fragmente       fragment the sending packet for more stealth
+  -Pn, --no-ping        Do not ping the target/s
+  -b, --banner          Banner Grabing
+  -O, --os              OS Fingerprint
+  -mac                  Light-Scan will skip getting the target mac on Local Networks
+  --load-profile LOAD_PROFILE
+                        Load the scan profile from Profiles/ directory
+  --save-profile SAVE_PROFILE
+                        Save the scan profile to Profiles/ directory
+  -ttl TTL              Time To Live for IPv4 packets
+  -hlim HLIM            Hop Limit for IPv6 packets
+  -sport SPORT          Source Port
+  -payload PAYLOAD      Add a raw custum Payload
+  -id ID                ID Field for IPv4 packets
+  -ip-flags IP_FLAGS    IP Flags Field for IPv4 packets (DF=2,MF=1,None=0)
+  -Pan, --local-ping    Performe an ARP Ping on Local Networks by default or NDP Ping on Local Networks for IPv6 mode
+  -Pi, --ip-ping        IP Protocol Ping
+  -Pip PIP              For Specefiy The IP Protocols that -Pi is going to use rather then default
+  -A, --agressive       Agressive scan activate all of OS Fingerprints, Banner Grabing, Insane Speed , SYN Scan and
+                        Scan Top 100 Ports
+  -Pt, --tcp-ping       Do a TCP Ping
+  -Ps, --syn-ping       Do a Syn Ping
+  -Pk, --ack-ping       DO a ACK Ping
+  -Pu, --udp-ping       Do a UDP Ping
+  -PIt, --icmp-timestamp-ping
+                        Do scan a ICMP Timestamp Ping
+  -PA, --icmp-address-ping
+                        Do scan a ICMP Address Ping
+  -Pin, --icmp-information-ping
+                        Do scan a ICMP Information Ping
+  -Pas, --icmp-solicitation-ping
+                        Do scan a ICMP Solicitation Ping on the network
+  -Pg, --igmp-ping      Do scan a IGMP Ping on the network
+  -q, --quiet           Quiet mode {does't print the Tool Banner}
+  --script SCRIPT       LSSE Script ,Ex: --script http-cert
+  --domain DOMAIN       Domain for http/https and Dns based scripts
+  --dns-server DNS_SERVER
+                        dns server that Light-Scan is going to use (Is Set by Default
+  -W, --wordlist WORDLIST
+                        Wordlist for scripts
+  --extensions EXTENSIONS
+                        Extensions for web based scripts
+  --status-codes STATUS_CODES
+                        Status Codes for web based scripts
+  --redirect            Redirect http/https requests for http scripts
+  --url URL             Victime URL
+  --mxp MXP             max pages to get
+  --mxd MXD             max depth to crawl
+  -sp SP                Port/s that are going to use by scripts
+  --starget STARGET     Targets for scripts
+  --lsse                Use that flag when you want just to performe a script</pre>
+
+    <h3>Core Options</h3>
+    <div class="option-grid">
+        <div class="opt-item"><span class="mono">-T, --target</span><span class="opt-desc">Target IP, hostname, or CIDR range</span></div>
+        <div class="opt-item"><span class="mono">-p, --port</span><span class="opt-desc">Port(s) to scan (single, range, or list)</span></div>
+        <div class="opt-item"><span class="mono">-st, --scan-type</span><span class="opt-desc">Scan type (see table above)</span></div>
+        <div class="opt-item"><span class="mono">-s, --speed</span><span class="opt-desc">Speed preset (see table above)</span></div>
+        <div class="opt-item"><span class="mono">-t, --threads</span><span class="opt-desc">Number of threads to use</span></div>
+        <div class="opt-item"><span class="mono">-tm, --timeout</span><span class="opt-desc">Timeout in seconds</span></div>
+        <div class="opt-item"><span class="mono">-mx, --max-retries</span><span class="opt-desc">Max retries if no response</span></div>
+        <div class="opt-item"><span class="mono">-F</span><span class="opt-desc">Scan only the top 100 ports</span></div>
+        <div class="opt-item"><span class="mono">-b, --banner</span><span class="opt-desc">Enable banner grabbing</span></div>
+        <div class="opt-item"><span class="mono">-O, --os</span><span class="opt-desc">Enable OS fingerprinting</span></div>
+        <div class="opt-item"><span class="mono">-A, --agressive</span><span class="opt-desc">OS + banners + insane speed + SYN + top 100 ports</span></div>
+        <div class="opt-item"><span class="mono">-sn</span><span class="opt-desc">Host discovery only (no port scanning)</span></div>
+        <div class="opt-item"><span class="mono">-Pn, --no-ping</span><span class="opt-desc">Skip host discovery</span></div>
+        <div class="opt-item"><span class="mono">-f, --fragmente</span><span class="opt-desc">Fragment packets for stealth</span></div>
+        <div class="opt-item"><span class="mono">-v, --verbose</span><span class="opt-desc">Verbose output</span></div>
+        <div class="opt-item"><span class="mono">-q, --quiet</span><span class="opt-desc">Quiet mode (no banner)</span></div>
+        <div class="opt-item"><span class="mono">-V, --version</span><span class="opt-desc">Show version of all tools</span></div>
+        <div class="opt-item"><span class="mono">-lst</span><span class="opt-desc">List all targets</span></div>
+        <div class="opt-item"><span class="mono">--rff RFF</span><span class="opt-desc">Read targets from a file</span></div>
+        <div class="opt-item"><span class="mono">-V6</span><span class="opt-desc">Use IPv6</span></div>
+    </div>
+
+    <h3>Advanced Packet Crafting</h3>
+    <div class="option-grid">
+        <div class="opt-item"><span class="mono">-ttl TTL</span><span class="opt-desc">IPv4 Time To Live</span></div>
+        <div class="opt-item"><span class="mono">-hlim HLIM</span><span class="opt-desc">IPv6 Hop Limit</span></div>
+        <div class="opt-item"><span class="mono">-sport SPORT</span><span class="opt-desc">Source port</span></div>
+        <div class="opt-item"><span class="mono">-payload PAYLOAD</span><span class="opt-desc">Custom payload data</span></div>
+        <div class="opt-item"><span class="mono">-id ID</span><span class="opt-desc">IPv4 identification field</span></div>
+        <div class="opt-item"><span class="mono">-ip-flags IP_FLAGS</span><span class="opt-desc">IP flags: DF=2, MF=1, None=0</span></div>
+    </div>
+
+    <h3>Host Discovery Options</h3>
+    <div class="option-grid">
+        <div class="opt-item"><span class="mono">-Pan, --local-ping</span><span class="opt-desc">ARP Ping (IPv4) or NDP Ping (IPv6)</span></div>
+        <div class="opt-item"><span class="mono">-Pi, --ip-ping</span><span class="opt-desc">IP Protocol Ping</span></div>
+        <div class="opt-item"><span class="mono">-Pip PIP</span><span class="opt-desc">IP protocols for -Pi (e.g. 1,6,17)</span></div>
+        <div class="opt-item"><span class="mono">-Pt, --tcp-ping</span><span class="opt-desc">TCP ping</span></div>
+        <div class="opt-item"><span class="mono">-Ps, --syn-ping</span><span class="opt-desc">SYN ping</span></div>
+        <div class="opt-item"><span class="mono">-Pk, --ack-ping</span><span class="opt-desc">ACK ping</span></div>
+        <div class="opt-item"><span class="mono">-Pu, --udp-ping</span><span class="opt-desc">UDP ping</span></div>
+        <div class="opt-item"><span class="mono">-PIt</span><span class="opt-desc">ICMP Timestamp ping</span></div>
+        <div class="opt-item"><span class="mono">-PA</span><span class="opt-desc">ICMP Address Mask ping</span></div>
+        <div class="opt-item"><span class="mono">-Pin</span><span class="opt-desc">ICMP Information ping (exclusive)</span></div>
+        <div class="opt-item"><span class="mono">-Pas</span><span class="opt-desc">ICMP Solicitation ping (exclusive)</span></div>
+        <div class="opt-item"><span class="mono">-Pg, --igmp-ping</span><span class="opt-desc">IGMP ping</span></div>
+    </div>
+
+    <h3>LSSE Scripting (Core Integration)</h3>
+    <div class="option-grid">
+        <div class="opt-item"><span class="mono">--lsse</span><span class="opt-desc">Use LSSE scripting engine</span></div>
+        <div class="opt-item"><span class="mono">--script SCRIPT</span><span class="opt-desc">Script to execute</span></div>
+        <div class="opt-item"><span class="mono">--url URL</span><span class="opt-desc">Target URL for HTTP/HTTPS scripts</span></div>
+        <div class="opt-item"><span class="mono">--domain DOMAIN</span><span class="opt-desc">Target domain for HTTP and DNS scripts</span></div>
+        <div class="opt-item"><span class="mono">-sp SP</span><span class="opt-desc">Port(s) for scripts</span></div>
+        <div class="opt-item"><span class="mono">-W, --wordlist</span><span class="opt-desc">Wordlist for scripts</span></div>
+        <div class="opt-item"><span class="mono">--extensions</span><span class="opt-desc">Extensions for web scripts</span></div>
+        <div class="opt-item"><span class="mono">--status-codes</span><span class="opt-desc">Status codes for web scripts</span></div>
+        <div class="opt-item"><span class="mono">--redirect</span><span class="opt-desc">Follow HTTP redirects</span></div>
+    </div>
+
+    <h3>Profiles</h3>
+    <div class="option-grid">
+        <div class="opt-item"><span class="mono">--load-profile PROFILE</span><span class="opt-desc">Load scan profile from Profiles/ directory</span></div>
+        <div class="opt-item"><span class="mono">--save-profile PROFILE</span><span class="opt-desc">Save current settings as a profile</span></div>
+        <div class="opt-item"><span class="mono">--profiles-lst</span><span class="opt-desc">List all available profiles</span></div>
+    </div>
+
+    <hr />
+
+    <h2>Usage Examples</h2>
+
+    <h3>Basic Scanning</h3>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1</span><span style="color:#8a9aaf; margin-left:1rem;">Basic TCP scan on a single host</span></div>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1 -st SYN -F -s fast</span><span style="color:#8a9aaf; margin-left:1rem;">SYN stealth scan on top 100 ports with fast speed</span></div>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1 -p 22,80,443 -b</span><span style="color:#8a9aaf; margin-left:1rem;">Scan specific ports with banner grabbing</span></div>
+
+    <h3>Network Scanning</h3>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.0/24 -F -s fast</span><span style="color:#8a9aaf; margin-left:1rem;">Scan an entire /24 subnet (top 100 ports)</span></div>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.0/24 -sn</span><span style="color:#8a9aaf; margin-left:1rem;">Host discovery only — find live hosts</span></div>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1,10.0.0.0/24,scanme.nmap.org</span><span style="color:#8a9aaf; margin-left:1rem;">Mix of single targets and CIDR ranges</span></div>
+
+    <h3>Advanced &amp; Stealth</h3>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1 -st NULL -p 1-1000</span><span style="color:#8a9aaf; margin-left:1rem;">NULL scan — evades some firewalls</span></div>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1 -st FDD -p 443</span><span style="color:#8a9aaf; margin-left:1rem;">Proprietary Firewall Detection Scan</span></div>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1 --zombie 192.168.1.100 -st IDLE</span><span style="color:#8a9aaf; margin-left:1rem;">Idle scan — ultra‑stealth via zombie host</span></div>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1 -st SYN -ttl 64 -sport 31337 -id 12345</span><span style="color:#8a9aaf; margin-left:1rem;">Custom packet crafting (TTL, source port, IP ID)</span></div>
+
+    <h3>OS &amp; Service Detection</h3>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1 -O -b</span><span style="color:#8a9aaf; margin-left:1rem;">OS detection and banner grabbing</span></div>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1 -A</span><span style="color:#8a9aaf; margin-left:1rem;">Aggressive: OS + banners + insane speed + SYN + top 100 ports</span></div>
+
+    <h3>Profiles</h3>
+    <div class="example-box"><span class="mono">Lightscan --save-profile internal_scan</span><span style="color:#8a9aaf; margin-left:1rem;">Save current settings as a profile</span></div>
+    <div class="example-box"><span class="mono">Lightscan --load-profile internal_scan -T 192.168.1.1</span><span style="color:#8a9aaf; margin-left:1rem;">Load a profile and override target</span></div>
+    <div class="example-box"><span class="mono">Lightscan --profiles-lst</span><span style="color:#8a9aaf; margin-left:1rem;">List all saved profiles</span></div>
+
+    <hr />
+
+    <h2>FDD — Firewall Detection Scan</h2>
+    <p>
+        <strong>FDD (Firewall Detection Scan)</strong> is a proprietary scanning technique developed exclusively for Lightscan.
+        It sends a TCP packet with the <strong>URGENT (URG) flag</strong> to determine whether a firewall is protecting
+        the target port. The URG flag is rarely used in legitimate traffic, making it an excellent probe for firewall
+        detection. By analysing the response (or lack thereof), Lightscan can determine if a firewall is actively
+        filtering the port.
+    </p>
+
+    <h3>Response Interpretation</h3>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Response Type</th><th>Classification</th><th>Explanation</th></tr></thead>
+            <tbody>
+                <tr><td><span class="mono">RST</span> or <span class="mono">RST-ACK</span></td><td><strong>Undefended Port</strong></td><td>Port responded directly — no firewall interference</td></tr>
+                <tr><td><span class="mono">No Response</span></td><td><strong>Defended Port</strong></td><td>No response suggests a firewall is blocking the probe</td></tr>
+                <tr><td><span class="mono">ICMP Type 3, Code 1,2,3,9,10,13</span></td><td><strong>Defended Port</strong></td><td>ICMP error indicates a firewall is actively rejecting the packet</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>FDD Usage</h3>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1 -p 443 -st FDD</span><span style="color:#8a9aaf; margin-left:1rem;">Run FDD on a single port</span></div>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1 -p 22,80,443,8080 -st FDD</span><span style="color:#8a9aaf; margin-left:1rem;">Scan multiple ports with FDD</span></div>
+    <div class="example-box"><span class="mono">Lightscan -T 192.168.1.1 -p 1-1000 -st FDD -v</span><span style="color:#8a9aaf; margin-left:1rem;">FDD on a port range with verbose output</span></div>
+
+    <hr />
+
+    <h2>Target &amp; Port Specification</h2>
+
+    <h3>Target Formats</h3>
+    <ul>
+        <li><strong>Single IP</strong>: <span class="mono">192.168.1.1</span></li>
+        <li><strong>Hostname</strong>: <span class="mono">scanme.nmap.org</span></li>
+        <li><strong>CIDR</strong>: <span class="mono">192.168.1.0/24</span>, <span class="mono">10.0.0.0/16</span></li>
+        <li><strong>Octet range</strong>: <span class="mono">192.168.1.0-100</span>, <span class="mono">192.168-170.1.0-140</span></li>
+        <li><strong>Mixed</strong>: <span class="mono">-T 192.168.1.1,10.0.0.0/24,example.com</span></li>
+    </ul>
+
+    <h3>Port Formats</h3>
+    <ul>
+        <li><strong>Single</strong>: <span class="mono">-p 80</span></li>
+        <li><strong>Range</strong>: <span class="mono">-p 1-1000</span></li>
+        <li><strong>List</strong>: <span class="mono">-p 22,80,443,8080</span></li>
+        <li><strong>Mixed</strong>: <span class="mono">-p 20-25,80,443,8000-9000</span></li>
+    </ul>
+
+    <hr />
+
+    <h2>Legal Disclaimer</h2>
+    <p>
+        This tool is intended for:
+    </p>
+    <ul>
+        <li>Security professionals conducting <strong>authorised</strong> assessments</li>
+        <li>Network administrators monitoring their own networks</li>
+        <li>Educational and research purposes</li>
+    </ul>
+    <p>
+        <strong>Always ensure you have proper authorisation</strong> before scanning any
+        network or system. Unauthorised scanning may be illegal in your jurisdiction.
+    </p>
+
+    <hr />
+
+    <p class="text-muted text-small" style="text-align:center; margin-top:1rem;">
+        Lightscan Core v1.1.8 &bull; Part of the Light-Scan Toolkit 1.1.8 &bull; Open Source &bull; GPLv2 License
+    </p>
+
+</div>
+
+</body>
+</html>
