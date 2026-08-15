@@ -21,11 +21,11 @@ Unlike traditional scanners that sacrifice one for the other, Light-Scan deliver
 ## High-Performance Scanning
 
 Multi-threaded architecture for fast scans
-Multiple scan types: TCP Connect, SYN Stealth, UDP, NULL, FIN, ACK, WINDOW, MAIMON, FDD, XMAS, FTP-BOUNCE,IPPROTO,PING,IDLE
+Multiple scan types: TCP Connect, SYN Stealth, UDP, NULL, FIN, ACK, WINDOW, MAIMON, FDD, XMAS, FTP-BOUNCE,IPPROTO,PING,IDLE,SCTP-INIT
 
 Configurable speed presets from Paranoid to Light-mode (500 threads) and manual thread and timeout modification
 
-Smart host discovery with threaded ICMP/ICMPv6/TCP/IP/ARP/NDP detection
+Smart host discovery with threaded ICMP/ICMPv6/TCP/IP/ARP/NDP/IGMP detection
 
 ## Network Range Support
 
@@ -41,7 +41,7 @@ Safety warnings for large network ranges
 
 ## Multiple Saving options
 
-you can save Lightscan results with LightSave that supports 7 differents saving formats from TXT to PDF and YAML
+you can save Lightscan results with LightSave that supports 9 differents saving formats from TXT to PDF and TOML
 
 for other tools like LightSniff and LightLab that enteracts with binary packeys they support lbn,pcap and pcang saving
 
