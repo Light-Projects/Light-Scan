@@ -66,10 +66,7 @@ def parse_scan_output(output):
 
     host_match = re.search(fr'Host {results['target']} is (up|down)!', output)
     if host_match:
-        results['host_status'] = host_match.group(2)
-        if not results['target']:
-            results['target'] = host_match.group(1)
-
+        results['host_status'] = host_match.group(1)
 
     ip_status_match = re.search(r'\[\+\] IP Status: (.+)', output)
     if ip_status_match:
