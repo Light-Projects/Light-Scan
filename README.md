@@ -69,7 +69,7 @@ Clean, organized output with per-target results
     
 # Installation
 
-      git clone https://github.com/adamboulaaz92-jpg/Light-Scan.git
+      git clone https://github.com/Light-Projects/Light-Scan.git
       
 # Importante
 
