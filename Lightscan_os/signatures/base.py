@@ -44,6 +44,7 @@ class VersionRule:
     mss: Optional[int] = None
     option_order: Optional[List[str]] = None
     banner_contains: Optional[str] = None
+    rdns_server: Optional[str] = None
     requires_timestamp: Optional[bool] = None
     requires_sack: Optional[bool] = None
 
@@ -69,19 +70,23 @@ class VersionRule:
             banner = (ctx.get('banner') or '').lower()
             if self.banner_contains.lower() not in banner:
                 return False
+        if self.rdns_server is not None:
+            rdns = (ctx.get('rdns_server') or '').lower()
+            if self.rdns_server.lower() not in rdns:
+                return False
         return True
 
 
 @dataclass
 class OSSignature:
-    name: str                          # e.g. "Windows 10/11"
-    family: str                        # "windows" | "linux" | "macos" | "bsd" | "unix" | "android"
+    name: str
+    family: str
 
     # --- TCP/IP stack fingerprint ---------------------------------------
     common_orders: List[List[str]] = field(default_factory=list)
-    windows: List[int] = field(default_factory=list)          # observed TCP window sizes
-    ttl_range: Tuple[int, int] = (0, 255)                      # IPv4 TTL
-    hlim_range: Tuple[int, int] = (0, 255)                      # IPv6 hop limit
+    windows: List[int] = field(default_factory=list)
+    ttl_range: Tuple[int, int] = (0, 255)
+    hlim_range: Tuple[int, int] = (0, 255)
     wscale_values: List[int] = field(default_factory=list)
     mss_values: List[int] = field(default_factory=list)
     timestamp_high: bool = False
@@ -91,15 +96,15 @@ class OSSignature:
 
     # --- ICMP fingerprint --------------------------------------------------
     icmp_default_ttl: Optional[int] = None
-    icmp_code_quirk: Optional[str] = None       # e.g. echo-reply code != 0 quirk name
+    icmp_code_quirk: Optional[str] = None
 
     # --- UDP closed-port fingerprint (nmap-style U1 test) -------------------
     udp_closed_port_quirk: Optional[str] = None  # name of a matching quirk, see probes/udp_probe.py
 
     # --- Service banners -----------------------------------------------
-    banner_keywords: List[Tuple[str, float]] = field(default_factory=list)     # (substring, weight)
-    service_keywords: List[Tuple[str, float]] = field(default_factory=list)    # (service name substring, weight)
-    exclusive_banner_keywords: List[str] = field(default_factory=list)         # near-certain -> zero out rivals
+    banner_keywords: List[Tuple[str, float]] = field(default_factory=list)
+    service_keywords: List[Tuple[str, float]] = field(default_factory=list)
+    exclusive_banner_keywords: List[str] = field(default_factory=list)
 
     # --- Version fingerprinting (only used once family is the top match) ---
     version_rules: List[VersionRule] = field(default_factory=list)
@@ -163,8 +168,7 @@ class OSSignature:
     def score_icmp(self, reply_ttl: Optional[int], code_quirk: Optional[str]) -> float:
         score = 0.0
         if self.icmp_default_ttl is not None and reply_ttl is not None:
-            # OSes round-trip with a handful of common default TTLs (64/128/255);
-            # closeness after hop decrement is a weak-but-useful signal.
+
             if abs(reply_ttl - self.icmp_default_ttl) <= 2:
                 score += 2
         if self.icmp_code_quirk is not None and code_quirk == self.icmp_code_quirk:
@@ -175,6 +179,39 @@ class OSSignature:
         if self.udp_closed_port_quirk is not None and quirk == self.udp_closed_port_quirk:
             return 4.0
         return 0.0
+
+    def score_rdns(self, rdns_info: Dict[str, str]) -> float:
+        if not rdns_info:
+            return 0.0
+
+        score = 0.0
+        hostname = rdns_info.get("hostname", "").lower()
+        cloud = rdns_info.get("cloud_provider", "").lower()
+        domain = rdns_info.get("domain", "").lower()
+
+        cloud_scores = {
+            "aws": {"score": 8, "os_hint": "Linux"},
+            "gcp": {"score": 8, "os_hint": "Linux"},
+            "azure": {"score": 8, "os_hint": "Windows"},
+            "digitalocean": {"score": 6, "os_hint": "Linux"},
+            "cloudflare": {"score": 6, "os_hint": "Linux"},
+            "heroku": {"score": 5, "os_hint": "Linux"},
+            "linode": {"score": 5, "os_hint": "Linux"},
+            "vultr": {"score": 5, "os_hint": "Linux"},
+        }
+
+        if cloud in cloud_scores:
+            score += cloud_scores[cloud]["score"]
+
+            if cloud == "azure" and self.family == "windows":
+                score += 5
+            elif cloud in ["aws", "gcp", "digitalocean"] and self.family == "linux":
+                score += 5
+
+        if "sony" in domain and self.family == "unix":
+            score += 5
+
+        return score
 
     def detect_version(self, ctx: Dict[str, Any]) -> Optional[str]:
         for rule in self.version_rules:

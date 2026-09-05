@@ -27,6 +27,7 @@ from typing import Dict, List, Optional
 from ..probes.tcp_probe import probe_tcp
 from ..probes.icmp_probe import probe_icmp
 from ..probes.udp_probe import probe_udp
+from ..probes.dns_probe import probe_rdns
 from ..signatures import SIGNATURES_BY_NAME
 from .analyzer import analyze_tcp_options
 from .banner_matcher import score_banners, guess_version
@@ -69,6 +70,7 @@ class OSFingerprintEngine:
         version: int = 4,
         use_icmp: bool = True,
         use_udp: bool = True,
+        use_rdns: bool = True,
         timeout: float = 2.0,
         verbose: bool = False,
     ) -> OSFingerprintResult:
@@ -137,6 +139,20 @@ class OSFingerprintEngine:
             banner_scores = score_banners(banners, services)
             board.add_banner_scores(banner_scores)
 
+        rdns_info = None
+        if use_rdns:
+            try:
+                rdns_info = probe_rdns(target, timeout=timeout)
+            except Exception as exc:
+                if verbose:
+                    print(f"[!] RDNS probe failed: {exc}")
+
+            if rdns_info:
+                probes_used.append("rdns")
+                board.add_rdns(rdns_info)
+                rdns_server = rdns_info.get("hostname", "")
+                rdns_cloud = rdns_info.get("cloud_provider", "")
+
         matches = board.rank(min_score=self.min_score)
         
         tcp_context = None
@@ -161,6 +177,11 @@ class OSFingerprintEngine:
                 ctx = {}
                 if tcp_context:
                     ctx.update(tcp_context)
+
+                if rdns_info:
+                    ctx['rdns_server'] = rdns_info.get('hostname', '')
+                    ctx['rdns_cloud'] = rdns_info.get('cloud_provider', '')
+                    ctx['rdns_domain'] = rdns_info.get('domain', '')
                 
                 for rule in sig.version_rules:
                     if rule.banner_contains is not None and banners:

@@ -58,14 +58,11 @@ class ScoreBoard:
         for name, score in banner_scores.items():
             self.scores[name] = self.scores.get(name, 0.0) + score
 
+    def add_rdns(self, rdns_info: Dict[str, str]):
+        for sig in ALL_SIGNATURES:
+            self.scores[sig.name] += sig.score_rdns(rdns_info)
+
     def rank(self, min_score: float = 1.0) -> List[OSMatch]:
-        """
-        Returns every signature with score >= min_score, sorted best first,
-        each carrying a confidence percentage relative to the total score
-        across ALL candidates (so a runaway top match correctly compresses
-        everyone else's confidence, and a murky result shows several
-        close, low-confidence candidates instead of one falsely-certain one).
-        """
         total = sum(max(s, 0.0) for s in self.scores.values())
         candidates = []
         for sig in ALL_SIGNATURES:

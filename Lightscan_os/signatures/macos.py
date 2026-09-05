@@ -52,6 +52,8 @@ MACOS = OSSignature(
     ],
     exclusive_banner_keywords=["darwin", "mac os x", "afpovertcp"],
     version_rules=[
+        VersionRule("macOS (from DNS)", rdns_server="icloud.com"),
+        VersionRule("macOS (from DNS)", rdns_server="apple.com"),
         VersionRule("macOS (Sonoma/Sequoia era, OpenSSH 9.x)", banner_contains="openssh_9"),
         VersionRule("macOS (Monterey/Ventura era, OpenSSH 8.6-8.9)", banner_contains="openssh_8"),
         VersionRule("macOS (Catalina/Big Sur era, OpenSSH 7.9-8.1)", banner_contains="openssh_7"),

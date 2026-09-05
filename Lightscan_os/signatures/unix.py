@@ -51,12 +51,15 @@ UNIX = OSSignature(
         ("rpcbind", 6),
         ("nfs", 4),
     ],
-    exclusive_banner_keywords=["solaris", "sunos", "aix", "hp-ux"],
+    exclusive_banner_keywords=["solaris", "sunos", "aix", "hp-ux","unix"],
     version_rules=[
         VersionRule("Oracle Solaris (from banner)", banner_contains="solaris"),
         VersionRule("SunOS (from banner)", banner_contains="sunos"),
         VersionRule("IBM AIX (from banner)", banner_contains="aix"),
         VersionRule("HP-UX (from banner)", banner_contains="hp-ux"),
+        VersionRule("General Unix (from banner)", banner_contains="unix"),
+        VersionRule("PlayStation Network (FreeBSD-based)", rdns_server="playstation.net"),
+        VersionRule("Sony Network (FreeBSD-based)", rdns_server="sony.com"),
     ],
 )
 

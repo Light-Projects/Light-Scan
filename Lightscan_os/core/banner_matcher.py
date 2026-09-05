@@ -48,9 +48,7 @@ def score_banners(banners: Iterable[str], services: Iterable[str]) -> Dict[str, 
             if b_score:
                 scores[sig.name] += b_score
                 if sig.is_exclusive_match(banner):
-                    # a near-certain banner (distro tag, "FreeBSD", "Darwin", ...)
-                    # should dominate -- zero out every other family's banner
-                    # contribution accumulated so far.
+
                     for other in ALL_SIGNATURES:
                         if other.name != sig.name:
                             scores[other.name] = min(scores[other.name], 0.0)

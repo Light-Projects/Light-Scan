@@ -46,23 +46,34 @@ WINDOWS = OSSignature(
         ("microsoft", 15),
         ("iis", 15),
         ("windows", 12),
+        ("Windows", 12),
         ("microsoft ftp service", 15),
         ("cerberus", 15),
         ("microsoft-httpapi", 25),
-        ("83 00 00 01 8f", 25),  # raw SMB2 negotiate quirk seen in some banner dumps
-        ("05 00 0d 03",25)  # raw MSRPC response seen from some Windows 10
+        ("83 00 00 01 8f", 25),
+        ("05 00 0d 03",25),
+        ("ff 53 4d 42",30),
+        ("fe 53 4d 42",30),
     ],
     service_keywords=[
         ("msrpc", 25),
         ("microsoft-ds", 12.5),
         ("netbios-ssn", 10),
+        ("smb",20)
     ],
-    exclusive_banner_keywords=["server: microsoft-httpapi", "microsoft-ds"],
+    exclusive_banner_keywords=["server: microsoft-httpapi", "microsoft-ds","smb"],
     version_rules=[
 
-        # --- This section is based on my analysis for Windows 10 ---
+        # --- This section is based on my analysis for Windows ---
         VersionRule("Windows 10 (build 17000+)",ttl=128, wscale=8, mss=65495, window=65535,
                     option_order=['MSS', 'WScale', 'SAckOK']),
+        VersionRule("Windows 10 (build 1511)", ttl=128, wscale=8, mss=65495, window=64240,
+                    option_order=['MSS', 'WScale', 'SAckOK']),
+        VersionRule("Windows 10 (build 1607/Anniversary)", ttl=128, wscale=8, mss=65495, window=64240,
+                    option_order=['MSS', 'WScale', 'SAckOK']),
+        VersionRule("Windows Server 2012 R2 (build 9600)", ttl=128, wscale=8, mss=65495, window=16384,
+                    option_order=['MSS', 'WScale', 'SAckOK']),
+        VersionRule("Windows IoT Core", banner_contains="windows iot"),
 
         # --- Windows 11 ---
         VersionRule("Windows 11 (build 22000+)", ttl=128, wscale=8, mss=65495, window=65535,
@@ -100,10 +111,13 @@ WINDOWS = OSSignature(
         # --- Windows 7 ---
         VersionRule("Windows 7 (build 7600, RTM)", ttl=128, mss=1460, window=65535,
                     wscale=None, option_order=['MSS', 'SAckOK', 'Timestamp']),
+        VersionRule("Windows 7 Entreprise 6.1",banner_contains="Windows 7 Enterprise 6.1"),
+        VersionRule("Windows 7 Enterprise 7601 Service Pack 1",banner_contains="Windows 7 Enterprise 7601 Service Pack 1"),
         VersionRule("Windows 7 (build 7601, SP1)", ttl=128, mss=1460, window=65535,
                     wscale=None, option_order=['MSS', 'NOP', 'SAckOK', 'Timestamp']),
         VersionRule("Windows 7 (build 7600, small window)", ttl=128, mss=1460, window=8192, wscale=None),
         VersionRule("Windows 7 (build 7601, wscale enabled)", ttl=128, mss=1460, window=65535, wscale=2),
+        VersionRule("Windows 7 (from banner)",banner_contains="Windows 7"),
 
         # --- Vista ---
         VersionRule("Windows Vista (build 6000, RTM)", ttl=128, mss=1460, window=65535, wscale=None,
@@ -134,6 +148,10 @@ WINDOWS = OSSignature(
                     option_order=['MSS', 'WScale', 'NOP', 'NOP', 'SAckOK', 'NOP', 'NOP']),
         VersionRule("Windows Server 2019 (build 17763)", ttl=128, wscale=8, mss=65495, window=8192),
         VersionRule("Windows Server 2016 (build 14393)", ttl=128, wscale=8, mss=65495, window=16384),
+
+        # --- rDNS ---
+        VersionRule("Azure VM (Windows)", rdns_server="cloudapp.azure.com"),
+        VersionRule("Azure Windows VM", rdns_server="azure.com"),
 
         # --- Banner-based fallbacks (used when banner text is available) ---
         VersionRule("Windows 11", banner_contains="windows 11"),
