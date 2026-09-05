@@ -15,7 +15,7 @@ import sys
 import time
 import select
 from typing import Optional
-from ..Interfaces.WinInterfaces import get_default_interface_npcap_name_windows
+from LightPacket.Interfaces.WinInterfaces import get_default_interface_npcap_name_windows
 
 
 if sys.platform != "win32":

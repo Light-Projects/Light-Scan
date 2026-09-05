@@ -1,0 +1,11 @@
+{
+  "Proto": {
+    "Name": "802.11 Beacon",
+    "Description": "IEEE 802.11 Beacon frame. Used by Access Points to announce their presence. Timestamp (8) | Beacon Interval (2) | Capability (2) .",
+    "Fields": [
+      "timestamp          {64 bits}  = 0",
+      "beacon_interval    {16 bits}  = 100",
+      "capability         {16 bits}  = 0x0021"
+    ]
+  }
+}

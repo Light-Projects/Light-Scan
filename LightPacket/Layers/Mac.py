@@ -3,7 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 from typing import Union
-from ..Logger.LightLogger import *
+from LightPacket.Logger.LightLogger import *
 
 
 BROADCAST_MAC = 'ff:ff:ff:ff:ff:ff'

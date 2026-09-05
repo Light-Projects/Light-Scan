@@ -1,0 +1,18 @@
+{
+  "Proto": {
+    "Name": "EAP_FAST",
+    "Description": "Extensible Authentication Protocol - Flexible Authentication via Secure Tunneling (RFC 4851). Uses TLS tunnel with PAC (Protected Access Credential) for authentication. Commonly used in Cisco networks. Type 43.",
+    "Fields": [
+      "code             {8 bits}    = 1",
+      "id               {8 bits}    = 1",
+      "length           {16 bits}   = auto-calculated",
+      "type             {8 bits}    = 43",
+      "L                {1 bit}     = 0",
+      "M                {1 bit}     = 0",
+      "S                {1 bit}     = 0",
+      "reserved         {5 bits}    = 0",
+      "message_len      {32 bits}   = 0 (only present if L = 1)",
+      "data             {variable}  = b''"
+    ]
+  }
+}

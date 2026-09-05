@@ -1,0 +1,9 @@
+{
+  "Proto": {
+    "Name": "802.11 Probe Request",
+    "Description": "Sent by a station to actively discover APs. The frame body contains only tagged parameters (Information Elements) such as SSID, Supported Rates, Extended Supported Rates, etc. No fixed fields.",
+    "Fields": [
+      "None"
+    ]
+  }
+}

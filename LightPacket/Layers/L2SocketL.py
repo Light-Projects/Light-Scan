@@ -7,16 +7,18 @@ Standalone LightPacket L2Socket for Linux,BSD,MacOS and Unix systems (libpcap) â
 """
 import ctypes
 from ctypes import (
-    create_string_buffer, c_ubyte, c_int, c_char_p, c_uint,
-    c_void_p, byref, POINTER, c_ulong, c_ushort, c_uint32, Structure
+    create_string_buffer, c_ubyte, c_int, c_char_p, c_uint, addressof,
+    c_void_p, byref, POINTER, c_ulong, c_ushort, c_uint32, Structure, cast
 )
 from ctypes.util import find_library
 import sys
 import time
 import select
+import struct
+import subprocess
 from typing import Optional
-from ..Interfaces.LibpcapInterfacesLin import get_default_interface_name_linux
-from ..Interfaces.UnixInterfaces import get_default_interface_bsd
+from LightPacket.Interfaces.LibpcapInterfacesLin import get_default_interface_name_linux
+from LightPacket.Interfaces.UnixInterfaces import get_default_interface_bsd
 
 defaultiface = None
 
@@ -158,6 +160,82 @@ if defaultiface == None:
         defaultiface = get_default_interface_name_linux()
     else:
         defaultiface = get_default_interface_bsd()['name']
+
+def compile_filter_tcpdump(filter_string, iface):
+    """Compiles a BPF filter using tcpdump."""
+    try:
+        cmd = ["tcpdump", "-i", iface, "-ddd", filter_string]
+        output = subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode().strip().split('\n')
+
+        if not output:
+            raise Exception("tcpdump returned no output")
+
+        nb_instructions = int(output[0])
+
+        bpf = b""
+        for line in output[1:]:
+            code, jt, jf, k = map(int, line.split())
+            bpf += struct.pack("HBBI", code, jt, jf, k)
+
+        import sys
+        ptr_offset = 20 if sys.maxsize <= 2 ** 32 else 36
+        bpfh = struct.pack("HL", nb_instructions, id(bpf) + ptr_offset)
+        return bpfh
+
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to compile filter: {e.stderr}") from e
+    except Exception as e:
+        raise Exception(f"Error compiling filter: {e}") from e
+
+
+class bpf_insn(ctypes.Structure):
+    _fields_ = [
+        ("code", ctypes.c_uint16),
+        ("jt", ctypes.c_uint8),
+        ("jf", ctypes.c_uint8),
+        ("k", ctypes.c_uint32),
+    ]
+
+class sock_fprog(ctypes.Structure):
+    _fields_ = [
+        ("len", ctypes.c_uint16),
+        ("filter", POINTER(bpf_insn)),
+    ]
+
+def compile_filter_pcap(filter_str: str, iface: str):
+    """Compiles a BPF filter using libpcap."""
+    errbuf = create_string_buffer(256)
+    pcap = pcap_lib.pcap_create(iface.encode('utf-8'), errbuf)
+    if not pcap:
+        return None
+    if pcap_lib.pcap_activate(pcap) != 0:
+        pcap_lib.pcap_close(pcap)
+        return None
+
+    fp = bpf_program()
+    filter_bytes = filter_str.encode('utf-8')
+
+    result = pcap_lib.pcap_compile(pcap, byref(fp), filter_bytes, 1, 0)
+    if result != 0:
+        pcap_lib.pcap_close(pcap)
+        return None
+
+    insns_count = fp.bf_len
+    insns_size = insns_count * ctypes.sizeof(bpf_insn)
+
+    insn_buffer = (bpf_insn * insns_count)()
+    ctypes.memmove(insn_buffer, fp.bf_insns, insns_size)
+
+    pcap_lib.pcap_freecode(byref(fp))
+    pcap_lib.pcap_close(pcap)
+
+    fprog = sock_fprog()
+    fprog.len = insns_count
+    fprog.filter = cast(insn_buffer, POINTER(bpf_insn))
+    packed = struct.pack("H6xQ" if sys.maxsize > 2 ** 32 else "HL",
+                         fprog.len, addressof(insn_buffer))
+    return packed
+
 
 class L2Socket:
 
@@ -400,3 +478,7 @@ class L2Socket:
 
     def __del__(self):
         self.close()
+
+
+
+

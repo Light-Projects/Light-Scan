@@ -1,0 +1,11 @@
+{
+  "Proto": {
+    "Name": "802.11 Probe Response",
+    "Description": "Sent by an AP in reply to a Probe Request. Contains fixed timestamp, beacon interval, capability, followed by tagged parameters (SSID, Supported Rates, DS Parameter Set, HT Capabilities, etc.).",
+    "Fields": [
+      "timestamp            {64 bits}  = 0",
+      "beacon_interval      {16 bits}  = 100",
+      "capability           {16 bits}  = 0x0011"
+    ]
+  }
+}

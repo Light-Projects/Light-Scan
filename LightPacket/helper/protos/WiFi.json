@@ -1,0 +1,20 @@
+{
+  "Proto": {
+    "Name": "802.11 Wi-Fi",
+    "Description": "IEEE 802.11 Wireless LAN MAC frame. Supports Management (Beacon, Probe, Auth, Assoc), Control (ACK, RTS, CTS), and Data frames. Frame Control | Duration | Address 1-4 | Sequence Control | QoS Control | HT Control.",
+    "Fields": [
+      "version            {2 bits}   = 0",
+      "frame_type         {2 bits}   = 0",
+      "subtype            {4 bits}   = 0",
+      "flags              {8 bits}  = 0x00",
+      "duration           {16 bits}  = 0x0000",
+      "addr1              {48 bits}  = 00:00:00:00:00:00",
+      "addr2              {48 bits}  = 00:00:00:00:00:00",
+      "addr3              {48 bits}  = 00:00:00:00:00:00",
+      "seq_control        {16 bits}  = 0x0000",
+      "addr4              {48 bits}  = 00:00:00:00:00:00",
+      "qos_control        {16 bits}  = 0x0000",
+      "ht_control         {32 bits}  = 0x00000000"
+    ]
+  }
+}

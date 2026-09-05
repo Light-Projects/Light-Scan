@@ -1,0 +1,18 @@
+{
+  "Proto": {
+    "Name": "EAP_TLS",
+    "Description": "Extensible Authentication Protocol - Transport Layer Security (RFC 5216). Used for certificate-based authentication in 802.1X networks. Supports fragmentation with L, M, S flags.",
+    "Fields": [
+      "code             {8 bits}    = 1",
+      "id               {8 bits}    = 1",
+      "length           {16 bits}   = auto-calculated",
+      "type             {8 bits}    = 13",
+      "L                {1 bit}     = 0",
+      "M                {1 bit}     = 0",
+      "S                {1 bit}     = 0",
+      "reserved         {5 bits}    = 0",
+      "tls_message_len  {32 bits}   = 0 (only present if L = 1)",
+      "tls_data         {variable}  = b''"
+    ]
+  }
+}

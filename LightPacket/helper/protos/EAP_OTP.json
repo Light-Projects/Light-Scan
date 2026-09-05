@@ -1,0 +1,13 @@
+{
+  "Proto": {
+    "Name": "EAP_OTP",
+    "Description": "Extensible Authentication Protocol - One-Time Password (RFC 3748). Simple challenge-response with OTP tokens. Type 5. Considered legacy and insecure. Replaced by EAP-GTC or EAP-TTLS with OTP methods.",
+    "Fields": [
+      "code                {8 bits}   = 1",
+      "identifier          {8 bits}   = 1",
+      "length              {16 bits}  = auto-calculated",
+      "type                {8 bits}   = 5",
+      "data                {variable} = b'\\x00'"
+    ]
+  }
+}

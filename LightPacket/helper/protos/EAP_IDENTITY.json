@@ -1,0 +1,13 @@
+{
+  "Proto": {
+    "Name": "EAP_IDENTITY",
+    "Description": "Extensible Authentication Protocol Identity (RFC 3748).",
+    "Fields": [
+      "code          {8 bits}   = 2",
+      "id            {8 bits}   = 1",
+      "length        {16 bits}  = 0",
+      "type          {8 bits}   = 1",
+      "identity      {variable} = b'' "
+    ]
+  }
+}

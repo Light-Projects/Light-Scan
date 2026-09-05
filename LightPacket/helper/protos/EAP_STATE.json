@@ -1,0 +1,11 @@
+{
+  "Proto": {
+    "Name": "EAP_STATE",
+    "Description": "Extensible Authentication Protocol Sucess/Failure (RFC 3748). Signals failed/successful authentication. Carried inside EAPOL (Type 0). Fixed 4-byte packet with no Type field.",
+    "Fields": [
+      "code          {8 bits}   = 4",
+      "id            {8 bits}   = 1",
+      "length        {16 bits}  = auto-calculated"
+    ]
+  }
+}

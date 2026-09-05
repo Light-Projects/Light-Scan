@@ -1,0 +1,22 @@
+{
+  "Proto": {
+    "Name": "STP",
+    "Description": "Prevents network loops by creating a loop-free logical topology. Uses BPDUs to elect root bridge and determine blocking/forwarding ports.",
+    "Fields": [
+      "protocol_id      {16 bits}  = 0x0000",
+      "protocol_version {8 bits}   = 0x00",
+      "bpdu_type        {8 bits}   = 0x00",
+      "flags            {8 bits}   = 0x00",
+      "root_priority    {16 bits}  = 0x8000",
+      "root_mac         {48 bits}  = 00:11:22:33:44:55",
+      "root_path_cost   {32 bits}  = 0",
+      "bridge_priority  {16 bits}  = 0x8000",
+      "bridge_mac       {48 bits}  = 00:11:22:33:44:55",
+      "port_id          {16 bits}  = 0x8001",
+      "message_age      {16 bits}  = 0",
+      "max_age          {16 bits}  = 5120",
+      "hello_time       {16 bits}  = 512",
+      "forward_delay    {16 bits}  = 3840"
+    ]
+  }
+}

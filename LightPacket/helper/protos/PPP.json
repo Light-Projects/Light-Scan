@@ -1,0 +1,11 @@
+{
+  "Proto": {
+    "Name": "PPP",
+    "Description": "Data link layer protocol for point-to-point connections. Encapsulates network layer protocols like IP, IPX, and AppleTalk over serial links.",
+    "Fields": [
+      "address        {8 bits}   = 0xFF",
+      "control        {8 bits}   = 0x03",
+      "proto          {16 bits}  = 0x0021"
+    ]
+  }
+}

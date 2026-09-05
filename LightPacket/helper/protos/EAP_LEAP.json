@@ -1,0 +1,17 @@
+{
+  "Proto": {
+    "Name": "EAP_LEAP",
+    "Description": "Lightweight Extensible Authentication Protocol (Cisco proprietary). Legacy EAP method using MS-CHAPv2-style challenge-response. Considered insecure (vulnerable to dictionary attacks). Type 17 (IANA assigned).",
+    "Fields": [
+      "code                {8 bits}   = 1",
+      "id                  {8 bits}   = 1",
+      "length              {16 bits}  = auto-calculated",
+      "type                {8 bits}   = 17",
+      "version             {8 bits}   = 1",
+      "unused              {8 bits}   = 0",
+      "count               {8 bits}   = 1",
+      "challenge_response  {variable} = b''",
+      "username            {variable} = b''"
+    ]
+  }
+}

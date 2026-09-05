@@ -1,0 +1,13 @@
+{
+  "Proto": {
+    "Name": "EAP_GTC",
+    "Description": "Extensible Authentication Protocol - Generic Token Card (RFC 3748). Simple challenge-response with human-readable prompts. Type 6. Used for one-time password tokens and legacy authentication.",
+    "Fields": [
+      "code                {8 bits}   = 1",
+      "identifier          {8 bits}   = 1",
+      "length              {16 bits}  = auto-calculated",
+      "type                {8 bits}   = 6",
+      "data                {variable} = b'\\x00'"
+    ]
+  }
+}

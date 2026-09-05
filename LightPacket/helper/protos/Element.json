@@ -1,0 +1,11 @@
+{
+  "Proto": {
+    "Name": "802.11 Beacon IE",
+    "Description": "IEEE 802.11 Beacon Information Element. ",
+    "Fields": [
+      "ie_id          {8 bits}   = 0",
+      "lenght         {8 bits}   = 100",
+      "data           {variable} = b''"
+    ]
+  }
+}
