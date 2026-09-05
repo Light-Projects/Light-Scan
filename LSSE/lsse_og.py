@@ -21,19 +21,18 @@ Main Author: ognamgeek
 Other Devs: Adam Boulaaz
 """
 
-
 from __future__ import annotations
+from confparser import clsse_runner
 
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
+from LSSE.slist import dscripts,sscripts
 
 red = "\033[31m"
 reset = "\033[0m"
 yellow = "\033[33m"
 
-dscripts = ['dns-subdomain-fuzzing','http-past-pages','dns-zone-transfer','whois-domain','dns-ns','spider','script','http-dir','dns-lookup']
-sscripts = ['firewall-detection','ssh-brute','ssh-auth-methods']
 
 @dataclass(frozen=True)
 class ScriptArgs:
@@ -54,7 +53,9 @@ class ScriptArgs:
     password: str | None = None
     userlist: str | None = None
     passwordlist: str | None = None
-
+    file: str | None = None
+    req: str | None = None
+    ssl: bool | None = None
 
 class LSSE:
     """Light-Scan Scripting Engine: looks up a script by name and runs it."""
@@ -74,11 +75,16 @@ class LSSE:
             "dns-lookup": self._dns_lookup,
             "dns-zone-transfer": self._dns_zone_transfer,
             "dns-ns": self._dns_ns,
-            "firewall-detection": self._firewall_detection,
+            "firewall-detect": self._firewall_detection,
             "ssh-auth-methods": self._ssh_auth_methods,
             "ssh-brute": self._ssh_brute,
             "whois-domain": self._whois_domain,
             "http-past-pages": self._http_past_pages,
+            "eternalblue":self._eternalblue,
+            "dhcp-discover":self._dhcp_discover,
+            "http-comments":self._http_comments,
+            "http-request":self._http_request,
+            "ssh-info":self._ssh_info
         }
         self.scripts_list = list(self.handlers)
 
@@ -100,12 +106,39 @@ class LSSE:
         password: str | None = None,
         userlist: str | None = None,
         passwordlist: str | None = None,
+        file: str | None = None,
+        req: str | None = None,
+        ssl: bool | None = None
     ) -> None:
         """Run the script named sname, or exit if there's no such script."""
         handler = self.handlers.get(sname)
         if handler is None:
-            print(f"\n{yellow}[!] Script not found {reset}\n")
-            sys.exit(2)
+            if sname in sscripts or sname in dscripts:
+                clsse_runner(
+                    sname=sname,
+                    ports=ports,
+                    redirect=redirect,
+                    domain=domain,
+                    dns=dns,
+                    wordlist=wordlist,
+                    url=url,
+                    max_pages=max_pages,
+                    max_depth=max_depth,
+                    extensions=extensions,
+                    status_codes=status_codes,
+                    t=t,
+                    user=user,
+                    password=password,
+                    userlist=userlist,
+                    passwordlist=passwordlist,
+                    file=file,
+                    req=req,
+                    ssl=ssl
+                )
+                return
+            else:
+                print(f"\n{yellow}[!] Script not found {reset}\n")
+                sys.exit(2)
 
         handler(
             ScriptArgs(
@@ -124,6 +157,9 @@ class LSSE:
                 password=password,
                 userlist=userlist,
                 passwordlist=passwordlist,
+                file=file,
+                req=req,
+                ssl=ssl
             )
         )
 
@@ -141,6 +177,49 @@ class LSSE:
         )
 
         threaded_http_title(a.domain, self._ports(a), bool(a.redirect))
+
+    def _ssh_info(self, a: ScriptArgs) -> None:
+        """Grab SSH_MSG_KEXINIT packet and parse it."""
+        from LSSE.scripts.safe.analysis.ssh.ssh_info import SSHRequest
+        try:
+            ssh = SSHRequest(target=a.t,port=int(self._ports(a)[0]))
+            ssh.start()
+        except Exception as e:
+            print(f"\n{red}[!] {e}{reset}")
+            sys.exit(1)
+
+    def _eternalblue(self, a: ScriptArgs) -> None:
+        """Eternal Blue Exploit CVE-2017-0144"""
+        from LSSE.scripts.safe.discovery.smb.eternalblue import run
+
+        run(target=a.t,port=int(self._ports(a)[0]))
+
+    def _http_comments(self, a: ScriptArgs) -> None:
+        """Detect Comments in a page's HTML."""
+        from LSSE.scripts.safe.analysis.http_https.http_comments import HttpComment
+
+        try:
+            HttpComment(url=a.url).start()
+        except Exception as e:
+            print(f"\n{red}[!] {e}{reset}")
+            sys.exit(1)
+
+    def _http_request(self, a: ScriptArgs):
+        """Send Raw HTTP Request"""
+        from LSSE.scripts.safe.analysis.http_https.http_request import HttpRequest
+
+        try:
+            HttpRequest(target=a.t,request_file=a.file,raw_request=a.req,
+                        port=int(self._ports(a)[0]),ssl=a.ssl).start()
+        except Exception as e:
+            print(f"\n{red}[!] {e}{reset}")
+            sys.exit(1)
+
+    def _dhcp_discover(self, a: ScriptArgs) -> None:
+        """DHCP Discovery For Local Servers and Devices"""
+        from LSSE.scripts.safe.discovery.dhcp.dhcp_discover import main
+
+        main()
 
     def _ssh_auth_methods(self, a: ScriptArgs) -> None:
         """SSH authentication method identify"""

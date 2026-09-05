@@ -137,10 +137,8 @@ class HTTPDIR:
             for status, items in sorted(by_status.items()):
                 status_color = green if status == 200 else yellow
                 print(f"{status_color}[{status}] Found {len(items)} items:{reset}")
-                for item in items[:20]:
+                for item in items:
                     print(f"    {item['url']} ({item['size']} bytes)")
-                if len(items) > 20:
-                    print(f"    ... and {len(items) - 20} more")
                 print()
         else:
             print(f"{yellow}[!] No directories or files found{reset}")

@@ -25,7 +25,7 @@ Arguments
 ----> -sp
 --> Optional Arguments
 ----> --redirect
-Categorie :safe/extracting/http-https
+Categorie :safe/analysis/http-https
 """
 
 

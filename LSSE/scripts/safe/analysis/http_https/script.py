@@ -22,7 +22,7 @@ Author : Adam Boulaaz, ognamgeek
 Arguments
 --> Required Arguments
 ----> --url
-Categorie :safe/discovery/http_https
+Categorie :safe/analysis/http_https
 """
 
 import requests

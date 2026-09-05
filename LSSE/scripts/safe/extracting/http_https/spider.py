@@ -39,7 +39,7 @@ from bs4 import BeautifulSoup
 
 
 class Spider:
-    def __init__(self, max_workers=5):
+    def __init__(self, max_workers=20):
         self.max_workers = max_workers
         self.visited = set()
         self.results = []
