@@ -148,7 +148,7 @@ sudo python Lightscan.py -T 192.168.1.1 -p 1-1000 --daemon
 |--------|-------------|---------|
 | -p PORT | Ports to scan | -p 80,443 or -p 1-1000 |
 | -F | Scan top 100 ports | -F |
-| --shufle | Randomize port order | --shufle |
+| --shuffle | Randomize port order | --shuffle |
 | -pp PING_PORT | Ports for ping | -pp 80,443 |
 
 #### Scan Types
