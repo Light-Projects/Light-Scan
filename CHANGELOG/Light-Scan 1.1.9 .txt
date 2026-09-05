@@ -1,0 +1,72 @@
+@ Light-Scan 1.1.9
+
+## auto script list (slist.py [.yaml metadata]) 100%
+## remove interval magic number 100%
+## add interval option in Lightscan 100%
+## performance optimazations 100%
+## adding interval and saving options in json profiles 100%
+## help menu in LightPanel 100%
+## separating packet processing from LightSniff 100%
+## multi format saving (txt,json,yaml) 100%
+## multi script run 100%
+## saving for lsse only mode 100%
+## list port option in Lightscan 100%
+## Enhanced Firewall Assessment 100%
+## randomizing ports order option (--shufle) 100%
+## Proper documentation (README.md) 100%
+## Enhanced help menu with categories in Lightscan 100%
+## Enhanced help menu with categories in LightSniff 100%
+## Enhanced help menu with categories in Mint 100%
+## using LightBin general loader for LightSniff 100%
+## stats flag in LightSniff (--stats) 100%
+## stats saving as a .txt (--export-stats) 100%
+## read ports from file option (--rffp) 100%
+## Target hostname,ip and mac address validating in Mint 100%
+## stats in Mint 100%
+## verbose and quiet mode in Mint 100%
+## udp flood attack in mint 100%
+## exclude option in Lightscan (--exclude) 100%
+## random payload generating based on lenght in Lightscan 100%
+## GUI help menu in LightPanel 100%
+## using CtkMenuBarPlus then Tkinter 100%
+## F1 for help menu and Esc/F1 for closing it 100%
+## Alt F4 for closing all windows 100%
+## F5 for switching display modes (Dark/Light) 100%
+## speed-presets.conf for speed configuration 100%
+## Custom speed presets (speed-presets.conf) 100%
+## Fixing pdf multi targets saving error 100%
+## multi file saving for multiple targets 100%
+## General Saving directory (./Saving) 100%
+## auto generating for ./Saving directory and empty.txt 100%
+## add an ICMPv4 module in Mirage 100%
+## using banner_grabber probes in Mirage 100%
+## EternalBlue exploit LSSE script (eternalblue.py) 100%
+## Get Default Interface name func in LightPacket 100%
+## network utility in LightPacket 100%
+## GetIPv4 utility in LightPacket 100%
+## add smb service fingerprint in analyzer 100%
+## special smb probe for banner grabbing (smb.py) 100%
+## smb version parsing in VersionParser.py 100%
+## Fixing TCP 3 HandShake Open Services Names Error 100%
+## Dedicated smb banner grabber 100%
+## OS socket for localhost scans 100%
+## Local Host Pinging is always up [SYS] 100%
+## Local Host Auto OS Detection 100%
+## Fragsize option for fragmentation supported scans 100%
+## Visual OS Fingerprint in LightPanel 100%
+## About Page in LightPanel 100%
+## Decoy Option (-D) in Lightscan 100%
+## Imediate mode option for displaying open ports right after getting a response 100%
+## added dhcp-discover script 100%
+## added http-comments script 100%
+## specifique script help menu 100%
+## added http-request script 100%
+## new fingerprints for Linux,Windows,Mac and Unix 100%
+## reverse dns probes for os fingerprinting 100%
+## more easy way to add custom scripts to LSSE using lsse.conf 100%
+## LSSE Script Manager 100%
+## add new custom script/s using LSSE Script Manager 100%
+## delete custom script/s using LSSE Script Manager 100%
+## LSSE Script Data Base Update Option (--update-lsse) 100%
+## added ssh-info script 100%
+## Docs for LSSE 100%
