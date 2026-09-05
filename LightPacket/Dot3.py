@@ -4,21 +4,23 @@
 
 import struct
 from .Decoration.Colors import BOLD, RESET, PURPLE, BLUE, CYAN
+from .Consts import BROADCAST_MAC,OUI_MAP,MC
 from .Layers.Mac import MacAddress
 from .Layers.IS_LLC import is_llc
 from .Logger.LightLogger import Logger, ErrorCode
 from .BaseLayer import BaseLayer
+from .EthernetII import GetMac
 from typing import Union
 
 LLogger = Logger()
 
 """
-Dot3 (802.3) Layer Creation (class Dot3Layer)
+Dot3 (802.3) Layer Creation (class Dot3)
 """
 
-class Dot3Layer(BaseLayer):
+class Dot3(BaseLayer):
 
-    def __init__(self, dst: Union[str, bytes], src: Union[str, bytes],
+    def __init__(self, dst: Union[str, bytes] = BROADCAST_MAC, src: Union[str, bytes] = GetMac(),
                  length: int = 0):
         super().__init__()
         self.dst = MacAddress(dst, d_or_s=1)
@@ -60,7 +62,7 @@ class Dot3Layer(BaseLayer):
     def check_layers(self):
         layer = self.payload.__class__.__name__
 
-        if layer == 'VLANLayer':
+        if layer == 'VLAN':
             self.numofvlan,layer = self.vlanhandler()
 
     def vlanhandler(self):
@@ -73,8 +75,8 @@ class Dot3Layer(BaseLayer):
         return (f"<Dot3 dst={self.dst} src={self.src} "
                 f"length=0x{self.length:04x}>")
 
-    def copy(self) -> 'Dot3Layer':
-        new_layer = Dot3Layer(
+    def copy(self) -> 'Dot3':
+        new_layer = Dot3(
             dst=str(self.dst),
             src=str(self.src),
             length=self.length
@@ -129,13 +131,13 @@ class Dot3Parser:
                 if verbose:
                     print(
                         f"\n{BOLD}DOT3 (802.3) LAYER : {RESET}Len({PURPLE}{Length}{RESET}) Total Len({PURPLE}{Total}{RESET}) >")
-                    print(f'   {BLUE}MAC DST:{CYAN} {mac_dst_str}')
-                    print(f'   {BLUE}MAC SRC:{CYAN} {mac_src_str}')
+                    print(f'   {BLUE}MAC DST:{CYAN} {mac_dst_str} ({'Multicast' if mac_dst_str[:2] in MC else OUI_MAP.get(mac_dst_str.replace(":", "")[:6],'?')})')
+                    print(f'   {BLUE}MAC SRC:{CYAN} {mac_src_str} ({'Multicast' if mac_src_str[:2] in MC else OUI_MAP.get(mac_src_str.replace(":", "")[:6],'?')})')
                     print(f'   {BLUE}LENGHT:{CYAN} {hex(ethertype)}{RESET}')
 
 
                 vl = VLANParser.load_as_vlan_layer(raw_packet[0][12:14 + (number * 4)],verbose=verbose)
-                dot3 = Dot3Layer(
+                dot3 = Dot3(
                     dst=mac_dst_str,
                     src=mac_src_str,
                     length=ethertype,
@@ -160,11 +162,11 @@ class Dot3Parser:
         else:
             if verbose:
                 print(f"\n{BOLD}DOT3 (802.3) LAYER : {RESET}Len({PURPLE}{Length}{RESET}) Total Len({PURPLE}{Total}{RESET}) >")
-                print(f'   {BLUE}MAC DST:{CYAN} {mac_dst_str}')
-                print(f'   {BLUE}MAC SRC:{CYAN} {mac_src_str}')
+                print(f'   {BLUE}MAC DST:{CYAN} {mac_dst_str} ({'Multicast' if mac_dst_str[:2] in MC else OUI_MAP.get(mac_dst_str.replace(":", "")[:6],'?')})')
+                print(f'   {BLUE}MAC SRC:{CYAN} {mac_src_str} ({'Multicast' if mac_src_str[:2] in MC else OUI_MAP.get(mac_src_str.replace(":", "")[:6],'?')})')
                 print(f'   {BLUE}LENGHT:{CYAN} {hex(length)}{RESET}')
 
-            dot3 = Dot3Layer(
+            dot3 = Dot3(
                 dst=mac_dst_str,
                 src=mac_src_str,
                 length=length,

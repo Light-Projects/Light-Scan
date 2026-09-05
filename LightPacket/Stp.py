@@ -12,10 +12,10 @@ from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
 LLogger = Logger()
 
 """
-STP Layer Creation (class STPLayer)
+STP Layer Creation (class STP)
 """
 
-class STPLayer(BaseLayer):
+class STP(BaseLayer):
 
     def __init__(self, protocol_id=0x0000, protocol_version=0x00, bpdu_type=0x00, flags=0x00,
                  root_priority=0x8000, root_mac: Union[str,bytes] =b'\x00\x11\x22\x33\x44\x55',
@@ -75,8 +75,8 @@ class STPLayer(BaseLayer):
                 f"max_age={self.max_age} hello={self.hello_time} "
                 f"fwd_delay={self.forward_delay} len={len(self)}>")
 
-    def copy(self) -> 'STPLayer':
-        new_layer = STPLayer(
+    def copy(self) -> 'STP':
+        new_layer = STP(
             protocol_id=self.protocol_id,
             protocol_version=self.protocol_version,
             bpdu_type=self.bpdu_type,
@@ -197,7 +197,7 @@ class STPParser:
             from .Raw import RawParser
             RawParser.load_as_Raw_layer(payload, verbose=verbose)
 
-        stp = STPLayer(
+        stp = STP(
             protocol_version=protocol_version,
             bpdu_type=bpdu_type,
             flags=flags,

@@ -10,10 +10,10 @@ from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
 LLogger = Logger()
 
 """
-PPP Layer Creation (class PPPLayer)
+PPP Layer Creation (class PPP)
 """
 
-class PPPLayer(BaseLayer):
+class PPP(BaseLayer):
 
     def __init__(self, address=0xFF, control=0x03, proto=0x0021):
         super().__init__()
@@ -36,8 +36,8 @@ class PPPLayer(BaseLayer):
         return (
             f"<PPP address={hex(self.address)}, control={hex(self.control)}, proto={hex(self.proto)}>")
 
-    def copy(self) -> 'PPPLayer':
-        new_layer = PPPLayer(
+    def copy(self) -> 'PPP':
+        new_layer = PPP(
             address=self.address,
             control=self.control,
             proto=self.proto
@@ -87,7 +87,7 @@ class PPPParser:
             print(f'   {BLUE}CONTROL:{CYAN} {hex(control)}')
             print(f'   {BLUE}PROTO:{CYAN} {hex(proto)}{RESET}')
 
-        llc = PPPLayer(
+        llc = PPP(
             address=address,
             control=control,
             proto=proto
@@ -103,10 +103,10 @@ class PPPParser:
         return llc
 
 """
-PPP2b Layer Creation (class PPP2bLayer)
+PPP2b Layer Creation (class PPP2b)
 """
 
-class PPP2bLayer(BaseLayer):
+class PPP2b(BaseLayer):
     def __init__(self,proto=0x0021):
         super().__init__()
         self.proto = proto
@@ -126,8 +126,8 @@ class PPP2bLayer(BaseLayer):
         return (
             f"<PPP2b proto={hex(self.proto)}>")
 
-    def copy(self) -> 'PPP2bLayer':
-        new_layer = PPP2bLayer(
+    def copy(self) -> 'PPP2b':
+        new_layer = PPP2b(
             proto=self.proto
         )
         if self.payload:
@@ -170,7 +170,7 @@ class PPP2bParser:
             print(f"\n{BOLD}PPP2b LAYER : {RESET}Len({PURPLE}{Lenght}{RESET}) Total Len({PURPLE}{Total}{RESET}) >")
             print(f'   {BLUE}PROTO:{CYAN} {hex(proto[0])}{RESET}')
 
-        llc = PPP2bLayer(
+        llc = PPP2b(
             proto=proto[0],
         )
 
@@ -184,10 +184,10 @@ class PPP2bParser:
         return llc
 
 """
-PPPoE Layer Creation (class PPPoELayer)
+PPPoE Layer Creation (class PPPoE)
 """
 
-class PPPoELayer(BaseLayer):
+class PPPoE(BaseLayer):
 
     def __init__(self, version=0x1, type=0x1, code=0x00,ssid=0x0000,lenght=0):
         super().__init__()
@@ -219,8 +219,8 @@ class PPPoELayer(BaseLayer):
         return (
             f"<PPPoE version={hex(self.version)}, type={hex(self.type)}, code={hex(self.code)}, ssid={hex(self.ssid)}, lenght={hex(self.lenght)} >")
 
-    def copy(self) -> 'PPPoELayer':
-        new_layer = PPPoELayer(
+    def copy(self) -> 'PPPoE':
+        new_layer = PPPoE(
             version=self.version,
             type=self.type,
             code=self.code,
@@ -279,7 +279,7 @@ class PPPoEParser:
             print(f'   {BLUE}SSID:{CYAN} {hex(ssid)}')
             print(f'   {BLUE}LEN:{CYAN} {hex(lenght)}{RESET}')
 
-        llc = PPPoELayer(
+        llc = PPPoE(
             version=version,
             type=type,
             code=code,

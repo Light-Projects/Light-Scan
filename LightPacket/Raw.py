@@ -11,11 +11,11 @@ from typing import Optional
 LLogger = Logger()
 
 """
-Raw Layer Creation (class RawLayer)
+Raw Layer Creation (class Raw)
 """
 
-class RawLayer(BaseLayer):
-    def __init__(self, payload: Optional[bytes] = None):
+class Raw(BaseLayer):
+    def __init__(self, payload: Optional[bytes] = b'Test LightPacket Raw Layer'):
         super().__init__()
         self._raw_payload = payload or b''
 
@@ -43,8 +43,8 @@ class RawLayer(BaseLayer):
             return f"<Raw payload={payload[:32]}... len={len(payload)}>"
         return f"<Raw payload={payload} len={len(payload)}>"
 
-    def copy(self) -> 'RawLayer':
-        new = RawLayer(payload=self._raw_payload)
+    def copy(self) -> 'Raw':
+        new = Raw(payload=self._raw_payload)
         if self.payload:
             new.payload = self.payload.copy() if hasattr(self.payload, 'copy') else self.payload
         return new
@@ -70,15 +70,15 @@ class RawParser:
             if hasattr(raw_packet[0], 'build') and type(raw_packet[0]) is not bytes:
                 raw_packet[0] = raw_packet[0].build()
 
-        Raw = raw_packet[0]
-        lenght = len(Raw)
+        raw = raw_packet[0]
+        lenght = len(raw)
 
         if verbose:
             print(f"\n{BOLD}RAW LAYER : Len({PURPLE}{lenght}{RESET}) >")
-            print(f'   {BLUE}PAYLOAD:{CYAN} {Raw} {RESET}')
+            print(f'   {BLUE}PAYLOAD:{CYAN} {raw} {RESET}')
 
-        raw = RawLayer(
-            payload=Raw,
+        raw = Raw(
+            payload=raw,
         )
 
         return raw

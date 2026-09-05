@@ -4,8 +4,8 @@
 
 import logging
 import sys
-from ..Decoration.Colors import REDBG ,RESETBG ,YELLOW ,YELLOWBG ,RESET ,RED
-from .Errors import *
+from LightPacket.Decoration.Colors import REDBG ,RESETBG ,YELLOW ,YELLOWBG ,RESET ,RED
+from LightPacket.Logger.Errors import *
 
 class ErrorCode:
     INVALID_MAC = "E001"
@@ -13,13 +13,15 @@ class ErrorCode:
     INVALID_DATA_LENGTH = "E003"
     INVALID_IP = "E004"
     NOT_FOUND = "E005"
+    CANNOT_COMPILE_BPF = "E006"
 
     ERROR_MAP = {
         'E001': InvalidMacAddressError,
         'E002': InvalidDataTypeError,
         'E003': InvalidDataLengthError,
         'E004': InvalidIPAddressError,
-        'E005': NotFoundError
+        'E005': NotFoundError,
+        'E006': CannotCompileBPF,
     }
 
 class WarningCode:

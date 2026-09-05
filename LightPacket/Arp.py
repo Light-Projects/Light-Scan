@@ -2,26 +2,50 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+
 import struct
+
+from .GetMac import GetMac
+from .GetIPv4 import GetIPv4Gateway,GetIPv4
 from .Decoration.Colors import RESET, CYAN, BLUE, PURPLE, BOLD
 from .Logger.LightLogger import Logger, ErrorCode
 from .BaseLayer import BaseLayer
 from typing import Union
 from .Layers.Mac import MacAddress
 from .Layers.IPtoa import inet_aton, inet_ntoa
-from .Consts import HWTYPES,ETHERTYPE
+from .Consts import HWTYPES,ETHERTYPE,BROADCAST_MAC,IPv4,MC,OUI_MAP
 
 LLogger = Logger()
 
 """
-Arp Layer Creation (class ArpLayer)
+Arp Layer Creation (class ARP)
 """
 
-class ArpLayer(BaseLayer):
+class ARP(BaseLayer):
 
-    def __init__(self, hwtype: int, ptype: int, maclen: int, plen: int, opcode: int, macsrc: Union[str, bytes],
-                 ipsrc: str, macdst: Union[str, bytes], ipdst: str):
+    def __init__(self, hwtype: int = None, ptype: int = None, maclen: int = None,
+                 plen: int = None, opcode: int = None, macsrc: Union[str, bytes] = None,
+                 ipsrc: str = None, macdst: Union[str, bytes] = None, ipdst: str = None):
         super().__init__()
+        if macsrc is None:
+            macsrc = GetMac()
+        if macdst is None:
+            macdst = BROADCAST_MAC
+        if hwtype is None:
+            hwtype = 1
+        if ptype is None:
+            ptype = IPv4
+        if maclen is None:
+            maclen = 6
+        if plen is None:
+            plen = 4
+        if opcode is None:
+            opcode = 1
+        if ipsrc is None:
+            ipsrc = GetIPv4()
+        if ipdst is None:
+            ipdst = GetIPv4Gateway()
+
         self.hwtype = hwtype
         self.ptype = ptype
         self.maclen = maclen
@@ -57,8 +81,8 @@ class ArpLayer(BaseLayer):
         return (
             f"<Arp opcode={self.opcode} plen={self.plen} ptype={hex(self.ptype)} maclen={self.maclen} hwtype={self.hwtype} macsrc={self.macsrc} ipsrc={self.ipsrc} macdst={self.macdst} ipdst={self.ipdst}>")
 
-    def copy(self) -> 'ArpLayer':
-        new_layer = ArpLayer(
+    def copy(self) -> 'ARP':
+        new_layer = ARP(
             hwtype=self.hwtype,
             ptype=self.ptype,
             maclen=self.maclen,
@@ -151,16 +175,16 @@ class ArpParser:
             print(f'   {BLUE}MACLEN:{CYAN} {maclen}')
             print(f'   {BLUE}PLEN:{CYAN} {plen}')
             print(f'   {BLUE}OPCODE:{CYAN} {opcode} {opcode_e}')
-            print(f'   {BLUE}MAC SRC:{CYAN} {sender_mac_str}')
+            print(f'   {BLUE}MAC SRC:{CYAN} {sender_mac_str} ({'Multicast' if sender_mac_str[:2] in MC else OUI_MAP.get(sender_mac_str.replace(":", "")[:6],'?')})')
             print(f'   {BLUE}IP SRC:{CYAN} {sender_ip_str}')
-            print(f'   {BLUE}MAC DST:{CYAN} {target_mac_str}')
+            print(f'   {BLUE}MAC DST:{CYAN} {target_mac_str} ({'Multicast' if target_mac_str[:2] in MC else OUI_MAP.get(target_mac_str.replace(":", "")[:6],'?')})')
             print(f'   {BLUE}IP DST:{CYAN} {target_ip_str}{RESET}')
 
         if len(payload) > 0:
             from .Raw import RawParser
             RawParser.load_as_Raw_layer(payload,verbose=verbose)
 
-        arp = ArpLayer(
+        arp = ARP(
             hwtype=hwtype,
             ptype=ptype,
             maclen=maclen,

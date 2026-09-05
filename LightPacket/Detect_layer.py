@@ -4,12 +4,12 @@
 
 import struct
 from .Layers.IS_LLC import is_llc
-from .isl import is_isl_frame
+from .Wireless.wlan import is_wifi_packet
 from .ppp import is_ppp_frame
-from.Consts import Layers_names
+from .Consts import Layers_names
 
 class DetectLayer:
-    def start(self, packet, Alr=0, previous_layer=None, verbose=False, pclass=None):
+    def start(self, packet, Alr=0, previous_layer=None, verbose=False):
         if hasattr(packet, 'build') and callable(packet.build) and Alr == 0:
             packet = packet.build()
 
@@ -24,13 +24,12 @@ class DetectLayer:
             if Lenght >= 14:
                 HHH = packet[12:14]
                 eth_type = struct.unpack('>H', HHH)[0]
-
-                if is_isl_frame(packet):
-                    from .isl import ISLParser
-                    s = ISLParser.load_as_isl_layer(packet,verbose=verbose)
-                elif is_ppp_frame(packet):
+                if is_ppp_frame(packet):
                     from .ppp import PPPParser
                     s = PPPParser.load_as_ppp_layer(packet,verbose=verbose)
+                elif is_wifi_packet(packet):
+                    from .Wireless.wlan import WiFiParser
+                    s = WiFiParser.load_as_wifi_layer(packet,verbose=verbose)
                 elif eth_type >= 0x0600:
                     if eth_type == 0x8100 or eth_type == 0x88A8:
                         from .Vlan import vlannum

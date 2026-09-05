@@ -2,6 +2,36 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import re
+from pathlib import Path
+
+def parse_oui_file(filename):
+    """
+    Parse an IEEE OUI file (oui.txt) and return a dict.
+
+    The file format expected is:
+        XX-XX-XX   (hex)		Organization Name
+        (optional address lines)
+
+    Example line:
+        28-6F-B9   (hex)		Nokia Shanghai Bell Co., Ltd.
+
+    The OUI is normalized to lowercase without hyphens, e.g. "286fb9".
+    Only the first line of each entry (the OUI and organization) is used;
+    address lines are ignored.
+    """
+    ouis = {}
+    with open(filename, 'r', encoding='utf-8') as f:
+        for line in f:
+            # Match lines like "28-6F-B9   (hex)		Organization"
+            m = re.match(r'^([0-9A-F]{2}-[0-9A-F]{2}-[0-9A-F]{2})\s+\(hex\)\s+(.+)$', line)
+            if m:
+                oui = m.group(1).replace('-', '').lower()
+                org = m.group(2).strip()
+                ouis[oui] = org
+    return ouis
+
+
 ETHERTYPE = {
     0x0600: "(XNS)",
     0x0800: "(IPv4)",
@@ -198,6 +228,118 @@ HWTYPES = {
     41: "(IEEE 802.16 WirelessMAN)",
 }
 
+MC = [f'{i:02x}' for i in range(1, 256, 2)]
+MC.remove('ff')
+
+try:
+    OUI_MAP = parse_oui_file(str(Path(__file__).parent) + '/data/oui.txt')
+    OUI_MAP['ffffff'] = "Broadcast"
+
+except:
+    OUI_MAP = {
+        "000000": "Encapsulated Ethernet",
+        "ffffff": "Broadcast",
+        "000006": "Xerox",
+        "00000c": "Cisco (future use)",
+        "00005e": "the IANA",
+        "000081": "Nortel SONMP",
+        "0000f8": "Cisco (IOS 9.0 and above?)",
+        "000142": "Cisco",
+        "000143": "Cisco",
+        "0001e8": "Force10",
+        "0001ec": "Ericsson Group",
+        "00025a": "Catena Networks",
+        "00037f": "Atheros Communications",
+        "0003ba": "Oracle",
+        "00040d": "Avaya Extreme access point",
+        "000512": "Extreme MESH",
+        "00090f": "Fortinet",
+        "000ad9": "Sony Ericsson Mobile Communications AB",
+        "000b86": "Aruba Networks",
+        "000c42": "Formerly listed as Mikrotik, however this OUI is owned by Routerboard",
+        "000ce6": "Meru Network (Fortinet)",
+        "000e07": "Sony Ericsson Mobile Communications AB",
+        "000ecf": "PROFIBUS Nutzerorganisation e.V.",
+        "000fac": "Wi-Fi : RSN",
+        "000fde": "Sony Ericsson Mobile Communications AB",
+        "001090": "Cimetrics, Inc.",
+        "001174": "Arista Networks (Formerly Mojo Networks)",
+        "00120f": "IEEE 802.3",
+        "0012bb": "Media (TIA TR-41 Committee)",
+        "0012ee": "Sony Ericsson Mobile Communications AB",
+        "001392": "Ruckus Networks",
+        "00156d": "Ubiquiti Inc",
+        "0015e0": "Ericsson Mobile Platforms",
+        "001620": "Sony Ericsson Mobile Communications AB",
+        "0016b8": "Sony Ericsson Mobile Communications AB",
+        "0017f2": "Apple (AWDL), Inc",
+        "001813": "Sony Ericsson Mobile Communications AB",
+        "001958": "Bluetooth SIG",
+        "001963": "Sony Ericsson Mobile Communications AB",
+        "001977": "Aerohive AP to AP communication",
+        "0019a7": "International Telecommunication Union (ITU) Telecommunication Standardization Sector",
+        "001b21": "Data Center Bridging Capabilities Exchange Protocol",
+        "001b3f": "IEEE 802.1 Qbg",
+        "001b67": "Cisco/Ubiquisys",
+        "001f32": "Nintendo",
+        "0020f6": "KarlNet, who brought you Turbocell",
+        "00216c": "ODVA",
+        "00256d": "Broadband Forum",
+        "00400d": "Avaya",
+        "004096": "Cisco Wireless (Aironet)",
+        "005043": "Marvell Semiconductor",
+        "0050f2": "Wi-Fi : WPA / WME",
+        "008037": "Ericsson Group",
+        "00805f": "Hewlett-Packard",
+        "0080c2": "IEEE 802.1 Committee",
+        "00904c": "Wi-Fi : 802.11 Pre-N",
+        "00a03e": "ATM Forum",
+        "00a0f8": "Extreme/WING (Zebra)",
+        "00e02b": "Extreme EDP/ESRP",
+        "00e02f": "DOCSIS spanning tree BPDU",
+        "00e052": "Foundry",
+        "00e0fc": "Huawei",
+        "010ecf": "PROFIBUS Nutzerorganisation e.V.",
+        "080006": "Siemens AG",
+        "080007": "Appletalk",
+        "080009": "Hewlett-Packard",
+        "080030": "CERN, The European Organization for Nuclear Research",
+        "0c5a9e": "Wi-SUN",
+        "1c129d": "IEEE PES PSRC/SUB Working Group H7/Sub C7 (IEEE PC37.238)",
+        "30b216": "Hytec Geraetebau GmbH",
+        "3cb9a6": "BELDEN",
+        "48d017": "Telecom Infra Project",
+        "4a191b": "ZigBee Alliance",
+        "506f9a": "Wi-Fi Alliance",
+        "5c5b35": "Mist Systems",
+        "6897e8": "Society of Motion Picture and Television Engineers",
+        "6a5c35": "Secrétariat Général de la Défense et de la Sécurité Nationale",
+        "848094": "Meter Inc",
+        "a42305": "Open Networking Laboratory (ONOS)",
+        "cf0002": "3GPP2",
+        "d88466": "Avaya Extreme Fabric",
+        "dc0856": "Alcatel-Lucent",
+        "eab89b": "Thread",
+    }
+
+eapol_versions = {
+    0x1: "(IEEE 802.1X-2001)",
+    0x2: "(IEEE 802.1X-2004)",
+    0x3: "(IEEE 802.1X-2010)",
+}
+
+eapol_types = {
+    0x0: "(EAP-Packet)",
+    0x1: "(EAPOL-Start)",
+    0x2: "(EAPOL-Logoff)",
+    0x3: "(EAPOL-Key)",
+    0x4: "(EAPOL-Encapsulated-ASF-Alert)",
+    0x5: "(EAPOL-MKA)",
+    0x6: "(EAPOL-Announcement -Generic- )",
+    0x7: "(EAPOL-Announcement -Specific- )",
+    0x8: "(EAPOL-Announcement-Req)",
+}
+
 SAP_VALUES = {
     0x00: "Null LSAP (No protocol)",
     0x02: "Individual LLC Sublayer Management",
@@ -362,7 +504,7 @@ MPLS = 0x8847
 MPLS_UPLABEL = 0x8848
 PPPoE_DISCOVERY = 0x8863
 PPPoE_SESSION = 0x8864
-EAPOL = 0x888E
+EAPOL_var = 0x888E
 LLDP = 0x88CC
 Q_IN_Q = 0x88A8
 MACsec = 0x88E5

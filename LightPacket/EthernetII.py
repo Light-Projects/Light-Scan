@@ -7,20 +7,20 @@ from .Layers.Mac import MacAddress
 from .Logger.LightLogger import Logger, ErrorCode, WarningCode
 from .BaseLayer import BaseLayer
 from typing import Union
-from .Detect_layer import DetectLayer
 import struct
 from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
-from .Consts import *
+from .Consts import OUI_MAP,ARP_var,BROADCAST_MAC,IPv4,ETHERTYPE,MC
+from .GetMac import GetMac
 
 LLogger = Logger()
 
 """
-Ethernet Layer Creation (class EthernetLayer)
+Ethernet Layer Creation (class Ethernet)
 """
 
-class EthernetLayer(BaseLayer):
+class Ethernet(BaseLayer):
 
-    def __init__(self, dst: Union[str, bytes], src: Union[str, bytes],
+    def __init__(self, dst: Union[str, bytes] = BROADCAST_MAC, src: Union[str, bytes]= GetMac(),
                  ethertype: Union[str, bytes] = None):
         super().__init__()
         self.dst = MacAddress(dst, d_or_s=1)
@@ -31,13 +31,15 @@ class EthernetLayer(BaseLayer):
         self.numofvlan = 0
         layer = self.payload.__class__.__name__
         if self.ethertype is None:
-            if layer == 'ArpLayer':
+            if layer == 'ARP':
                 self.ethertype =  ARP_var
-            elif layer == 'PPPoELayer':
-                self.ethertype = 0x8863
-            elif layer == 'PPP2bLayer':
+            elif layer == 'PPPoE':
+                self.ethertype = 0x8864
+            elif layer == 'PPP2b':
                 self.ethertype = 0x880B
-            elif layer == 'VLANLayer':
+            elif layer == 'EAPOL':
+                self.ethertype = 0x888E
+            elif layer == 'VLAN':
                 self.numofvlan, layer = self.vlanhandler()
                 self.ethertype = self.check_layers_fromvar(layer)
             else:
@@ -70,12 +72,14 @@ class EthernetLayer(BaseLayer):
             )
 
     def check_layers_fromvar(self,var):
-        if var == 'ArpLayer':
+        if var == 'ARP':
             return ARP_var
-        elif var == 'PPPoELayer':
-            return 0x8863
-        elif var == 'PPP2bLayer':
+        elif var == 'PPPoE':
+            return 0x8864
+        elif var == 'PPP2b':
             return 0x880B
+        elif var == 'EAPOL':
+            return 0x888E
         else:
             return IPv4
 
@@ -90,8 +94,8 @@ class EthernetLayer(BaseLayer):
                 f"type={self.ethertype} {ETHERTYPE.get(self.ethertype, 'Unknown')} "
                 f"len={14} (bytes) >")
 
-    def copy(self) -> 'EthernetLayer':
-        new_layer = EthernetLayer(
+    def copy(self) -> 'Ethernet':
+        new_layer = Ethernet(
             dst=str(self.dst),
             src=str(self.src),
             ethertype=self.ethertype
@@ -154,8 +158,8 @@ class EthernetParser:
                 if verbose:
                     print(
                         f"\n{BOLD}ETHERNET LAYER : {RESET}Len({PURPLE}{Length}{RESET}) Total Len({PURPLE}{Total}{RESET}) >")
-                    print(f'   {BLUE}MAC DST:{CYAN} {mac_dst_str}')
-                    print(f'   {BLUE}MAC SRC:{CYAN} {mac_src_str}')
+                    print(f'   {BLUE}MAC DST:{CYAN} {mac_dst_str} ({'Multicast' if mac_dst_str[:2] in MC else OUI_MAP.get(mac_dst_str.replace(":", "")[:6],'?')})')
+                    print(f'   {BLUE}MAC SRC:{CYAN} {mac_src_str} ({'Multicast' if mac_src_str[:2] in MC else OUI_MAP.get(mac_src_str.replace(":", "")[:6],'?')})')
                     print(f'   {BLUE}ETHER TYPE:{CYAN} {hex(ethertype)} '
                           f'{ETHERTYPE.get(ethertype, "Unknown")}{RESET}')
 
@@ -163,8 +167,11 @@ class EthernetParser:
                 vl = VLANParser.load_as_vlan_layer(raw_packet[0][12:14 + (number * 4)],verbose=verbose)
 
                 if len(payload) > 0 and Alr != 1 and payload != b'':
-                    if ethertype == ARP_var:
+                    if ethertype == ARP_var or ether_type == 0x8035:
                         prelayer = ArpParser.load_as_arp_layer(payload, Alr=1, verbose=verbose)
+                    elif ethertype == 0x888E:
+                        from .eapol import EAPOLParser
+                        prelayer = EAPOLParser.load_as_eapol_layer(payload, verbose=verbose)
                     elif ethertype == 0x8863 or ethertype == 0x8864:
                         from .ppp import PPPoEParser
                         prelayer = PPPoEParser.load_as_pppoe_layer(payload, Alr=0, verbose=verbose)
@@ -172,11 +179,12 @@ class EthernetParser:
                         from .ppp import PPP2bParser
                         prelayer = PPP2bParser.load_as_ppp2b_layer(payload, Alr=0, verbose=verbose)
                     else:
+                        from .Detect_layer import DetectLayer
                         d = DetectLayer()
                         prelayer = d.start(payload, Alr=0, previous_layer="Ethernet", verbose=verbose)
 
 
-                ether = EthernetLayer(
+                ether = Ethernet(
                     dst=mac_dst_str,
                     src=mac_src_str,
                     ethertype=ethertype,
@@ -195,20 +203,23 @@ class EthernetParser:
             if ether_type >= 0x0600:
                 if verbose:
                     print(f"\n{BOLD}ETHERNET LAYER : {RESET}Len({PURPLE}{Length}{RESET}) Total Len({PURPLE}{Total}{RESET}) >")
-                    print(f'   {BLUE}MAC DST:{CYAN} {mac_dst_str}')
-                    print(f'   {BLUE}MAC SRC:{CYAN} {mac_src_str}')
+                    print(f'   {BLUE}MAC DST:{CYAN} {mac_dst_str} ({'Multicast' if mac_dst_str[:2] in MC else OUI_MAP.get(mac_dst_str.replace(":", "")[:6],'?')})')
+                    print(f'   {BLUE}MAC SRC:{CYAN} {mac_src_str} ({'Multicast' if mac_src_str[:2] in MC else OUI_MAP.get(mac_src_str.replace(":", "")[:6],'?')})')
                     print(f'   {BLUE}ETHER TYPE:{CYAN} {hex(ether_type)} '
                           f'{ETHERTYPE.get(ether_type, "Unknown")}{RESET}')
 
-                ether = EthernetLayer(
+                ether = Ethernet(
                     dst=mac_dst_str,
                     src=mac_src_str,
                     ethertype=ether_type,
                 )
 
                 if len(payload) > 0 and Alr == 0:
-                    if ether_type == ARP_var:
+                    if ether_type == ARP_var or ether_type == 0x8035:
                         prelayer = ArpParser.load_as_arp_layer(payload, Alr=1,verbose=verbose)
+                    elif ether_type == 0x888E:
+                        from .eapol import EAPOLParser
+                        prelayer = EAPOLParser.load_as_eapol_layer(payload, verbose=verbose)
                     elif ether_type == 0x8863 or ether_type == 0x8864:
                         from .ppp import PPPoEParser
                         prelayer = PPPoEParser.load_as_pppoe_layer(payload, Alr=0, verbose=verbose)
@@ -216,9 +227,9 @@ class EthernetParser:
                         from .ppp import PPP2bParser
                         prelayer = PPP2bParser.load_as_ppp2b_layer(payload, Alr=0, verbose=verbose)
                     else:
+                        from .Detect_layer import DetectLayer
                         d = DetectLayer()
                         prelayer = d.start(payload, Alr=0, previous_layer="Ethernet",verbose=verbose)
-
                     return ether / prelayer
                 return ether
             else:

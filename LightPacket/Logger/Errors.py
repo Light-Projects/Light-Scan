@@ -19,3 +19,6 @@ class InvalidIPAddressError(LightPacketError):
 
 class InvalidDataTypeError(LightPacketError):
     pass
+
+class CannotCompileBPF(LightPacketError):
+    pass

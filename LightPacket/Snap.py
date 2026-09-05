@@ -4,17 +4,17 @@
 
 import struct
 from .BaseLayer import BaseLayer
-from .Consts import ARP_var, ETHERTYPE
+from .Consts import ARP_var, ETHERTYPE, OUI_MAP
 from .Logger.LightLogger import Logger, ErrorCode
 from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
 
 LLogger = Logger()
 
 """
-SNAP Layer Creation (class SNAPLayer)
+SNAP Layer Creation (class SNAP)
 """
 
-class SNAPLayer(BaseLayer):
+class SNAP(BaseLayer):
 
     def __init__(self, oui=0x000000, pid=None):
         super().__init__()
@@ -24,12 +24,14 @@ class SNAPLayer(BaseLayer):
     def build(self) -> bytes:
         layer = self.payload.__class__.__name__
         if self.pid is None:
-            if layer == 'PPPoELayer':
-                self.pid = 0x8863
-            elif layer == 'ArpLayer':
+            if layer == 'PPPoE':
+                self.pid = 0x8864
+            elif layer == 'ARP':
                 self.pid = ARP_var
-            elif layer == 'PPP2bLayer':
+            elif layer == 'PPP2b':
                 self.pid = 0x880B
+            elif layer == 'EAPOL':
+                self.pid = 0x888E
             else:
                 self.pid = ARP_var
 
@@ -46,10 +48,10 @@ class SNAPLayer(BaseLayer):
 
     def __repr__(self):
         return (
-            f"<SNAP oui={self.oui}, pid={hex(self.pid)}>")
+            f"<SNAP oui={self.oui}, pid={self.pid}>")
 
-    def copy(self) -> 'SNAPLayer':
-        new_layer = SNAPLayer(
+    def copy(self) -> 'SNAP':
+        new_layer = SNAP(
             oui=self.oui,
             pid=self.pid
         )
@@ -62,7 +64,7 @@ class SNAPLayer(BaseLayer):
     def _show_fields(self) -> list:
         return [
             f"oui={self.oui}",
-            f"pid={hex(self.pid)}",
+            f"pid={self.pid}",
         ]
 
 
@@ -104,18 +106,21 @@ class SNAPParser:
 
         if verbose:
             print(f"\n{BOLD}SNAP LAYER: {RESET}Len({PURPLE}{Lenght}{RESET}) Total Len({PURPLE}{Total}{RESET}) >")
-            print(f'   {BLUE}OUI:{CYAN} {oui}')
+            print(f'   {BLUE}OUI:{CYAN} {oui.hex()} ({OUI_MAP.get(oui.hex(),'?')})')
             print(f'   {BLUE}PID:{CYAN} {hex(pid)} {ETHERTYPE.get(pid,'Unknown')}{RESET}')
 
-        snap = SNAPLayer(
+        snap = SNAP(
             oui=oui,
             pid=pid
         )
 
         if len(payload) > 0:
-            if pid == ARP_var:
+            if pid == ARP_var or pid == 0x8035:
                 from .Arp import ArpParser
                 prelayer = ArpParser.load_as_arp_layer(payload,Alr=1,verbose=verbose)
+            elif pid == 0x888E:
+                from .eapol import EAPOLParser
+                prelayer = EAPOLParser.load_as_eapol_layer(payload,verbose=verbose)
             elif pid == 0x8863 or pid == 0x8864:
                 from .ppp import PPPoEParser
                 prelayer = PPPoEParser.load_as_pppoe_layer(payload, Alr=0, verbose=verbose)

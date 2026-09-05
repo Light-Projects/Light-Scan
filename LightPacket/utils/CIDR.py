@@ -7,6 +7,7 @@ import socket
 import re
 from typing import List, Optional, Union
 from itertools import product
+from ..helper.network import is_in_same_network
 
 
 class TargetParser:
@@ -465,6 +466,33 @@ class TargetParser:
             return socket.gethostbyname(hostname)
         except:
             return None
+
+    @staticmethod
+    def resolve_ipv4(ip: str) -> Optional[str]:
+        """
+        Resolve an IPv4 to an MAC address.
+
+        Args:
+            ip: The IPv4 address to resolve
+
+        Returns:
+            The resolved IP address or None
+        """
+        from .Nsec.arp_resolution import arp_scan
+        from ..GetIPv4 import GetIPv4Gateway
+
+        try:
+            if is_in_same_network(ip):
+                mac = arp_scan(ip)
+                if mac:
+                    return mac[0].src
+                else:
+                    return "ff:ff:ff:ff:ff:ff"
+            else:
+                return arp_scan(GetIPv4Gateway())[0].src
+        except:
+            return "ff:ff:ff:ff:ff:ff"
+
 
     @staticmethod
     def parse_and_validate_targets(target_input: str,

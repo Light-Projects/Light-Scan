@@ -1,22 +1,26 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 from typing import List, Dict, Optional, Tuple
-from ..Vlan import VLANLayer
+from ..Vlan import VLAN
 from ..BaseLayer import BaseLayer
 
 
 class VlanUtils:
 
     @staticmethod
-    def get_all_vlans(packet: BaseLayer) -> List[VLANLayer]:
+    def get_all_vlans(packet: BaseLayer) -> List[VLAN]:
         vlans = []
         current = packet
         while current:
-            if isinstance(current, VLANLayer):
+            if isinstance(current, VLAN):
                 vlans.append(current)
             current = current.payload
         return vlans
 
     @staticmethod
-    def get_vlan_by_index(packet: BaseLayer, index: int) -> Optional[VLANLayer]:
+    def get_vlan_by_index(packet: BaseLayer, index: int) -> Optional[VLAN]:
         vlans = VlanUtils.get_all_vlans(packet)
         if 0 <= index < len(vlans):
             return vlans[index]
@@ -38,12 +42,12 @@ class VlanUtils:
         ]
 
     @staticmethod
-    def get_outer_vlan(packet: BaseLayer) -> Optional[VLANLayer]:
+    def get_outer_vlan(packet: BaseLayer) -> Optional[VLAN]:
         vlans = VlanUtils.get_all_vlans(packet)
         return vlans[0] if vlans else None
 
     @staticmethod
-    def get_inner_vlan(packet: BaseLayer) -> Optional[VLANLayer]:
+    def get_inner_vlan(packet: BaseLayer) -> Optional[VLAN]:
         vlans = VlanUtils.get_all_vlans(packet)
         return vlans[-1] if vlans else None
 

@@ -11,10 +11,10 @@ from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
 LLogger = Logger()
 
 """
-LLC Layer Creation (class LLCLayer)
+LLC Layer Creation (class LLC)
 """
 
-class LLCLayer(BaseLayer):
+class LLC(BaseLayer):
 
     def __init__(self, dsap=None, ssap=None, control=0x03):
         super().__init__()
@@ -25,10 +25,10 @@ class LLCLayer(BaseLayer):
     def build(self) -> bytes:
         layer = self.payload.__class__.__name__
         if self.dsap is None and self.ssap is None:
-            if layer == 'SNAPLayer':
+            if layer == 'SNAP':
                 self.dsap = 0xAA
                 self.ssap = 0xAA
-            elif layer == 'STPLayer':
+            elif layer == 'STP':
                 self.ssap = 0x42
                 self.dsap = 0x42
             else:
@@ -56,8 +56,8 @@ class LLCLayer(BaseLayer):
         return (
             f"<LLC dsap={hex(self.dsap)}, ssap={hex(self.ssap)}, control={hex(self.control)}>")
 
-    def copy(self) -> 'LLCLayer':
-        new_layer = LLCLayer(
+    def copy(self) -> 'LLC':
+        new_layer = LLC(
             dsap=self.dsap,
             ssap=self.ssap,
             control=self.control
@@ -107,7 +107,7 @@ class LLCParser:
             print(f'   {BLUE}SSAP:{CYAN} {hex(ssap)} {SAP_VALUES.get(ssap,'Unknown')}')
             print(f'   {BLUE}CONTROL:{CYAN} {hex(control)}{RESET}')
 
-        llc = LLCLayer(
+        llc = LLC(
             dsap=dsap,
             ssap=ssap,
             control=control

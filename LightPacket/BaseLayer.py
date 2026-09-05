@@ -5,8 +5,6 @@
 from typing import Optional, Union, Any
 import copy
 
-from cryptography.hazmat.asn1.asn1 import NoneType
-
 
 class BaseLayer:
 

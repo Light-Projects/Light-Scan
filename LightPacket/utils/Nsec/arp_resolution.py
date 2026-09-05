@@ -1,17 +1,22 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 from LightPacket.utils.CIDR import parse_targets
-from LightPacket import ARP, Ethernet, L2Socket
-from LightPacket.Arp import ArpLayer
+from LightPacket import L2Socket
+from LightPacket.Arp import ARP
+from LightPacket.EthernetII import Ethernet
 from LightPacket.Consts import BROADCAST_MAC
 from LightPacket.Detect_layer import DetectLayer
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-def arp_ping(target,verbose) -> ArpLayer | None:
+def arp_ping(target,verbose) -> ARP | None:
     packet = Ethernet(dst=BROADCAST_MAC) / ARP(ipdst=target,macdst=BROADCAST_MAC)
-    response = L2Socket().srp1(packet,timeout=1.0,filter_str=f'arp src host {target} and arp[7] == 2')
+    response = L2Socket().srp1(packet,timeout=2,filter_str=f'arp src host {target} and arp[7] == 2')
     if response:
         res = DetectLayer().start(response)
         if verbose:
-            print(f"[ARP] Host {target} is up (MAC: {res[ArpLayer].macsrc}) ")
+            print(f"[ARP] Host {target} is up (MAC: {res[ARP].macsrc}) ")
         return res
     return None
 

@@ -10,11 +10,11 @@ from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
 LLogger = Logger()
 
 """
-VLAN Layer Creation (class VLANLayer)
+VLAN Layer Creation (class VLAN)
 """
 
 
-class VLANLayer(BaseLayer):
+class VLAN(BaseLayer):
 
     def __init__(self, tpid=0x8100, priority=0, dei=0, vlan_id=1):
 
@@ -36,7 +36,7 @@ class VLANLayer(BaseLayer):
     def check_layers(self) -> int:
         layer = self.payload.__class__.__name__
 
-        if layer == 'VLANLayer':
+        if layer == 'VLAN':
             self.tpid = 0x88A8
             numofvlan,self.nxl = self.payload.num()
         else:
@@ -59,8 +59,8 @@ class VLANLayer(BaseLayer):
             f"vlan_id={self.vlan_id}>"
         )
 
-    def copy(self) -> 'VLANLayer':
-        new_layer = VLANLayer(
+    def copy(self) -> 'VLAN':
+        new_layer = VLAN(
             tpid=self.tpid,
             priority=self.priority,
             dei=self.dei,
@@ -109,7 +109,7 @@ class VLANParser:
         vlan_id = tci & 0x0FFF
 
         length = len(vlan_header)
-        vlan = VLANLayer(
+        vlan = VLAN(
             tpid=tpid,
             priority=priority,
             dei=dei,
