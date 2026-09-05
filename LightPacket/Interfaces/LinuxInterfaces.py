@@ -7,7 +7,6 @@ LightPacket Linux Interface Enumeration
 Full IPv4 + IPv6 support using Linux APIs
 """
 
-import socket
 import subprocess
 import re
 from typing import Dict, List, Optional, Any

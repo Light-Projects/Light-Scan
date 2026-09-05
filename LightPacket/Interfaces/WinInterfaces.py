@@ -12,8 +12,8 @@ from ctypes import wintypes, byref, POINTER, Structure
 import socket
 import struct
 from typing import Dict, List, Optional, Tuple, Union
-from .NpcapInterfacesWin import get_npcap_devices_windows
-from ..Layers.IPtoa import ipv6_bytes_to_str
+from LightPacket.Interfaces.NpcapInterfacesWin import get_npcap_devices_windows
+from LightPacket.Layers.IPtoa import ipv6_bytes_to_str
 
 AF_INET = 2
 AF_INET6 = 23

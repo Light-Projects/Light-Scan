@@ -10,7 +10,7 @@ Full IPv4 + IPv6 support using Linux system APIs
 import ctypes
 from ctypes import c_char_p, c_void_p, c_int, POINTER, Structure, byref
 import socket
-from ..Layers.IPtoa import inet_ntoa
+from LightPacket.Layers.IPtoa import inet_ntoa
 import struct
 import subprocess
 import re

@@ -7,12 +7,11 @@ LightPacket BSD/Unix/MacOS Simple Interface Enumeration
 Minimal IPv4 + IPv6 support using system APIs
 """
 
-import socket
 import subprocess
 import re
 import sys
 from typing import Dict, List, Optional, Any
-from .UnixInterfaces import get_interface_mac_bsd
+from LightPacket.Interfaces.UnixInterfaces import get_interface_mac_bsd
 
 IS_MACOS = sys.platform == 'darwin'
 IS_BSD = sys.platform.startswith('freebsd') or sys.platform.startswith('openbsd') or sys.platform.startswith('netbsd') or sys.platform.startswith('dragonfly')
