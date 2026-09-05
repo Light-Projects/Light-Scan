@@ -16,6 +16,12 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import random
+import string
+
+
+def generate_random_ascii(length):
+    ascii_pool = string.printable.strip()
+    return ''.join(random.choices(ascii_pool, k=length))
 
 def random_payloads():
     payloads = ["PING", "URGENT", "!HHHH", "LIGHTSCAN", "UDP", "TCP", "-Pu", "KIWI", "-PE", "-PP", "-PM", "-PS", "-PA", "-PY",
@@ -25,7 +31,7 @@ def random_payloads():
      "CCCC", "ZZZZ", "ICMP", "DNS", "HTTP", "HTTPS", "FTP", "SSH", "TELNET", "SMTP", "SNMP", "RDP", "NTP", "DHCP",
      "RADIUS", "LDAP", "SMB", "NFS", "MYSQL", "POSTGRES", "REDIS", "MONGODB", "ORACLE", "SYBASE", "SQLITE", "JAVA",
      "PYTHON", "PHP", "RUBY", "PERL", "BASH", "POWERSHELL", "CMD", "SHELL", "ROOT", "ADMIN", "SYSTEM", "LOCALHOST",
-     "127.0.0.1", "0.0.0.0", "::1", "localhost.localdomain"]
+     "127.0.0.1", "0.0.0.0", "::1", "localhost.localdomain","-0-0-#"]
 
     return payloads
 

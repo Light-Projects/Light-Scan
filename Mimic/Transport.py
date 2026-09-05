@@ -27,7 +27,6 @@ def Stealth_tcp_options():
         ('Timestamp', (random.randint(1, 1000000000), 0)),
         ('SAckOK', ''),
         ('NOP', None),
-        ('NOP', None),
         ('EOL', None)
     ]
     random.shuffle(options)

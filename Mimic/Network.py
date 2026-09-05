@@ -17,3 +17,4 @@
 
 from Mimic.L3.ipv4 import *
 from Mimic.L3.ipv6 import *
+from Mimic.L3.icmp import *

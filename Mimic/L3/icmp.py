@@ -14,22 +14,17 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-from scapy.libs import ethertypes
 
-from LightMirage import mirage
-from LightPacket import BROADCAST_MAC, Ethernet, L2Socket, MacAddress
+import random
 
-def mac_flood_attack(count,target=None,hidesrc=False,stats=None):
-    if target is None:
-        target = BROADCAST_MAC
-    target = str(MacAddress(target))
+def icmp_id():
+    return random.randint(1,65535)
 
-    for i in range(count):
-        if hidesrc:
-            packet = Ethernet(src=mirage.random_mac(),dst=target,ethertype=mirage.random_ethertype())
-        else:
-            packet = Ethernet(dst=target,ethertype=mirage.random_ethertype())
-        L2Socket().sendl2(packet)
-        if stats:
-            stats.packets_sent += 1
-            stats.bytes_sent += len(packet.build())
+def icmp_seq():
+    return random.randint(1,65535)
+
+def icmp_code():
+    return random.randint(0,255)
+
+def icmp_type():
+    return random.randint(0,255)

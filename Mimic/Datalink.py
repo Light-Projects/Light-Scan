@@ -16,3 +16,4 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 from Mimic.L2.ethernet import *
+from Mimic.L2.arp import *

