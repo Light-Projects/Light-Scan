@@ -265,6 +265,7 @@ The LightScan Scripting Engine (LSSE) allows extensible scanning functionality.
 |--------|-------------|---------|
 | --lsse | Run only scripts (no scan) | --lsse |
 | --script SCRIPT | Run specific script | --script http-cert |
+| --script-help SCRIPT | List script infos | --script-help eternalblue |
 | --lsse-lst | List available scripts | --lsse-lst |
 | --url URL | Target URL | --url https://example.com |
 | --domain DOMAIN | Domain for HTTP/DNS scripts | --domain example.com |
