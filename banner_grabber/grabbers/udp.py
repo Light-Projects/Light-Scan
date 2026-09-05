@@ -16,7 +16,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import socket
-from ..utils import color_text, RED, YELLOW, RESET
+from ..utils import color_text, RED
+from ..binaryprotos import shandler
 
 def udp_grab(target, port, probe, timeout=5, verbose=False, version=4):
     try:
@@ -30,8 +31,10 @@ def udp_grab(target, port, probe, timeout=5, verbose=False, version=4):
         try:
             response, _ = sock.recvfrom(4096)
             sock.close()
+
             if response.strip():
                 return response.decode('utf-8', errors='ignore')
+            return response.decode('utf-8', errors='ignore')
         except socket.timeout:
             if verbose:
                 print(color_text(f"[!] UDP timeout on {target}:{port}", RED))
@@ -39,4 +42,19 @@ def udp_grab(target, port, probe, timeout=5, verbose=False, version=4):
     except Exception as e:
         if verbose:
             print(color_text(f"[!] UDP error: {e}", RED))
+    return None
+
+def udp_grab_main(target, port, probe, timeout=5, verbose=False, version=4):
+    try:
+        if port in shandler:
+            if port == 53:
+                from ..sprobes.dns import DNS_BANNER
+                return DNS_BANNER(target,port,version)
+            else:
+                return udp_grab(target, port, probe, timeout=timeout, verbose=verbose, version=version)
+        else:
+            return udp_grab(target, port, probe, timeout=timeout, verbose=verbose, version=version)
+    except Exception as e:
+        if verbose:
+            print(color_text(f"[!] TCP error: {e}", RED))
     return None

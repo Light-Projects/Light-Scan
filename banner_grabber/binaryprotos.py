@@ -18,4 +18,5 @@
 # binary protocols like msrpc need prober handelation seens they dont use normal
 # utf-8 encoding like application layer protos like http and ftp
 
-bprotos = [135]
+bprotos = [135,445]
+shandler = [445,53]

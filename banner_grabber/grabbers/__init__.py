@@ -15,6 +15,6 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-from .tcp import tcp_grab
-from .udp import udp_grab
+from .tcp import tcp_grab_main
+from .udp import udp_grab_main
 from .sctp import sctp_grab

@@ -16,11 +16,11 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 SERVICE_PATTERNS = {
+    "http": ["server: ", "http/", "apache", "nginx", "iis", "cloudflare","gws"],
     "ssh": ["ssh", "openssh", "dropbear","putty","libssh","paramiko"],
     "ftp": ["vsftpd", "proftpd", "pure-ftpd", "filezilla", "microsoft ftp"],
     "smtp": ["postfix", "exim", "sendmail", "dovecot","courier", "microsoft esmtp"],
     "imap": ["dovecot", "courier", "microsoft imap"],
-    "http": ["server: ", "http/", "apache", "nginx", "iis", "cloudflare"],
     "vmware": ["vmware authentication","vmware"],
     "https": ["ssl", "tls"],
     "mysql": ["mysql", "mariadb"],
@@ -30,7 +30,8 @@ SERVICE_PATTERNS = {
     "vnc": ["rfb", "vnc", "realvnc", "tigervnc"],
     "rdp": ["remote desktop"],
     "dns": ["bind", "dnsmasq", "unbound"],
-    "msrpc": ["05 00 0d 03", "msrpc"],
+    "msrpc": ["05 00 0d 03", "msrpc","rpc"],
+    "smb": ["ff 53 4d 42","fe 53 4d 42","smb","SMB"],
     "docker": ["docker"],
     "kubernetes": ["kubernetes"],
     "jenkins": ["jenkins"],
@@ -83,5 +84,7 @@ def analyse_banner(banner, port):
     for service, patterns in SERVICE_PATTERNS.items():
         for p in patterns:
             if p in banner_lower:
+                if service == 'http' and port in {443, 465, 993, 995, 8443, 4643, 636, 3269}:
+                    return 'https'
                 return service
     return None

@@ -88,7 +88,7 @@ def save_binary(filename, packets, null=False, compress=False, scapy_compatible=
                     raw_bytes = bytes(pkt)
 
                 if scapy_compatible:
-                    from ScapyLoader.ScapyPacketsLoader import DetectScapyLayer
+                    from HexSave.ScapyLoader.ScapyPacketsLoader import DetectScapyLayer
                     typeofpacket = DetectScapyLayer(raw_bytes)
                     packet_types.append(typeofpacket)
 
@@ -101,7 +101,6 @@ def save_binary(filename, packets, null=False, compress=False, scapy_compatible=
                     'version': LIGHTBIN_VERSION,
                     'created': creation_time,
                     'packet_count': packet_count,
-                    'args': vars(args) if args else None,
                     'stats': stats,
                     'tool': 'LightBin',
                     'packet_types': packet_types
@@ -172,7 +171,7 @@ def load_binary(filename,scapy_compatible=False,checksum_bypass=False):
                     pkt_data = zlib.decompress(pkt_data)
 
                 if scapy_compatible:
-                    from ScapyLoader.ScapyPacketsLoader import LoadFromLightBinToScapyPackets
+                    from HexSave.ScapyLoader.ScapyPacketsLoader import LoadFromLightBinToScapyPackets
                     pkt_data = LoadFromLightBinToScapyPackets(pkt_data)
 
                 packets.append(pkt_data)

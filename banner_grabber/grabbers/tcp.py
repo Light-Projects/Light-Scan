@@ -19,7 +19,7 @@ import socket
 import ssl
 from ..utils import color_text, RED
 import binascii
-from ..binaryprotos import bprotos
+from ..binaryprotos import bprotos, shandler
 
 SSL_PORTS = {443, 465, 993, 995, 8443, 4643, 636, 3269}
 
@@ -45,7 +45,7 @@ def tcp_grab(target, port, probe, timeout=5, verbose=False, version=4):
 
         if not banner.strip() and probe:
             if verbose:
-                print(f"[+] Sending TCP payload: {probe[:50]}...")
+                print(f"[+] Sending TCP payload: {probe[10:]}...")
             sock.settimeout(timeout)
             sock.send(probe)
             try:
@@ -53,10 +53,11 @@ def tcp_grab(target, port, probe, timeout=5, verbose=False, version=4):
             except socket.timeout:
                 pass
 
+
         sock.close()
         if banner.strip():
             if port in bprotos:
-                hex_banner = binascii.hexlify(banner).decode('utf-8')
+                hex_banner = binascii.hexlify(banner).decode('utf-8',errors='ignore')
                 formatted_hex = ' '.join(hex_banner[i:i + 2] for i in range(0, len(hex_banner), 2))
                 return formatted_hex
             return banner.decode('utf-8', errors='ignore')
@@ -67,6 +68,21 @@ def tcp_grab(target, port, probe, timeout=5, verbose=False, version=4):
     except ConnectionRefusedError:
         if verbose:
             print(color_text(f"[!] TCP connection refused on {target}:{port}", RED))
+    except Exception as e:
+        if verbose:
+            print(color_text(f"[!] TCP error: {e}", RED))
+    return None
+
+def tcp_grab_main(target, port, probe, timeout=5, verbose=False, version=4):
+    try:
+        if port in shandler:
+            if port == 445:
+                from ..sprobes.smb import SMB_BANNER
+                return SMB_BANNER(target,port,version)
+            else:
+                return tcp_grab(target, port, probe, timeout=timeout, verbose=verbose, version=version)
+        else:
+            return tcp_grab(target, port, probe, timeout=timeout, verbose=verbose, version=version)
     except Exception as e:
         if verbose:
             print(color_text(f"[!] TCP error: {e}", RED))

@@ -15,11 +15,10 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import socket
 from .probes import get_probe
-from .grabbers import tcp_grab, udp_grab, sctp_grab
+from .grabbers import tcp_grab_main, udp_grab_main, sctp_grab
 from .analyzer import analyse_banner
-from .utils import color_text, RED, GREEN, YELLOW, RESET
+from .utils import color_text, GREEN, YELLOW
 
 class Banner:
     @staticmethod
@@ -28,10 +27,11 @@ class Banner:
             print(f"\n[+] Banner grab on {target}:{port} ({protocol.upper()})")
 
         probe = get_probe(port, target, protocol)
+
         if protocol.lower() == "tcp":
-            banner = tcp_grab(target, port, probe, timeout, verbose, version)
+            banner = tcp_grab_main(target, port, probe, timeout, verbose, version)
         elif protocol.lower() == "udp":
-            banner = udp_grab(target, port, probe, timeout, verbose, version)
+            banner = udp_grab_main(target, port, probe, timeout, verbose, version)
         elif protocol.lower() == "sctp":
             probes = [probe] if isinstance(probe, bytes) else [probe]
             banner = sctp_grab(target, port, probes, timeout, verbose, version)
