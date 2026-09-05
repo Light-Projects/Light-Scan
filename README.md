@@ -188,7 +188,7 @@ sudo python Lightscan.py -T 192.168.1.1 -p 1-1000 --daemon
 |--------|-------------|
 | -sn | Host discovery only (no port scan) |
 | -Pn | Disable ping |
-| -Pan | ARP ping (local networks) |
+| -Pan | ARP/NDP ping (local networks) |
 | -Pt | TCP ping |
 | -Ps | SYN ping |
 | -Pk | ACK ping |
