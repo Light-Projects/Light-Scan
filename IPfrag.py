@@ -24,11 +24,12 @@ yellow = "\033[33m"
 green = "\033[32m"
 cyan = "\033[36m"
 
-def fragementation(packet, Proto, scan_type, verbose, v6=False):
+def fragementation(packet, Proto, scan_type, verbose, fragsize=None, v6=False):
     if v6:
         from scapy.layers.inet6 import IPv6
-
-        fragments = scapy.fragment6(packet, fragSize=1280)
+        if not fragsize:
+            fragsize = 1280
+        fragments = scapy.fragment6(packet[IPv6], fragSize=fragsize)
 
         sent_count = 0
         for fragment in fragments:
@@ -78,8 +79,9 @@ def fragementation(packet, Proto, scan_type, verbose, v6=False):
 
     else:
         packet[scapy.IP].flags = "MF"
-
-        fragments = scapy.fragment(packet, fragsize=16)
+        if not fragsize:
+            fragsize = 16
+        fragments = scapy.fragment(packet[scapy.IP], fragsize=fragsize)
         sent_count = 0
         for fragment in fragments:
             scapy.send(fragment, verbose=False)

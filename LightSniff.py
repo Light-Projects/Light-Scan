@@ -17,14 +17,10 @@
 
 import argparse
 import time
-import platform
-import os
-import struct
-import pickle
-from datetime import datetime
+from HexSave.LightBin import load_binary
 from ch_admin import check_admin
-from Sfaces import get_interfaces, get_eth_type_name, lbn_chksum, detect_file_type
-from scapy.all import sniff, wrpcap, rdpcap, Ether, Raw, IP, TCP, UDP, ICMP, ARP, DNS, conf, IFACES
+from Sfaces import get_interfaces, get_eth_type_name, detect_file_type
+from scapy.all import sniff, wrpcap, rdpcap, Ether, Raw, IP, TCP, UDP, ICMP, ARP, DNS, conf
 from scapy.layers.sctp import SCTP, SCTPChunkInit, SCTPChunkInitAck, SCTPChunkCookieEcho, SCTPChunkCookieAck, \
     SCTPChunkAbort, SCTPChunkData, SCTPChunkShutdown, SCTPChunkShutdownAck, SCTPChunkShutdownComplete, SCTPChunkSACK, \
     SCTPChunkHeartbeatReq, SCTPChunkHeartbeatAck, SCTPChunkError
@@ -32,10 +28,10 @@ from scapy.contrib.igmp import IGMP
 from scapy.contrib.igmpv3 import IGMPv3, IGMPv3mq, IGMPv3mr, IGMPv3gr
 from scapy.layers.inet6 import IPv6, ICMPv6EchoRequest, ICMPv6EchoReply
 from scapy.layers.l2 import Dot1Q
-from HexSave.LightHex import save_hexdump, load_hexdump
+from HexSave.LightHex import load_hexdump
+from packet_process import print_table_header, export_hex_and_bin, apply_filter, export_stats_to_file
 from HexSave.ScapyLoader.ScapyPacketsLoader import LoadFromLightHexToScapyPackets
 from Decoration.Colors import *
-import zlib
 
 conf.use_pcap = True
 conf.use_npcap = True
@@ -47,242 +43,171 @@ try:
 except:
     HAVE_IF_LIST = False
 
-Version = "1.0.2"
-
-LIGHTBIN_MAGIC = b'LBN\x00'
-LIGHTBIN_VERSION = 1
-FLAG_NULL = 0x00
-FLAG_COMPRESSED = 0x01
-FLAG_METADATA_ONLY = 0x02
-
-def save_binary(filename, packets, compress=False, null=False, args=None, stats=None, lightpcap=False):
-    try:
-        creation_time = int(time.time())
-        packet_count = 0
-        packet_types = []
-        FLAG = FLAG_NULL
-        if compress:
-            FLAG |= FLAG_COMPRESSED
-        if null:
-            FLAG |= FLAG_NULL
-        if not null:
-            FLAG |= FLAG_METADATA_ONLY
-
-        with open(filename, 'wb') as f:
-            header = struct.pack(
-                '<4sIIIII',
-                LIGHTBIN_MAGIC,
-                LIGHTBIN_VERSION,
-                creation_time,
-                0,
-                FLAG,
-                0
-            )
-            f.write(header)
-            header_pos = f.tell() - 24
-
-            for i, pkt in enumerate(packets):
-                timestamp = time.time()
-
-                raw_data = pkt['data'] if lightpcap else bytes(pkt)
-                raw_bytes = zlib.compress(raw_data, 6) if compress else raw_data
-
-                if lightpcap:
-                    try:
-                        classify_pkt = Ether(raw_data)
-                    except Exception:
-                        classify_pkt = None
-                else:
-                    classify_pkt = pkt
-
-                if classify_pkt is not None and classify_pkt.haslayer(Ether):
-                    if classify_pkt[Ether].type == 0x8100:
-                        packet_types.append('ether-vlan')
-                    else:
-                        packet_types.append('ether')
-                elif classify_pkt is not None and classify_pkt.haslayer(IP):
-                    packet_types.append('ip')
-                elif classify_pkt is not None and classify_pkt.haslayer(IPv6):
-                    packet_types.append('ipv6')
-                else:
-                    packet_types.append('raw')
-
-                f.write(struct.pack('<dI', timestamp, len(raw_bytes)))
-                f.write(raw_bytes)
-
-                packet_count += 1
-
-            if not null:
-                metadata = {
-                    'version': LIGHTBIN_VERSION,
-                    'created': creation_time,
-                    'packet_count': packet_count,
-                    'args': vars(args) if args else None,
-                    'stats': stats,
-                    'tool': f'LightSniff v{Version}',
-                    'packet_types': packet_types
-                }
-
-                metadata_bytes = pickle.dumps(metadata)
-                if compress:
-                    metadata_bytes = zlib.compress(metadata_bytes, 6)
-                f.write(struct.pack('<I', len(metadata_bytes)))
-                f.write(metadata_bytes)
-
-            f.seek(header_pos + 12)
-            f.write(struct.pack('<I', packet_count))
-            CHKSUM = lbn_chksum(LIGHTBIN_VERSION, creation_time, packet_count, FLAG)
-            f.seek(header_pos + 20)
-            f.write(struct.pack('<I', CHKSUM))
-
-        print(f"{GREEN}[+] Saved {packet_count} packets to {filename} (LightBin format){RESET}")
-        return True
-
-    except Exception as e:
-        print(f"{RED}[-] Error saving LightBin: {e}{RESET}")
-        return False
+Version = "1.0.3"
 
 
-def load_binary(filename):
-    try:
-        with open(filename, 'rb') as f:
-            header_data = f.read(24)
-            if len(header_data) != 24:
-                raise ValueError("Invalid LightBin file (header too short)")
+class FlowStatistics:
+    def __init__(self):
+        self.stats = {
+            'total_packets': 0,
+            'total_bytes': 0,
+            'protocols': {},
+            'top_src': {},
+            'top_dst': {},
+            'flows': {},
+            'start_time': time.time()
+        }
 
-            magic, version, created, count, flags, ck = struct.unpack('<4sIIIII', header_data)
+    def update(self, packet):
+        self.stats['total_packets'] += 1
+        self.stats['total_bytes'] += len(packet)
 
-            if magic != LIGHTBIN_MAGIC:
-                raise ValueError(f"Invalid LightBin file (magic: {magic})")
+        proto = "OTHER"
+        if TCP in packet:
+            proto = "TCP"
+        elif UDP in packet:
+            proto = "UDP"
+        elif ICMP in packet:
+            proto = "ICMP"
+        elif ARP in packet:
+            proto = "ARP"
+        elif DNS in packet:
+            proto = "DNS"
+        elif SCTP in packet:
+            proto = "SCTP"
+        elif IPv6 in packet:
+            proto = "IPv6"
+        elif IP in packet:
+            if packet[IP].proto == 2:
+                proto = "IGMP"
+            else:
+                proto = "IPv4"
 
-            is_compressed = bool(flags & FLAG_COMPRESSED)
-            is_only_met = bool(flags & FLAG_METADATA_ONLY)
-            CHKSUM = lbn_chksum(version, created, count, flags)
+        self.stats['protocols'][proto] = self.stats['protocols'].get(proto, 0) + 1
 
-            print(f"{GREEN}[+] Loading LightBin file...{RESET}")
-            print(f"{CYAN}    Version: {version}{RESET}")
-            print(f"{CYAN}    Created: {datetime.fromtimestamp(created).strftime('%Y-%m-%d %H:%M:%S')}{RESET}")
-            print(f"{CYAN}    Packets: {count}{RESET}")
-            if is_compressed:
-                print(f"{CYAN}    Compression: Enabled{RESET}")
-            elif is_only_met:
-                print(f"{CYAN}    Metadata-Only: Enabled{RESET}")
+        src = "N/A"
+        dst = "N/A"
 
-            if CHKSUM != ck:
-                print(f"{RED}    Chksum: Invalid{RESET}")
+        if IP in packet:
+            src = packet[IP].src
+            dst = packet[IP].dst
+        elif IPv6 in packet:
+            src = packet[IPv6].src
+            dst = packet[IPv6].dst
+        elif ARP in packet:
+            src = packet[ARP].psrc
+            dst = packet[ARP].pdst
+        else:
+            if Ether in packet:
+                src = packet[Ether].src
+                dst = packet[Ether].dst
 
-            packets = []
-            packet_timestamps = []
+        if src != "N/A":
+            self.stats['top_src'][src] = self.stats['top_src'].get(src, 0) + 1
+        if dst != "N/A":
+            self.stats['top_dst'][dst] = self.stats['top_dst'].get(dst, 0) + 1
 
-            for i in range(count):
-                pkt_header = f.read(12)
-                if len(pkt_header) != 12:
-                    break
+        if src != "N/A" and dst != "N/A":
+            src_port = ""
+            dst_port = ""
+            if TCP in packet:
+                src_port = f":{packet[TCP].sport}"
+                dst_port = f":{packet[TCP].dport}"
+            elif UDP in packet:
+                src_port = f":{packet[UDP].sport}"
+                dst_port = f":{packet[UDP].dport}"
+            elif SCTP in packet:
+                src_port = f":{packet[SCTP].sport}"
+                dst_port = f":{packet[SCTP].dport}"
 
-                timestamp, size = struct.unpack('<dI', pkt_header)
+            flow_key = f"{src}{src_port} -> {dst}{dst_port}"
+            self.stats['flows'][flow_key] = self.stats['flows'].get(flow_key, 0) + 1
 
-                pkt_data = f.read(size)
-                if len(pkt_data) != size:
-                    break
-                if is_compressed:
-                    pkt_data = zlib.decompress(pkt_data)
+    def display_summary(self):
+        elapsed = time.time() - self.stats['start_time']
+        pps = self.stats['total_packets'] / elapsed if elapsed > 0 else 0
 
-                if len(pkt_data) > 0:
-                    first_byte = pkt_data[0]
-                    if first_byte in [0x45, 0x46]:
-                        try:
-                            from scapy.layers.inet import IP as IPLayer
-                            packet = IPLayer(pkt_data)
-                        except:
-                            packet = Ether(pkt_data)
-                    elif first_byte == 0x60:
-                        try:
-                            from scapy.layers.inet6 import IPv6 as IPv6Layer
-                            packet = IPv6Layer(pkt_data)
-                        except:
-                            packet = Ether(pkt_data)
-                    else:
-                        try:
-                            packet = Ether(pkt_data)
-                            if packet.haslayer(IP) and packet.haslayer(IPv6):
-                                try:
-                                    from scapy.layers.inet import IP as IPLayer
-                                    packet = IPLayer(pkt_data)
-                                except:
-                                    packet = Ether(pkt_data)
-                            elif packet.haslayer(ARP):
-                                packet = Ether(pkt_data)
-                        except:
-                            packet = Ether(pkt_data)
-                else:
-                    packet = Ether(pkt_data)
 
-                packets.append(packet)
-                packet_timestamps.append(timestamp)
+        print(f"\n\n[+] {CYAN}Capture Statistics{RESET}\n{'-'*50}")
+        print(f"Total Packets: {self.stats['total_packets']}")
+        print(f"Total Bytes: {self.stats['total_bytes'] / 1024:.1f} KB")
+        print(f"Duration: {elapsed:.1f}s")
+        print(f"PPS: {pps:.1f}")
+        if self.stats['total_packets'] > 0:
+            print(f"Avg Packet Size: {self.stats['total_bytes'] / self.stats['total_packets']:.0f} bytes")
 
-            if flags != FLAG_NULL:
-                metadata_size_bytes = f.read(4)
-                if metadata_size_bytes:
-                    metadata_size = struct.unpack('<I', metadata_size_bytes)[0]
-                    metadata_bytes = f.read(metadata_size)
-                    if is_compressed:
-                        try:
-                            metadata_bytes = zlib.decompress(metadata_bytes)
-                        except zlib.error as e:
-                            print(f"{YELLOW}[!] Warning: Could not decompress metadata: {e}{RESET}")
-                    metadata = pickle.loads(metadata_bytes)
-                else:
-                    metadata = {}
+        print("\nProtocol Distribution:")
+        for proto, count in sorted(self.stats['protocols'].items(), key=lambda x: x[1], reverse=True):
+            if self.stats['total_packets'] > 0:
+                percentage = count / self.stats['total_packets'] * 100
+                bar = '█' * int(percentage / 2)
+                print(f"  {proto:6}: {count:4} ({percentage:5.1f}%) {bar}")
 
-            print(f"{GREEN}[+] Loaded {len(packets)} packets from {filename}{RESET}")
+        print("\nTop Source Addresses:")
+        for src, count in sorted(self.stats['top_src'].items(), key=lambda x: x[1], reverse=True)[:5]:
+            print(f"  {src}: {count}")
 
-            if flags != FLAG_NULL:
-                metadata['packet_timestamps'] = packet_timestamps
+        print("\nTop Destination Addresses:")
+        for dst, count in sorted(self.stats['top_dst'].items(), key=lambda x: x[1], reverse=True)[:5]:
+            print(f"  {dst}: {count}")
 
-                return packets, metadata
-            return packets, None
-
-    except FileNotFoundError:
-        print(f"{RED}[-] File not found: {filename}{RESET}")
-        return None, None
-    except Exception as e:
-        print(f"{RED}[-] Error loading LightBin: {e}{RESET}")
-        return None, None
+        print("\nTop Flows:")
+        for flow, count in sorted(self.stats['flows'].items(), key=lambda x: x[1], reverse=True)[:5]:
+            print(f"  {flow}: {count}")
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description="LightSniff - Light-Scan Packet Capture Tool",
-        epilog="Examples:\n"
-               "  LightSniff -i eth0\n"
-               "  LightSniff -i eth0 -f 'tcp port 80' -w http.pcap\n"
-               "  LightSniff -i Wi-Fi -c 100 -v\n"
-               "  LightSniff -r capture.pcap\n"
-               "  LightSniff --bin-load capture.lbn"
+        epilog="""
+Examples:
+    LightSniff -i eth0
+    LightSniff -i eth0 -f 'tcp port 80' -w http.pcap
+    LightSniff -i Wi-Fi -c 100 -v
+    LightSniff -r capture.pcap
+    LightSniff --bin-load capture.lbn""",
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("-i", "--interface", help="Network interface (e.g., eth0, Wi-Fi, wlan0)")
-    parser.add_argument("-I", "--interfaces", action="store_true", help="Show all available Network Interfaces")
-    parser.add_argument("-f", "--filter", help="BPF filter (e.g., 'tcp port 80', 'icmp', 'arp')")
-    parser.add_argument("-c", "--count", type=int, default=0,
+
+    basic = parser.add_argument_group('Basic Sniffing Options')
+    saving = parser.add_argument_group('Writing & Reading Options')
+    adv = parser.add_argument_group('Advanced Sniffing Options')
+    filters = parser.add_argument_group('Filters Options')
+    stats_group = parser.add_argument_group('Statistics Options')
+
+    stats_group.add_argument("--stats", action="store_true",
+                             help="Display flow statistics after capture")
+    stats_group.add_argument("--export-stats", metavar="FILE",
+                             help="Export statistics to file")
+
+    basic.add_argument("-i", "--interface", help="Network interface (e.g., eth0, Wi-Fi, wlan0)")
+    basic.add_argument("-I", "--interfaces", action="store_true", help="Show all available Network Interfaces")
+    basic.add_argument("-f", "--filter", help="BPF filter (e.g., 'tcp port 80', 'icmp', 'arp')")
+    basic.add_argument("-c", "--count", type=int, default=0,
                         help="Number of packets to capture/process (0 = infinite/all). "
                              "Was previously defaulted to 100, which silently truncated "
                              "--read/--bin-load/--hex-load files to their first 100 packets.")
-    parser.add_argument("-w", "--write", help="Save to PCAP/PCAPNG file")
-    parser.add_argument("-r", "--read", help="Read packets from PCAP/PCAPNG file (offline mode)")
-    parser.add_argument("--bin-save", help="Save to LightBin binary format (.lbn)")
-    parser.add_argument("--bin-load", help="Load from LightBin binary format (.lbn)")
-    parser.add_argument("--hex-save", help="Save to hexadecimal format (.lhex)")
-    parser.add_argument("--hex-load", help="Load from hexadecimal format (.lhex)")
-    parser.add_argument("-C", "--compress", action="store_true", help="To compress saved output (only for .lbn)")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Show detailed packet info")
-    parser.add_argument("--no-promisc", action="store_true", help="Disable promiscuous mode")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode (no banner)")
-    parser.add_argument("--eth", action="store_true", help="Show Ethernet frame info (MAC addresses, frame type)")
-    parser.add_argument("--vlan", action="store_true", help="Show VLAN tags (802.1Q)")
-    parser.add_argument("--arp", action="store_true", help="Show only ARP packets")
-    parser.add_argument("--tcp", action="store_true", help="Show only TCP packets")
-    parser.add_argument("--udp", action="store_true", help="Show only UDP packets")
-    parser.add_argument("--icmp", action="store_true", help="Show only ICMP packets")
-    parser.add_argument("--mac", help="Filter by source or destination MAC address (e.g., aa:bb:cc:dd:ee:ff)")
+    saving.add_argument("-w", "--write", help="Save to PCAP/PCAPNG file")
+    saving.add_argument("-r", "--read", help="Read packets from PCAP/PCAPNG file (offline mode)")
+    saving.add_argument("--bin-save", help="Save to LightBin binary format (.lbn)")
+    saving.add_argument("--bin-load", help="Load from LightBin binary format (.lbn)")
+    saving.add_argument("--hex-save", help="Save to hexadecimal format (.lhex)")
+    saving.add_argument("--hex-load", help="Load from hexadecimal format (.lhex)")
+    saving.add_argument("-C", "--compress", action="store_true", help="To compress saved output (only for .lbn)")
+    basic.add_argument("-v", "--verbose", action="store_true", help="Show detailed packet info")
+    adv.add_argument("--no-promisc", action="store_true", help="Disable promiscuous mode")
+    basic.add_argument("-q", "--quiet", action="store_true", help="Quiet mode (no banner)")
+    adv.add_argument("--eth", action="store_true", help="Show Ethernet frame info (MAC addresses, frame type)")
+    adv.add_argument("--vlan", action="store_true", help="Show VLAN tags (802.1Q)")
+    filters.add_argument("--arp", action="store_true", help="Show only ARP packets")
+    filters.add_argument("--tcp", action="store_true", help="Show only TCP packets")
+    filters.add_argument("--udp", action="store_true", help="Show only UDP packets")
+    filters.add_argument("--icmp", action="store_true", help="Show only ICMP packets")
+    filters.add_argument("--igmp",action="store_true", help="Show only IGMP packets")
+    filters.add_argument("--ipv4",action="store_true", help="Show only IPv4 packets")
+    filters.add_argument("--ipv6",action="store_true", help="Show only IPv6 packets")
+    filters.add_argument("--sctp",action="store_true", help="Show only SCTP packets")
+    filters.add_argument("--icmpv6",action="store_true", help="Show only ICMPv6 packets")
+    adv.add_argument("--mac", help="Filter by source or destination MAC address (e.g., aa:bb:cc:dd:ee:ff)")
 
     return parser.parse_args()
 
@@ -296,6 +221,10 @@ def extract_port(packet, direction):
         if direction == "src":
             return packet[UDP].sport
         return packet[UDP].dport
+    elif SCTP in packet:
+        if direction == "src":
+            return packet[SCTP].sport
+        return packet[SCTP].dport
     return ""
 
 
@@ -1018,19 +947,6 @@ def packet_callback(packet, verbose, packet_count, args):
                   f"{DIM}{details}{RESET}")
 
 
-def print_table_header(args):
-    if args.verbose:
-        print(f"{BOLD}{'Time':10} {'Proto':6} {'Source IP':16} → {'Dest IP':16} | "
-              f"{'Source MAC':17} → {'Dest MAC':17} | {'Type':8} | {'Details':40} | {'Size':6}{RESET}")
-        print("-" * 145)
-    elif args.eth:
-        print(f"{BOLD}{'Time':10} {'Proto':4} {'Source MAC':27} → {'Dest MAC':27} {'Type':8} {'Details':35}{RESET}")
-        print("-" * 105)
-    else:
-        print(f"{BOLD}{'Time':10} {'Proto':4} {'Source':22} {'→':2} {'Destination':22} {'Details':40}{RESET}")
-        print("-" * 95)
-
-
 def process_packets(packets, args, lightpcap=False):
     if not packets:
         print(f"{YELLOW}[!] No packets to process{RESET}")
@@ -1058,51 +974,11 @@ def process_packets(packets, args, lightpcap=False):
     print(f"\n{GREEN}[+] Processed {packet_count} packets{RESET}")
 
 
-def apply_filter(packets, filt):
-
-    def matches(packet):
-        f = filt.lower()
-        if 'arp' in f and ARP in packet:
-            return True
-        if 'tcp' in f and TCP in packet:
-            return True
-        if 'udp' in f and UDP in packet:
-            return True
-        if 'icmp' in f and ICMP in packet:
-            return True
-        if 'port 80' in f and TCP in packet and 80 in (packet[TCP].sport, packet[TCP].dport):
-            return True
-        if 'port 443' in f and TCP in packet and 443 in (packet[TCP].sport, packet[TCP].dport):
-            return True
-        if 'port 53' in f:
-            if TCP in packet and 53 in (packet[TCP].sport, packet[TCP].dport):
-                return True
-            if UDP in packet and 53 in (packet[UDP].sport, packet[UDP].dport):
-                return True
-        return False
-
-    filtered = [p for p in packets if matches(p)]
-    print(f"{GREEN}[+] Filtered to {len(filtered)} packets with filter: {filt}{RESET}")
-    return filtered
-
-
-def export_hex_and_bin(packets, args):
-    if not packets:
-        return
-
-    if args.hex_save:
-        save_hexdump(packets, args.hex_save)
-        print(f"{GREEN}[+] Saved {len(packets)} packets to {args.hex_save}{RESET}")
-
-    if args.bin_save:
-        save_binary(args.bin_save, packets, compress=args.compress, args=args)
-
-
 def main():
     args = parse_args()
 
     if args.bin_load:
-        packets, metadata = load_binary(args.bin_load)
+        packets, metadata = load_binary(args.bin_load,scapy_compatible=True)
         if packets is None:
             return
         process_packets(packets, args)
@@ -1133,7 +1009,7 @@ def main():
             file_type = detect_file_type(args.read)
 
             if file_type == 'lightbin':
-                packets, metadata = load_binary(args.read)
+                packets, metadata = load_binary(args.read,scapy_compatible=True)
                 if packets is None:
                     return
             else:
@@ -1180,6 +1056,16 @@ def main():
         filter_parts.append("udp")
     if args.icmp:
         filter_parts.append("icmp")
+    if args.igmp:
+        filter_parts.append("igmp")
+    if args.ipv4:
+        filter_parts.append("ip")
+    if args.ipv6:
+        filter_parts.append("ip6")
+    if args.sctp:
+        filter_parts.append("sctp")
+    if args.icmpv6:
+        filter_parts.append("icmpv6")
 
     if filter_parts:
         args.filter = " or ".join(filter_parts)
@@ -1187,6 +1073,10 @@ def main():
         pass
     else:
         args.filter = None
+
+    stats = None
+    if args.stats or args.export_stats:
+        stats = FlowStatistics()
 
     if not args.quiet:
         print(f"""
@@ -1235,13 +1125,21 @@ def main():
     print_table_header(args)
 
     packets = []
+    packet_count = 0
 
     def callback(packet):
+        nonlocal packet_count
+        packet_count += 1
+
         if args.mac:
             eth = packet[Ether] if Ether in packet else None
             if eth:
                 if args.mac.lower() not in (eth.src.lower(), eth.dst.lower()):
                     return
+
+        if stats:
+            stats.update(packet)
+
         packets.append(packet)
         packet_callback(packet, args.verbose, len(packets), args)
 
@@ -1272,11 +1170,24 @@ def main():
 
         export_hex_and_bin(packets, args)
 
+        if stats and args.stats:
+            stats.display_summary()
+
+        if stats and args.export_stats:
+            export_stats_to_file(stats, args.export_stats)
+
     except KeyboardInterrupt:
         print(f"\n{YELLOW}[!] Stopped by user{RESET}")
         if args.write and packets:
             wrpcap(args.write, packets)
             print(f"{GREEN}[+] Saved {len(packets)} packets to {args.write}{RESET}")
+
+        if stats and args.stats:
+            print("\n")
+            stats.display_summary()
+
+        if stats and args.export_stats:
+            export_stats_to_file(stats, args.export_stats)
     except PermissionError:
         print(f"{RED}[-] Permission denied! Run as administrator/root.{RESET}")
     except Exception as e:

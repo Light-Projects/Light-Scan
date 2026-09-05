@@ -22,8 +22,13 @@ import subprocess
 import threading
 import os
 from CTkMessagebox import CTkMessagebox
+import CTkMenuBarPlus
+from Gui.LightPanelHelp import show_quick_help
+from Gui.LightPanelOSMenu import show_os_menu, update_os_menu, get_instance
+from Gui.LightPanelAbout import show_about
+from confparser import speed_presets_list
 
-version = "1.0.0"
+version = "1.0.1"
 
 
 def invalid_lightscan_command():
@@ -33,6 +38,45 @@ def invalid_lightscan_command():
         icon="cancel",
         option_1="OK"
     )
+
+
+def integrate_quick_help(parent):
+    menubar = CTkMenuBarPlus.CTkMenuBar(parent)
+
+    menubar.add_cascade(
+        "Help",
+        command=lambda: show_quick_help(parent),
+        hover_color="grey",
+        fg_color=("#f7f5f0", "#1a1a1a"),
+        border_width=1,
+        border_color=("#dbdbdb", "#121211"),
+        corner_radius=10
+    )
+    menubar.add_cascade(
+        "OS",
+        command=lambda: get_instance(parent).show(),
+        hover_color="grey",
+        fg_color=("#f7f5f0", "#1a1a1a"),
+        border_width=1,
+        border_color=("#dbdbdb", "#121211"),
+        corner_radius=10
+    )
+    menubar.add_cascade(
+        "About",
+        command=lambda: show_about(parent),
+        hover_color="grey",
+        fg_color=("#f7f5f0", "#1a1a1a"),
+        border_width=1,
+        border_color=("#dbdbdb", "#121211"),
+        corner_radius=10
+    )
+
+    parent.bind('<F1>', lambda e: show_quick_help(parent))
+    parent.bind('<F2>', lambda e: get_instance(parent).show())
+    parent.bind('<Control-o>p', lambda e: show_about(parent))
+    parent.bind('<Control-h>', lambda e: show_quick_help(parent))
+    parent.bind('<Control-H>', lambda e: show_quick_help(parent))
+
 
 def copy_output():
     try:
@@ -52,14 +96,21 @@ def copy_output():
             option_1="OK"
         )
 
+
 def clear_output():
     output_text.delete("1.0", "end")
+
 
 def build_command():
     command = command_entry.get()
 
     if not command or command == "sudo venv/bin/python Lightscan.py -T example.com -F -st SYN":
         command = "sudo venv/bin/python Lightscan.py"
+
+        H = help_var.get()
+        if H:
+            command += f" -h"
+            return command
 
         target = target_entry.get()
         if target:
@@ -104,21 +155,9 @@ def build_command():
             elif scan_type == "SCTP-INIT":
                 command += " -st SCTP-INIT"
 
-
         speed_preset = speed_var.get()
-        if speed_preset != "Normal (default)":
-            if speed_preset == "Paranoid (2 threads, 4.5s timeout)":
-                command += " -s paranoid"
-            elif speed_preset == "Slow (30 threads, 3.3s timeout)":
-                command += " -s slow"
-            elif speed_preset == "Normal (60 threads, 2.8s timeout)":
-                command += " -s normal"
-            elif speed_preset == "Fast (120 threads, 2.8s timeout)":
-                command += " -s fast"
-            elif speed_preset == "Insane (240 threads, 1.5s timeout)":
-                command += " -s insane"
-            elif speed_preset == "Light-mode (400 threads, 1.5s timeout)":
-                command += " -s Light-mode"
+        if speed_preset:
+            command += f" -s {speed_preset} "
 
         if fast_scan_var.get():
             command += " -F"
@@ -176,18 +215,18 @@ def run_scan():
 
     command_entry.delete(0, "end")
     command_entry.insert(0, command)
-    
+
     if command is not None and "sudo" not in command:
-        output_text.insert("end","\n[!] Lightscan need root privillege to run, use sudo. \n")
+        output_text.insert("end", "\n[!] Lightscan need root privillege to run, use sudo. \n")
 
     elif command.startswith("sudo venv/bin/python Lightscan.py "):
-        invalid_chars = ['&', '|',':','`','$','>','<']
+        invalid_chars = ['&', '|', ':', '`', '$', '>', '<']
 
         for char in invalid_chars:
             if char in command:
                 print(f"\n[!] CMD INJECTION\n")
                 sys.exit(-1)
-        exploit_args = ['cd', 'pwd', 'netstat', 'ifconfig', 'winget', 'wmic', 'ls', 'ping','chdir', 'mkdir', 'dir']
+        exploit_args = ['cd', 'pwd', 'netstat', 'ifconfig', 'winget', 'wmic', 'ls', 'ping', 'chdir', 'mkdir', 'dir']
         for arg in exploit_args:
             if arg in command:
                 print(f"\n[!] CMD INJECTION\n")
@@ -199,6 +238,7 @@ def run_scan():
         try:
             result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=30000)
             output = result.stdout + result.stderr
+            update_os_menu(os_menu, output)
             output_text.insert("end", output)
             command_entry.delete(0, "end")
         except subprocess.TimeoutExpired:
@@ -207,12 +247,13 @@ def run_scan():
             output_text.insert("end", f"[-] Error: {e}\n")
     else:
         invalid_lightscan_command()
-        output_text.insert("end",f"\n[!] Make sure the python env name is 'venv' .\n")
+        output_text.insert("end", f"\n[!] Make sure the python env name is 'venv' .\n")
 
 
 def start_scan():
     scan_thread = threading.Thread(target=run_scan, daemon=True)
     scan_thread.start()
+
 
 def switch_mode():
     mode = customtkinter.get_appearance_mode()
@@ -221,10 +262,12 @@ def switch_mode():
     else:
         customtkinter.set_appearance_mode("Dark")
 
+
 customtkinter.set_appearance_mode("System")
 customtkinter.set_default_color_theme("blue")
 
 root = customtkinter.CTk()
+os_menu = show_os_menu(root)
 root.geometry("1300x880")
 root.title("LightPanel Linux - Light-Scan GUI")
 try:
@@ -232,6 +275,8 @@ try:
     root.iconphoto(True, icon)
 except:
     print("\n[!] Couldn't load Light-Scan-Logo.png \n")
+
+integrate_quick_help(root)
 
 switch_mode_button = customtkinter.CTkButton(
     root,
@@ -249,7 +294,7 @@ switch_mode_button = customtkinter.CTkButton(
     border_color=("#dbdbdb", "#121211"),
     border_width=2
 )
-switch_mode_button.place(x=10, y=10)
+switch_mode_button.place(x=10, y=40)
 
 command_label = customtkinter.CTkLabel(
     root,
@@ -257,7 +302,7 @@ command_label = customtkinter.CTkLabel(
     font=("Arial", 15),
     text_color=("black", "white")
 )
-command_label.place(x=120, y=11)
+command_label.place(x=120, y=41)
 
 command_entry = customtkinter.CTkEntry(
     root,
@@ -271,7 +316,7 @@ command_entry = customtkinter.CTkEntry(
     bg_color="transparent",
     border_width=2
 )
-command_entry.place(x=210, y=11)
+command_entry.place(x=210, y=41)
 
 start_scan_button = customtkinter.CTkButton(
     root,
@@ -289,7 +334,7 @@ start_scan_button = customtkinter.CTkButton(
     border_color=("#dbdbdb", "#121211"),
     border_width=2
 )
-start_scan_button.place(x=920, y=11)
+start_scan_button.place(x=920, y=41)
 
 target_label = customtkinter.CTkLabel(
     root,
@@ -297,7 +342,7 @@ target_label = customtkinter.CTkLabel(
     font=("Arial", 14),
     text_color=("black", "white")
 )
-target_label.place(x=25, y=60)
+target_label.place(x=25, y=90)
 
 target_entry = customtkinter.CTkEntry(
     root,
@@ -311,7 +356,7 @@ target_entry = customtkinter.CTkEntry(
     bg_color="transparent",
     border_width=2
 )
-target_entry.place(x=100, y=60)
+target_entry.place(x=100, y=90)
 
 ports_label = customtkinter.CTkLabel(
     root,
@@ -319,7 +364,7 @@ ports_label = customtkinter.CTkLabel(
     font=("Arial", 14),
     text_color=("black", "white")
 )
-ports_label.place(x=430, y=60)
+ports_label.place(x=430, y=90)
 
 ports_entry = customtkinter.CTkEntry(
     root,
@@ -333,7 +378,7 @@ ports_entry = customtkinter.CTkEntry(
     bg_color="transparent",
     border_width=2
 )
-ports_entry.place(x=490, y=60)
+ports_entry.place(x=490, y=90)
 
 scan_type_label = customtkinter.CTkLabel(
     root,
@@ -341,7 +386,7 @@ scan_type_label = customtkinter.CTkLabel(
     font=("Arial", 14),
     text_color=("black", "white")
 )
-scan_type_label.place(x=720, y=60)
+scan_type_label.place(x=720, y=90)
 
 scan_types = [
     "TCP Connect (default)",
@@ -367,7 +412,7 @@ saving_label = customtkinter.CTkLabel(
     font=("Arial", 14),
     text_color=("black", "white")
 )
-saving_label.place(x=25, y=760)
+saving_label.place(x=25, y=780)
 
 saving_formats = [
     "None",
@@ -397,7 +442,7 @@ save_dropdown = customtkinter.CTkOptionMenu(
     button_hover_color="grey",
     text_color=("black", "white")
 )
-save_dropdown.place(x=150, y=760)
+save_dropdown.place(x=150, y=780)
 
 pro_label = customtkinter.CTkLabel(
     root,
@@ -405,7 +450,7 @@ pro_label = customtkinter.CTkLabel(
     font=("Arial", 14),
     text_color=("black", "white")
 )
-pro_label.place(x=320, y=760)
+pro_label.place(x=320, y=780)
 
 profiles = ["None"]
 profiles.extend([f for f in os.listdir(os.path.join(os.path.dirname(__file__), "Profiles")) if f.endswith('.json')])
@@ -431,7 +476,7 @@ pro_dropdown = customtkinter.CTkOptionMenu(
     button_hover_color="grey",
     text_color=("black", "white")
 )
-pro_dropdown.place(x=400, y=760)
+pro_dropdown.place(x=400, y=780)
 
 pro_name_label = customtkinter.CTkLabel(
     root,
@@ -439,7 +484,7 @@ pro_name_label = customtkinter.CTkLabel(
     font=("Arial", 14),
     text_color=("black", "white")
 )
-pro_name_label.place(x=570, y=760)
+pro_name_label.place(x=570, y=780)
 
 rdns_var = customtkinter.BooleanVar()
 rdns_check = customtkinter.CTkCheckBox(
@@ -448,10 +493,10 @@ rdns_check = customtkinter.CTkCheckBox(
     variable=rdns_var,
     font=("Arial", 13),
     corner_radius=5,
-    hover_color=("lightblue","#525452"),
+    hover_color=("lightblue", "#525452"),
     fg_color="#72d466"
 )
-rdns_check.place(x=1000, y=763)
+rdns_check.place(x=1000, y=783)
 
 pro_entry = customtkinter.CTkEntry(
     root,
@@ -465,7 +510,7 @@ pro_entry = customtkinter.CTkEntry(
     bg_color="transparent",
     border_width=2
 )
-pro_entry.place(x=680, y=760)
+pro_entry.place(x=680, y=780)
 
 scan_type_var = customtkinter.StringVar(value="TCP Connect (default)")
 scan_type_dropdown = customtkinter.CTkOptionMenu(
@@ -481,7 +526,7 @@ scan_type_dropdown = customtkinter.CTkOptionMenu(
     button_hover_color="grey",
     text_color=("black", "white")
 )
-scan_type_dropdown.place(x=820, y=60)
+scan_type_dropdown.place(x=820, y=90)
 
 speed_label = customtkinter.CTkLabel(
     root,
@@ -489,18 +534,11 @@ speed_label = customtkinter.CTkLabel(
     font=("Arial", 14),
     text_color=("black", "white")
 )
-speed_label.place(x=25, y=100)
+speed_label.place(x=25, y=130)
 
-speed_presets = [
-    "Paranoid (2 threads, 4.5s timeout)",
-    "Slow (30 threads, 3.3s timeout)",
-    "Normal (60 threads, 2.8s timeout)",
-    "Fast (120 threads, 2.8s timeout)",
-    "Insane (240 threads, 1.5s timeout)",
-    "Light-mode (400 threads, 1.5s timeout)"
-]
+speed_presets = speed_presets_list()
 
-speed_var = customtkinter.StringVar(value="Normal (60 threads, 2.8s timeout)")
+speed_var = customtkinter.StringVar(value="normal")
 speed_dropdown = customtkinter.CTkOptionMenu(
     root,
     values=speed_presets,
@@ -514,7 +552,7 @@ speed_dropdown = customtkinter.CTkOptionMenu(
     button_hover_color="grey",
     text_color=("black", "white")
 )
-speed_dropdown.place(x=100, y=100)
+speed_dropdown.place(x=100, y=130)
 
 fast_scan_var = customtkinter.BooleanVar()
 fast_scan_check = customtkinter.CTkCheckBox(
@@ -523,10 +561,10 @@ fast_scan_check = customtkinter.CTkCheckBox(
     variable=fast_scan_var,
     font=("Arial", 13),
     corner_radius=5,
-    hover_color=("lightblue","#525452"),
+    hover_color=("lightblue", "#525452"),
     fg_color="#72d466"
 )
-fast_scan_check.place(x=400, y=103)
+fast_scan_check.place(x=400, y=133)
 
 os_detect_var = customtkinter.BooleanVar()
 os_detect_check = customtkinter.CTkCheckBox(
@@ -535,10 +573,10 @@ os_detect_check = customtkinter.CTkCheckBox(
     variable=os_detect_var,
     font=("Arial", 13),
     corner_radius=5,
-    hover_color=("lightblue","#525452"),
+    hover_color=("lightblue", "#525452"),
     fg_color="#72d466"
 )
-os_detect_check.place(x=550, y=103)
+os_detect_check.place(x=550, y=133)
 
 banner_grab_var = customtkinter.BooleanVar()
 banner_grab_check = customtkinter.CTkCheckBox(
@@ -547,10 +585,10 @@ banner_grab_check = customtkinter.CTkCheckBox(
     variable=banner_grab_var,
     font=("Arial", 13),
     corner_radius=5,
-    hover_color=("lightblue","#525452"),
+    hover_color=("lightblue", "#525452"),
     fg_color="#72d466"
 )
-banner_grab_check.place(x=690, y=103)
+banner_grab_check.place(x=690, y=133)
 
 no_ping_var = customtkinter.BooleanVar()
 no_ping_check = customtkinter.CTkCheckBox(
@@ -559,10 +597,10 @@ no_ping_check = customtkinter.CTkCheckBox(
     variable=no_ping_var,
     font=("Arial", 13),
     corner_radius=5,
-    hover_color=("lightblue","#525452"),
+    hover_color=("lightblue", "#525452"),
     fg_color="#72d466"
 )
-no_ping_check.place(x=830, y=103)
+no_ping_check.place(x=830, y=133)
 
 ipv6_var = customtkinter.BooleanVar()
 ipv6_check = customtkinter.CTkCheckBox(
@@ -571,10 +609,10 @@ ipv6_check = customtkinter.CTkCheckBox(
     variable=ipv6_var,
     font=("Arial", 13),
     corner_radius=5,
-    hover_color=("lightblue","#525452"),
+    hover_color=("lightblue", "#525452"),
     fg_color="#72d466"
 )
-ipv6_check.place(x=950, y=103)
+ipv6_check.place(x=950, y=133)
 
 fragment_var = customtkinter.BooleanVar()
 fragment_check = customtkinter.CTkCheckBox(
@@ -583,10 +621,10 @@ fragment_check = customtkinter.CTkCheckBox(
     variable=fragment_var,
     font=("Arial", 13),
     corner_radius=5,
-    hover_color=("lightblue","#525452"),
+    hover_color=("lightblue", "#525452"),
     fg_color="#72d466"
 )
-fragment_check.place(x=1090, y=103)
+fragment_check.place(x=1090, y=133)
 
 rc_var = customtkinter.BooleanVar()
 rc_check = customtkinter.CTkCheckBox(
@@ -595,10 +633,22 @@ rc_check = customtkinter.CTkCheckBox(
     variable=rc_var,
     font=("Arial", 13),
     corner_radius=5,
-    hover_color=("lightblue","#525452"),
+    hover_color=("lightblue", "#525452"),
     fg_color="#72d466"
 )
-rc_check.place(x=1015, y=63)
+rc_check.place(x=1015, y=93)
+
+help_var = customtkinter.BooleanVar()
+help_check = customtkinter.CTkCheckBox(
+    root,
+    text="help menu (-h)",
+    variable=help_var,
+    font=("Arial", 13),
+    corner_radius=5,
+    hover_color=("lightblue", "#525452"),
+    fg_color="#72d466"
+)
+help_check.place(x=1155, y=93)
 
 copy_button = customtkinter.CTkButton(
     root,
@@ -615,7 +665,7 @@ copy_button = customtkinter.CTkButton(
     border_color=("#dbdbdb", "#121211"),
     border_width=2
 )
-copy_button.place(x=1025, y=11)
+copy_button.place(x=1025, y=41)
 
 clear_button = customtkinter.CTkButton(
     root,
@@ -632,7 +682,7 @@ clear_button = customtkinter.CTkButton(
     border_color=("#dbdbdb", "#121211"),
     border_width=2
 )
-clear_button.place(x=1140, y=11)
+clear_button.place(x=1140, y=41)
 
 output_text = customtkinter.CTkTextbox(
     root,
@@ -644,7 +694,20 @@ output_text = customtkinter.CTkTextbox(
     border_width=2,
     wrap="word"
 )
-output_text.place(x=25, y=145)
+output_text.place(x=25, y=175)
+
+
+def handle_alt_f4(event=None):
+    root.destroy()
+
+
+def handle_f5(event=None):
+    switch_mode()
+
+
+root.bind("<F5>", handle_f5)
+root.bind("<Alt-F4>", handle_alt_f4)
+
 try:
     root.mainloop()
 except Exception as e:

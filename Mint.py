@@ -18,15 +18,35 @@
 from Mint.mint import main
 import argparse
 
-parser = argparse.ArgumentParser(description="Mint Attack utility")
-parser.add_argument("-T", "--target", help="Target IP or Hostname")
-parser.add_argument("-c", required=True,type=int, help="packet count per port")
-parser.add_argument("-hi", required=False, help="Hide Source IP using random ones",action="store_true")
-parser.add_argument("-p","--port", help="Port/s to Attack")
-parser.add_argument("-s","--shufle",help="Shufle ports order",action="store_true")
-parser.add_argument("--attack-mode",help="type of attack used for testing",default="syn-flood",
-                    choices=['syn-flood','mac-flood'])
+parser = argparse.ArgumentParser(description="Mint Attack utility",
+epilog="""
+COMMON EXAMPLES:\n
+  Mint.py -T example.com -p 443 --shufle -c 100
+  Mint.py -T 00:1B:21:4A:8C:3F --attack-mode mac-flood -c 100 -hi
+""",
+formatter_class=argparse.RawDescriptionHelpFormatter)
+basic = parser.add_argument_group("Basic Options")
+basic.add_argument("-T", "--target", help="Target IP or Hostname")
+basic.add_argument("-c", required=True,type=int, help="packet count per port")
+basic.add_argument("-hi", required=False, help="Hide Source IP using random ones",action="store_true")
+basic.add_argument("-p","--port", help="Port/s to Attack")
+basic.add_argument("-s","--shufle",help="Shufle ports order",action="store_true")
+basic.add_argument("-q", help="Quiet mode",action="store_true")
+basic.add_argument("-v",help="Verbose mode",action="store_true")
+basic.add_argument("--stats",help="Attack statistiques",action="store_true")
+basic.add_argument("--attack-mode",help="type of attack used for testing",default="syn-flood",
+                    choices=['syn-flood','mac-flood','udp-flood'])
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    main(args.target,args.c,args.port,args.attack_mode,args.hi,args.shufle)
+    main(
+        Target=args.target,
+        Count=args.c,
+        Ports=args.port,
+        att=args.attack_mode,
+        hide=args.hi,
+        shuffle=args.shufle,
+        quiet=args.q,
+        verbose=args.v,
+        stats=args.stats,
+    )

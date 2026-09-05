@@ -19,7 +19,6 @@ class VersionParser:
 
     @staticmethod
     def parse_version(banner, port):
-
         if not banner:
             return None
 
@@ -53,7 +52,7 @@ class VersionParser:
             version_info = VersionParser._parse_rdp(banner)
         elif port == 5900:
             version_info = VersionParser._parse_vnc(banner)
-        elif port == 139 or port == 445:
+        elif port == 445:
             version_info = VersionParser._parse_smb(banner)
         elif port == 135:
             version_info = VersionParser._parse_msrpc(banner)
@@ -161,7 +160,7 @@ class VersionParser:
                         'service': 'ssh',
                         'protocol': protocol,
                         'product': product,
-                        'version': 'unknown'
+                        'version': ''
                     }
 
         return None
@@ -201,6 +200,14 @@ class VersionParser:
                         'product': product,
                         'version': version
                     }
+            else:
+                for line in banner.splitlines():
+                    if line.lower().startswith("server:"):
+                        return {
+                            'service': 'http',
+                            'product': line.split(":", 1)[1].strip(),
+                            'version': ''
+                        }
 
             space_pos = server_line.find(' ')
             if space_pos != -1:
@@ -634,23 +641,18 @@ class VersionParser:
 
     @staticmethod
     def _parse_smb(banner):
-        smb_pos = banner.find('SMB')
-        if smb_pos != -1:
-            version_start = smb_pos + 3
-            while version_start < len(banner) and banner[version_start].isspace():
-                version_start += 1
-
-            version = ""
-            while version_start < len(banner) and (banner[version_start].isdigit() or banner[version_start] == '.'):
-                version += banner[version_start]
-                version_start += 1
-
-            if version and '.' in version:
-                return {
-                    'service': 'smb',
-                    'product': 'SMB',
-                    'version': version
-                }
+        if banner[12:24].replace(" ","") == "ff534d42":
+            return {
+                'service': 'smb',
+                'product': 'SMB',
+                'version': '1.0'
+            }
+        elif banner[12:24].replace(" ","") == "fe534d42":
+            return {
+                'service': 'smb',
+                'product': 'SMB',
+                'version': '2.0/3.0'
+            }
         return None
 
     @staticmethod

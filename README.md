@@ -1,3 +1,6 @@
+
+# Light-Scan Framework Documentation
+
 ![Python](https://img.shields.io/badge/python-3.13-blue?logo=python&logoColor=white)
 ![OS](https://img.shields.io/badge/Platform-Linux%20|%20Windows%20|%20macOS%20|%20BSD-2d2d2d?style=for-the-badge&logo=linux&logoColor=white)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg?logo=gnu)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
@@ -6,999 +9,566 @@
 
 ![](images/Light-Scan-Logo.png)
 
-# Light-Scan — Advanced Network Toolkit & Mini-Framework
-
-**Light-Scan** is not just a port scanner — it is a complete **Network Toolkit and Mini-Framework** designed for security professionals, network administrators, and penetration testers. Built with Python and Scapy, it combines speed, accuracy, and enterprise-grade features in a single cohesive tool.
-
-Unlike traditional scanners that sacrifice one for the other, Light-Scan delivers fast results without compromising depth.
-
-
-
-# Light-Scan Version 1.1.8 (Current Version)
-
-# Features
-
-## High-Performance Scanning
-
-Multi-threaded architecture for fast scans
-Multiple scan types: TCP Connect, SYN Stealth, UDP, NULL, FIN, ACK, WINDOW, MAIMON, FDD, XMAS, FTP-BOUNCE,IPPROTO,PING,IDLE,SCTP-INIT
-
-Configurable speed presets from Paranoid to Light-mode (500 threads) and manual thread and timeout modification
-
-Smart host discovery with threaded ICMP/ICMPv6/TCP/IP/ARP/NDP/IGMP detection
-
-## Network Range Support
-
-CIDR notation (/8, /16, /24, etc.) for subnet scanning
-
-Multiple target support via comma-separated lists
-
-Octet ranges (192.168.1.0-100,192.168.1-10.1-244,192.168.1.0;1)
-
-Intelligent host filtering - skips non-responsive hosts in network scans
-
-Safety warnings for large network ranges
-
-## Multiple Saving options
-
-you can save Lightscan results with LightSave that supports 9 differents saving formats from TXT to PDF and TOML
-
-for other tools like LightSniff and LightLab that enteracts with binary packeys they support lbn,pcap and pcang saving
-
-## Advanced Detection
-
-Service detection with custom and system service databases
-
-Firewall detection with detailed analysis
-
-Port state classification: Open, Closed, Filtered, Unfiltered, Open|Filtered, Defended, Undefended
-
-Retry mechanism for unreliable networks
-
-## Professional Features
-
-Flexible port specification: ranges, lists, and top ports
-
-Verbose output for debugging and analysis
-
-Customizable timeouts and thread counts
-
-Custom scan profiles
-
-Clean, organized output with per-target results
-    
-# Installation
-
-      git clone https://github.com/Light-Projects/Light-Scan.git
-      
-# Importante
-
-## For Windows
-before running Light-Scan you need to install Npcap from https://npcap.com/#download (it's required for Light-Scan to run)
-
-## Windows Setup
-
-    cd Light-Scan
-    
-    python -m venv venv
-
-    .\venv\Scripts\activate
-
-    pip install -r requirements.txt
-    
-## For Linux
-before running Light-Scan you need to install Npcap from https://npcap.com/#download (it's required for Light-Scan to run) or you can just install libpcap by the command :
-
-### For Debian Based Linux :
-        sudo apt install libpcap-dev
-### For Arch Based Linux :
-        sudo pacman -S libpcap
-### For RHEL/CentOS/Fedora :
-        sudo yum install libpcap-devel
-        # or for newer Fedora:
-        sudo dnf install libpcap-devel
-### For SUSE :
-        sudo zypper install libpcap-devel
-### For Alpine Linux :
-        sudo apk add libpcap-dev
-
-## Linux Setup
-
-### For Debian Based Linux :
-
-    sudo apt install python3-venv
-
-    python3 -m venv venv
-
-    source venv/bin/activate
-
-    pip install -r requirements.txt
-    
-### For Arch Based Linux :
-
-    python -m venv venv
-
-    source venv/bin/activate
-
-    pip install -r requirements.txt
-
-### For RHEL/CentOS/Fedora :
-
-    sudo yum install python3-venv
-    # or for newer Fedora:
-    sudo dnf install python3-venv
-
-    python3 -m venv venv
-
-    source venv/bin/activate
-
-    pip install -r requirements.txt
-
-### For SUSE :
-
-    sudo zypper install python3-venv
-
-    python3 -m venv venv
-
-    source venv/bin/activate
-
-    pip install -r requirements.txt
-
-### For Alpine Linux :
-
-    sudo apk add python3 py3-pip
-
-    python3 -m venv venv
-
-    source venv/bin/activate
-
-    pip install -r requirements.txt
-
-## For macOS
-
-Before running Light-Scan, you need to install libpcap:
-
-### Using Homebrew (Recommended):
-
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    brew install libpcap
-
-### Using MacPorts:
-
-    sudo port install libpcap
-
-## macOS Setup
-
-    python3 -m venv venv
-
-    source venv/bin/activate
-
-    pip install -r requirements.txt
-
-## For FreeBSD / OpenBSD / NetBSD
-
-Before running Light-Scan, install libpcap:
-
-### FreeBSD:
-
-    sudo pkg install libpcap python3
-
-### OpenBSD:
-
-    sudo pkg_add libpcap python3
-
-### NetBSD:
-
-    sudo pkgin install libpcap python3
-
-## BSD Setup
-
-    python3 -m venv venv
-
-    source venv/bin/activate
-
-    pip install -r requirements.txt
-
-## For Solaris / Illumos
-
-### Solaris 11:
-
-    pkg install libpcap
-
-### Illumos (OpenIndiana, etc.):
-
-    sudo pkg install libpcap
-
-## Solaris Setup
-
-    python3 -m venv venv
-
-    source venv/bin/activate
-
-    pip install -r requirements.txt
-
-## Guided Auto Setup
-
-    python setup.py
-  
-# User Guide : 
-
-## Basic Scanning
-  
-  ### Single Target TCP Scan
-  
-      python Lightscan.py -T 192.168.1.1
-  
-  ### SYN Stealth Scan
-  
-      python Lightscan.py -T 192.168.1.1 -st SYN
-  
-  ### UDP Scan on Specific Port
-  
-      python Lightscan.py -T 192.168.1.1 -st UDP -p 53
-
-## Basic Sniffing
-
-### Sniffing With Infinite Packet Count
-
-    python LightSniff.py -c 0 -i Wi-Fi
-
-### Sniffing With Built-in Filters
-
-    python LightSniff.py -c 10 -i wlan0 --tcp --icmp
-
-### Sniffing With binary saving option
-
-    python LightSniff.py -c 100 -i eth0 --bin-save result.lbn
-
-## Basic Saving
-
-### Saving Result in XML
-
-    python LightSave.py -C "python Lightscan.py -T 192.168.1.1" -S xml
-
-### Saving Result in YAML
-
-    python LightSave.py -C "python Lightscan.py -T 192.168.1.1 -st SYN" -S yaml
-
-### Saving Result in HTML
-
-    python LightSave.py -C "python Lightscan.py -T 192.168.1.1 -st UDP -p 53" -S html
-
-## Network Scanning
-  
-  ### Scan Entire Subnet
-  
-      python Lightscan.py -T 192.168.1.0/24 -F
-  
-  ### Multiple Targets
-  
-      python Lightscan.py -T 192.168.1.1,192.168.1.50,10.0.0.0/24
-  
-  ### Fast Network Scan with Top Ports
-  
-      python Lightscan.py -T 10.0.0.0/16 -F -s fast
-  
-## Advanced Usage
-  
-  ### Custom Port Range with Retries
-  
-      python Lightscan.py -T target.com -p 1-1000 --max-retries 3
-  
-  ### High-Speed Scan with Custom Threads
-  
-      python Lightscan.py -T 192.168.1.1 -t 200 -tm 0.5
-  
-  ### Verbose Output for Debugging
-  
-      python Lightscan.py -T 192.168.1.1 -v -st SYN
-
-## Lightscan 1.1.8
-
-## Command Line Options
-  
-        usage: Lightscan.py [-h] [-T TARGET] [--rff RFF] [--daemon] [-V6] [-p PORT] [-pp PING_PORT] [-s     {paranoid,slow,normal,fast,insane,Light-mode}]
-                                    [--save {txt,light,html,xml,csv,json,pdf,yaml,toml,hex-str}] [-v] [-n] [-V] [-st SCAN_TYPE] [--zombie ZOMBIE] [-sn] [--ftp-bounce FTP_SERVER] [-F]
-                                    [-mx MAX_RETRIES] [-t THREADS] [-lst] [--lsse-lst] [--profiles-lst] [-tm TIMEOUT] [-Rc] [-f] [-Pn] [-b] [-O] [--min-score MIN_SCORE]
-                                    [--min-confi MIN_CONFI] [-mac] [--load-profile LOAD_PROFILE] [--save-profile SAVE_PROFILE] [-ttl TTL] [-hlim HLIM] [-sport SPORT]
-                                    [-payload PAYLOAD] [-id ID] [-ip-flags IP_FLAGS] [-Pan] [-Pi] [-Pip PIP] [-A] [-Pt] [-Ps] [-Pk] [-Pu] [-PIt] [-PA] [-Pin] [-Pas] [-Pg] [-q]
-                                    [--script SCRIPT] [--domain DOMAIN] [--dns-server DNS_SERVER] [-W WORDLIST] [--extensions EXTENSIONS] [--status-codes STATUS_CODES] [--redirect]
-                                    [--url URL] [--mxp MXP] [--mxd MXD] [-sp SP] [--starget STARGET] [--username USERNAME] [--password PASSWORD] [--userlist USERLIST]
-                                    [--passwordlist PASSWORDLIST] [--lsse]
-        
-        Lightscan Port Scanner
-        
-        options:
-          -h, --help            show this help message and exit
-          -T TARGET, --target TARGET
-                                Target IP or Hostname
-          --rff RFF             Read Target/s from a file
-          --daemon              Run Lightscan as a background task
-          -V6                   used when the target is an IPv6
-          -p PORT, --port PORT  Port/s to scan
-          -pp PING_PORT, --ping-port PING_PORT
-                                Port/s to Ping on it
-          -s {paranoid,slow,normal,fast,insane,Light-mode}, --speed {paranoid,slow,normal,fast,insane,Light-mode}
-                                Scan speed preset
-          --save {txt,light,html,xml,csv,json,pdf,yaml,toml,hex-str}
-                                Saving Format (txt,light,html,xml,csv,json,pdf,yaml,toml,hex-str)
-          -v, --verbose         Show verbose output
-          -n                    Disable reverse dns
-          -V, --version         show Light-Scan version with all additionnal tools
-          -st SCAN_TYPE, --scan-type SCAN_TYPE
-                                Scan types {TCP,SYN,UDP,NULL,FIN,ACK,XMAS,WINDOW,MAIMON,FDD,FTP-BOUNCE,IPPROTO,PING,IDLE,SCTP-INIT}
-          --zombie ZOMBIE       Zombie IP for idle scan (required for --st IDLE)
-          -sn                   do only a host discovery without port scaning
-          --ftp-bounce FTP_SERVER
-                                FTP server for bounce scan (required for --st FTP-BOUNCE)
-          -F                    Scan The Top 100 ports for fast scanning
-          -mx MAX_RETRIES, --max-retries MAX_RETRIES
-                                Max number of retries if port show a no response
-          -t THREADS, --threads THREADS
-                                Number of threads to use
-          -lst                  List all targets
-          --lsse-lst            List all LSSE Scripts
-          --profiles-lst        List all scan profiles from Profiles directory
-          -tm TIMEOUT, --timeout TIMEOUT
-                                Timeout with second
-          -Rc, --recursively    recursively scan host that shown to be down or not responding and disable flags like -v,-Pn,etc ...
-          -f, --fragmente       fragment the sending packet for more stealth
-          -Pn, --no-ping        Do not ping the target/s
-          -b, --banner          Banner Grabing
-          -O, --os              OS Fingerprint
-          --min-score MIN_SCORE
-                                Minimum OS Fingerprint Score
-          --min-confi MIN_CONFI
-                                Minimum OS Confidence Score
-          -mac                  Light-Scan will skip getting the target mac on Local Networks
-          --load-profile LOAD_PROFILE
-                                Load the scan profile from Profiles/ directory
-          --save-profile SAVE_PROFILE
-                                Save the scan profile to Profiles/ directory
-          -ttl TTL              Time To Live for IPv4 packets
-          -hlim HLIM            Hop Limit for IPv6 packets
-          -sport SPORT          Source Port
-          -payload PAYLOAD      Add a raw custum Payload
-          -id ID                ID Field for IPv4 packets
-          -ip-flags IP_FLAGS    IP Flags Field for IPv4 packets (DF=2,MF=1,None=0)
-          -Pan, --local-ping    Performe an ARP Ping on Local Networks by default or NDP Ping on Local Networks for IPv6 mode
-          -Pi, --ip-ping        IP Protocol Ping
-          -Pip PIP              For Specefiy The IP Protocols that -Pi is going to use rather then default
-          -A, --agressive       Agressive scan activate all of OS Fingerprints, Banner Grabing, Insane Speed , SYN Scan and Scan Top 100 Ports
-          -Pt, --tcp-ping       Do a TCP Ping
-          -Ps, --syn-ping       Do a Syn Ping
-          -Pk, --ack-ping       DO a ACK Ping
-          -Pu, --udp-ping       Do a UDP Ping
-          -PIt, --icmp-timestamp-ping
-                                Do scan a ICMP Timestamp Ping
-          -PA, --icmp-address-ping
-                                Do scan a ICMP Address Ping
-          -Pin, --icmp-information-ping
-                                Do scan a ICMP Information Ping
-          -Pas, --icmp-solicitation-ping
-                                Do scan a ICMP Solicitation Ping on the network
-          -Pg, --igmp-ping      Do scan a IGMP Ping on the network
-          -q, --quiet           Quiet mode {does't print the Tool Banner}
-          --script SCRIPT       LSSE Script ,Ex: --script http-cert
-          --domain DOMAIN       Domain for http/https and Dns based scripts
-          --dns-server DNS_SERVER
-                                dns server that Light-Scan is going to use (Is Set by Default
-          -W WORDLIST, --wordlist WORDLIST
-                                Wordlist for scripts
-          --extensions EXTENSIONS
-                                Extensions for web based scripts
-          --status-codes STATUS_CODES
-                                Status Codes for web based scripts
-          --redirect            Redirect http/https requests for http scripts
-          --url URL             Victime URL
-          --mxp MXP             max pages to get
-          --mxd MXD             max depth to crawl
-          -sp SP                Port/s that are going to use by scripts
-          --starget STARGET     Targets for scripts
-          --username USERNAME   Single username for LSSE scripts
-          --password PASSWORD   Single password for LSSE scripts
-          --userlist USERLIST   Userlist for LSSE scripts
-          --passwordlist PASSWORDLIST
-                                Passwordlist for LSSE scripts
-          --lsse                Use that flag when you want just to performe a script
-  
-##  Speed Presets
-
-LightScan offers **six speed presets** to balance performance against network conditions and stealth requirements. Each preset controls two key parameters:
-
-- **Threads** — Number of concurrent scan threads (higher = faster)
-- **Timeout** — Seconds to wait for a response (higher = more reliable)
-
-| Preset | Threads | Timeout | Best For |
-|--------|---------|---------|----------|
-|  **paranoid** | 2 | 4.5s | Stealth scans, IDS/IPS evasion, unstable networks |
-|  **slow** | 30 | 3.3s | Noisy environments, careful reconnaissance |
-|  **normal** | 60 | 2.8s | **Default** — balanced for most scenarios |
-|  **fast** | 120 | 2.8s | Internal networks, trusted environments |
-|  **insane** | 240 | 1.5s | High-speed LAN scans, aggressive timing |
-|  **Light-mode** | 400 | 1.5s | Maximum speed — use on reliable, low-latency networks |
-
-
-
-  
-## Port Specification Examples
-  
-  ### Single Port
-  
-      -p 80
-  
-  ### Port Range
-      
-      -p 1-1000
-  
-  ### Multiple Ports
-  
-      -p 22,80,443,8080
-  
-  ### Mixed Ranges and Single Ports
-  
-      -p 20-25,80,443,8000-9000
-
-## Target Specification Examples
-  
-  ### Single Target
-  
-      -T scanme.nmap.org
-      or
-      -T 8.8.8.8
-  
-  ### Octet Ranges
-      
-      -T 192.168.1.0-100 
-      or
-      -T 192.168-170.1.0-140
-  
-  ### Multiple Targets
-  
-      -T 1.1.1.1,8.8.8.8,example.com
-  
-    
-## Network Scanning Features
-  CIDR Notation Support
-  
-  Lightscan supports standard CIDR notation for scanning entire networks:
-  
-  ### Class C subnet (256 hosts)
-      python Lightscan.py -T 192.168.1.0/24
-  
-  ### Class B subnet (65,536 hosts) - with safety warning
-      python Lightscan.py -T 10.0.0.0/16
-  
-  ### Class A subnet (16.7 million hosts) - extreme warning
-      python Lightscan.py -T 10.0.0.0/8
-  
-## Smart Host Discovery
-  
-  ### When scanning multiple targets:
-  
-Performs threaded host discovery first
-  
-Only scans hosts that respond to discovery probes
-
-Saves time by skipping dead hosts
-  
-  ### Safety Features
-  
-Warnings for large network scans
-  
-Confirmation prompts for massive scans
-  
-Progress indicators for large expansions
-  
-### Port States
-
-LightScan classifies ports into **seven distinct states** based on response analysis:
-
-| State | Meaning | Common Causes |
-|-------|---------|----------------|
-| **Open** | Service is actively listening and accessible | Web server, SSH, database, etc. |
-| **Closed** | Host is up but no service is listening | Unused port, service not running |
-| **Filtered** | Firewall or filter is blocking access | Stateful firewall, ACL, DROP rules |
-| **Open\|Filtered** | Unable to determine (no response received) | Common with UDP scans, packet loss |
-| **Defended** | Firewall detected (FDD scan result) | Port behind active firewall protection |
-| **Undefended** | No firewall detected (FDD scan result) | Direct port access, no filtering |
-| **Unfiltered** | Port accessible but not open (ACK scan) | Used in firewall rule mapping |
-
-# Light-Scan Tools — Complete Guide
-
-Light-Scan is not just a port scanner - it is a complete network toolkit with 5 separated tools that work together seamlessly
-for multiple jobs (Scanning,Scripting,Saving,Sniffing and Creating) .
-
+---
 
 ## Table of Contents
 
-### 1. LightSniff - Packet Capture Tool
-### 2. LightPanel - Graphical Interface
-### 3. LightLab - Packet Crafting Laboratory
-### 4. LightBin - Custom Binary Format
-### 5. LSSE - Light-Scan Scripting Engine
+1. Overview
+2. Installation
+3. Lightscan - Network Port Scanner
+4. LightSniff - Packet Capture Tool
+5. Mint - Attack Utility
+6. LightPanel - GUI Interface
+7. License
 
+---
 
-## LightSniff - Packet Capture Tool v1.0.2
+## 1. Overview
 
-### Overview
-LightSniff is a lightweight, feature-rich packet sniffer built for network analysis and troubleshooting. It uses BPF (Berkeley Packet Filter) syntax for precise traffic filtering and supports both live capture and PCAP export.
+Light-Scan Framework is a comprehensive network security scanning suite developed by Adam Boulaaz. It provides a complete toolkit for network reconnaissance, packet analysis, and security testing with both CLI and GUI interfaces.
 
-### Features
-- Live packet capture with BPF filtering
-- TCP, UDP, ICMP, ARP protocol filtering
-- MAC address filtering
-- VLAN tag detection (802.1Q)
-- TLS protocol detection (1.0, 1.1, 1.2, 1.3, SSLv3)
-- HTTP traffic detection and parsing
-- DNS query/response detection
-- Save to PCAP, PCAPNG, and LightBin (.lbn)
-- Read from PCAP, PCAPNG, and LightBin (.lbn)
-- Promiscuous mode support
-- Verbose output for detailed analysis
-- Quiet mode for silent operation
-- Ethernet frame info (MAC addresses, frame type)
-- Auto-interface detection
+### Framework Components
 
-### Command-Line Options
+| Tool | Description | Version |
+|------|-------------|---------|
+| Lightscan | Advanced network port scanner with 15+ scan types | 1.1.9 |
+| LightSniff | Packet capture and analysis tool | 1.0.3 |
+| Mint | Network attack utility (SYN flood, MAC flood) | 1.0.0 |
+| LightPanel | Cross-platform GUI interface for Lightscan | 1.0.1 (Linux) / 1.0.3 (Windows) |
 
-    usage: LightSniff.py [-h] [-i INTERFACE] [-I] [-f FILTER] [-c COUNT] [-w WRITE] [-r READ] [--bin-save BIN_SAVE] [--bin-load BIN_LOAD] [--hex-save HEX_SAVE]
-                     [--hex-load HEX_LOAD] [-C] [-v] [--no-promisc] [-q] [--eth] [--vlan] [--arp] [--tcp] [--udp] [--icmp] [--mac MAC]
+---
 
-    LightSniff - Light-Scan Packet Capture Tool
-    
-    options:
-      -h, --help            show this help message and exit
-      -i INTERFACE, --interface INTERFACE
-                            Network interface (e.g., eth0, Wi-Fi, wlan0)
-      -I, --interfaces      Show all available Network Interfaces
-      -f FILTER, --filter FILTER
-                            BPF filter (e.g., 'tcp port 80', 'icmp', 'arp')
-      -c COUNT, --count COUNT
-                            Number of packets to capture/process (0 = infinite/all). Was previously defaulted to 100, which silently truncated --read/--bin-load/--hex-
-                            load files to their first 100 packets.
-      -w WRITE, --write WRITE
-                            Save to PCAP/PCAPNG file
-      -r READ, --read READ  Read packets from PCAP/PCAPNG file (offline mode)
-      --bin-save BIN_SAVE   Save to LightBin binary format (.lbn)
-      --bin-load BIN_LOAD   Load from LightBin binary format (.lbn)
-      --hex-save HEX_SAVE   Save to hexadecimal format (.lhex)
-      --hex-load HEX_LOAD   Load from hexadecimal format (.lhex)
-      -C, --compress        To compress saved output (only for .lbn)
-      -v, --verbose         Show detailed packet info
-      --no-promisc          Disable promiscuous mode
-      -q, --quiet           Quiet mode (no banner)
-      --eth                 Show Ethernet frame info (MAC addresses, frame type)
-      --vlan                Show VLAN tags (802.1Q)
-      --arp                 Show only ARP packets
-      --tcp                 Show only TCP packets
-      --udp                 Show only UDP packets
-      --icmp                Show only ICMP packets
-      --mac MAC             Filter by source or destination MAC address (e.g., aa:bb:cc:dd:ee:ff)
-    
-    Examples: LightSniff -i eth0 LightSniff -i eth0 -f 'tcp port 80' -w http.pcap LightSniff -i Wi-Fi -c 100 -v LightSniff -r capture.pcap LightSniff --bin-load
-    capture.lbn
+## 2. Installation
 
+### Prerequisites
 
-### Usage Examples
+```bash
+# Python 3.8+ required
+python3 --version
 
-#### Basic Capture
-    LightSniff -i eth0
+# Create virtual environment
+python3 -m venv venv
 
-#### Capture HTTP Traffic
-    LightSniff -i eth0 -f 'tcp port 80' -w http.pcap
+# Activate virtual environment
+# Linux/macOS:
+source venv/bin/activate
+# Windows:
+venv\Scripts\activate
 
-#### Capture with Verbose Output
-    LightSniff -i Wi-Fi -c 100 -v
+# Install dependencies
+pip install -r requirements.txt
+```
 
-#### Capture and Save as LightBin (with Compression)
-    LightSniff -i eth0 -c 100 --bin-save capture.lbn -C
+### Directory Structure
 
-#### Load and Display LightBin File
-    LightSniff --bin-load capture.lbn -v
+```
+Light-Scan/
+├── Lightscan.py          # Main scanner (v1.1.9)
+├── LightSniff.py         # Packet capture (v1.0.3)
+├── Mint.py               # Attack utility (v1.0.0)
+├── LightPanel.py         # GUI launcher
+├── LightPanelLin.py      # Linux GUI (v1.0.1)
+├── LightPanelWin.py      # Windows GUI (v1.0.3)
+└── ....
+```
 
-#### Filter by Protocol (TCP + UDP + ICMP)
-    LightSniff -i eth0 --tcp --udp --icmp
+---
 
+## 3. Lightscan - Network Port Scanner
 
-## LightPanel - Graphical Interface v1.0.2
+**Version: 1.1.9**
 
 ### Overview
-LightPanel is a basic graphical user interface for Lightscan. It provides a visual alternative to the command-line, making the toolkit accessible to users who prefer a point-and-click experience.
 
-### Features
-- basic graphical interface for Lightscan
-- Integrated LightSave functionality
-- Cross-platform (Windows, Linux, macOS, BSD)
-- Dark theme optimized for long sessions
-- Intuitive target and port specification
-- Real-time scan progress
-- Export results with one click
-- Built-in help and documentation
+Lightscan is a comprehensive network scanner supporting multiple scan types, OS fingerprinting, banner grabbing, and extensive output formats. It's designed as a complete alternative to tools like Nmap with additional features.
 
-### Launch
+### Key Features
 
-    python LightPanel.py
+- 15+ Scan Types (TCP, SYN, UDP, NULL, FIN, ACK, XMAS, WINDOW, MAIMON, FDD, FTP-BOUNCE, IPPROTO, IDLE, SCTP-INIT, PING)
+- 10+ Ping Methods (ARP, TCP, SYN, ACK, UDP, ICMP variants, IGMP)
+- OS Fingerprinting with configurable confidence scores
+- Banner Grabbing for service detection
+- Scripting Engine (LSSE) for extensible functionality
+- 10 Output Formats (txt, light, html, xml, csv, json, pdf, yaml, toml, hex-str)
+- Profile System for saving/loading scan configurations
+- IPv6 Support with full feature parity
+- Stealth Options (fragmentation, TTL manipulation, source port spoofing)
+- Performance Tuning (threads, timeouts, rate limiting)
+- Firewall Assessment with optional disable flag
+- Daemon Mode for background operation
 
+### Usage
 
-## LightLab - Packet Crafting Laboratory v1.0.0
+```bash
+sudo python Lightscan.py [options]
+```
+
+### Basic Examples
+
+```bash
+# Basic SYN scan
+sudo python Lightscan.py -T 192.168.1.1 -p 1-1000 -st SYN -s normal
+
+# Aggressive full scan
+sudo python Lightscan.py -T example.com -A
+
+# OS detection with banner grabbing
+sudo python Lightscan.py -T 10.0.0.1 -O -b -s slow
+
+# Scan from file with stealth
+sudo python Lightscan.py --rff targets.txt -p 80,443,8080 -s paranoid -f
+
+# IPv6 scan with specific output
+sudo python Lightscan.py -T 2001:db8::1 -V6 -p 1-100 -st TCP --save json
+
+# Run LSSE script
+sudo python Lightscan.py --lsse --script http-cert --url https://example.com
+
+# Load and save profiles
+sudo python Lightscan.py --load-profile my_scan --save-profile my_results
+
+# Daemon mode (background task)
+sudo python Lightscan.py -T 192.168.1.1 -p 1-1000 --daemon
+```
+
+### Command Reference
+
+#### Target Specification
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| -T TARGET | Target IP or hostname | -T 192.168.1.1 |
+| --rff RFF | Read targets from file | --rff targets.txt |
+| -V6 | IPv6 mode | -V6 |
+| --daemon | Run as background task | --daemon |
+
+#### Port Specification
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| -p PORT | Ports to scan | -p 80,443 or -p 1-1000 |
+| -F | Scan top 100 ports | -F |
+| --shufle | Randomize port order | --shufle |
+| -pp PING_PORT | Ports for ping | -pp 80,443 |
+
+#### Scan Types
+
+| Option | Description | Use Case |
+|--------|-------------|----------|
+| TCP | TCP connect scan | Standard scanning |
+| SYN | SYN stealth scan | Stealth scanning |
+| UDP | UDP scan | UDP services |
+| NULL | NULL scan | Firewall evasion |
+| FIN | FIN scan | Firewall evasion |
+| ACK | ACK scan | Firewall detection |
+| XMAS | XMAS scan | Firewall evasion |
+| WINDOW | WINDOW scan | Firewall detection |
+| MAIMON | MAIMON scan | Firewall evasion |
+| FDD | FDD scan | Firewall detection with URG flag |
+| FTP-BOUNCE | FTP bounce scan | Proxy scanning |
+| IPPROTO | IP protocol scan | Protocol discovery |
+| IDLE | Idle/zombie scan | Advanced stealth |
+| PING | Ping sweep | Host discovery |
+| SCTP-INIT | SCTP scan | SCTP services |
+
+#### Speed Presets
+
+| Preset | Threads | Timeout | Use Case |
+|--------|---------|---------|----------|
+| paranoid | 2 | 4.5s | Extreme stealth/IDS evasion |
+| slow | 30 | 3.3s | Careful scanning |
+| normal | 60 | 2.8s | Balanced default |
+| fast | 120 | 2.8s | Production scans |
+| insane | 240 | 1.5s | Aggressive scanning |
+| Light-mode | 400 | 1.5s | Maximum speed |
+
+#### Ping Methods
+
+| Option | Description |
+|--------|-------------|
+| -sn | Host discovery only (no port scan) |
+| -Pn | Disable ping |
+| -Pan | ARP ping (local networks) |
+| -Pt | TCP ping |
+| -Ps | SYN ping |
+| -Pk | ACK ping |
+| -Pu | UDP ping |
+| -Pi | IP protocol ping |
+| -Pip | Specify IP protocols for -Pi |
+| -PIt | ICMP timestamp ping |
+| -PA | ICMP address ping |
+| -Pin | ICMP information ping |
+| -Pas | ICMP solicitation ping |
+| -Pg | IGMP ping |
+
+#### OS and Service Detection
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| -O | OS fingerprinting | -O |
+| --min-score SCORE | Minimum OS fingerprint score | --min-score 85 |
+| --min-confi SCORE | Minimum OS confidence score | --min-confi 70 |
+| -b | Banner grabbing | -b |
+| -A | Aggressive mode (OS + Banner + SYN + Top100 + Insane) | -A |
+
+#### Stealth and Evasion
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| -f | Fragment packets | -f |
+| --zombie ZOMBIE | Zombie IP for idle scan | --zombie 10.0.0.5 |
+| --ftp-bounce SERVER | FTP server for bounce scan | --ftp-bounce 10.0.0.5 |
+| -ttl TTL | IPv4 Time To Live | -ttl 128 |
+| -hlim HLIM | IPv6 Hop Limit | -hlim 64 |
+| -sport SPORT | Source port | -sport 31337 |
+| -id ID | IPv4 ID field | -id 31337 |
+| -ip-flags FLAGS | IPv4 flags (DF=2, MF=1, None=0) | -ip-flags 2 |
+| -payload PAYLOAD | Custom payload | -payload "GET / HTTP/1.0" |
+| --no-firewall-ase | Disable firewall assessment | --no-firewall-ase |
+
+#### Performance Options
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| -t THREADS | Number of threads | -t 100 |
+| -tm TIMEOUT | Timeout in seconds | -tm 5 |
+| -mx RETRIES | Maximum retries | -mx 3 |
+| --interval DELAY | Delay between packets (ms) | --interval 100 |
+| -Rc | Recursively scan down hosts | -Rc |
+
+#### Output and Logging
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| --save FORMAT | Save output format | --save json |
+| -v | Verbose output | -v |
+| -q | Quiet mode (hide banner) | -q |
+| -n | Disable reverse DNS | -n |
+
+**Supported Output Formats:**
+- txt - Plain text
+- light - Lightscan native format
+- html - HTML report
+- xml - XML data
+- csv - Comma-separated values
+- json - JSON data
+- pdf - PDF report
+- yaml - YAML data
+- toml - TOML data
+- hex-str - Hex string format
+
+#### LSSE Scripting Engine
+
+The LightScan Scripting Engine (LSSE) allows extensible scanning functionality.
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| --lsse | Run only scripts (no scan) | --lsse |
+| --script SCRIPT | Run specific script | --script http-cert |
+| --lsse-lst | List available scripts | --lsse-lst |
+| --url URL | Target URL | --url https://example.com |
+| --domain DOMAIN | Domain for HTTP/DNS scripts | --domain example.com |
+| --dns-server SERVER | DNS server | --dns-server 8.8.8.8 |
+| -W WORDLIST | Wordlist for scripts | -W wordlist.txt |
+| --extensions EXTS | Web script extensions | --extensions php,html,asp |
+| --status-codes CODES | Status codes to check | --status-codes 200,301,302 |
+| --redirect | Follow HTTP redirects | --redirect |
+| --mxp MXP | Max pages to get | --mxp 50 |
+| --mxd MXD | Max depth to crawl | --mxd 3 |
+| -sp SP | Ports for scripts | -sp 80,443 |
+| --starget STARGET | Targets for scripts | --starget example.com |
+| --username USERNAME | Single username | --username admin |
+| --password PASSWORD | Single password | --password pass123 |
+| --userlist USERLIST | Username list file | --userlist users.txt |
+| --passwordlist PASSWORDLIST | Password list file | --passwordlist passwords.txt |
+
+#### Utility Options
+
+| Option | Description |
+|--------|-------------|
+| -h, --help | Show help message |
+| -V, --version | Show version with all additional tools |
+| -lst | List all targets |
+| --port-lst | List all ports to be scanned |
+| --profiles-lst | List all scan profiles |
+| --load-profile PROFILE | Load scan profile from Profiles/ directory |
+| --save-profile PROFILE | Save scan profile to Profiles/ directory |
+
+---
+
+## 4. LightSniff - Packet Capture Tool
+
+**Version: 1.0.3**
 
 ### Overview
-LightLab is an interactive packet crafting laboratory that allows users to build custom packets from scratch using a simple command-line interface. It supports all major protocol layers and includes built-in templates.
 
-### Features
-- Build packets from scratch using the new command
-- Set parameters using set command
-- View packet structure with show
-- Send packets with send (with count and verbose)
-- Save and load PCAP/PCAPNG/LBN files
-- Built-in templates for common operations
-- Support for: ether, vlan, arp, ip, ipv6, tcp, udp, icmp, ndp, http, dns, raw
-- Interactive shell with command history
-- Cross-platform (Windows, Linux, macOS, BSD)
+LightSniff is a powerful packet capture and analysis tool that supports multiple input/output formats and filtering capabilities. It can capture live traffic, read from PCAP files, and process custom binary and hexadecimal formats.
 
-### Commands
+### Usage
 
-| Command | Description |
-|---------|-------------|
-| new <layer> | Add layer (ether, vlan, arp, ip, ipv6, tcp, udp, icmp, ndp, http, dns, raw) |
-| delete <layer> | Delete a layer |
-| params <layer> | Show available parameters for a layer |
-| set <layer>.<param>=<value> | Set parameter value |
-| show | Show current packet structure |
-| clear | Clear all layers |
-| send [count] [-v] | Send packet |
-| timeout <seconds> | Set response timeout |
-| interval <seconds> | Set interval time between packets |
-| templates | Show example configurations |
-| save <filename> | Save to PCAP/PCAPNG |
-| load <filename> | Load from PCAP/PCAPNG |
-| savebin <filename> | Save to LightBin |
-| loadbin <filename> | Load from LightBin |
-| history | Show command history |
-| help | Show this message |
-| exit | Quit LightLab |
+```bash
+sudo python LightSniff.py [options]
+```
 
-### Usage Examples
+### Basic Examples
 
-#### TCP SYN Scan Packet
+```bash
+# Capture live traffic on interface
+sudo python LightSniff.py -i eth0
 
-    LightLab> new ip
-    LightLab> set ip.dst=192.168.1.1
-    LightLab> new tcp
-    LightLab> set tcp.dport=80
-    LightLab> set tcp.flags=S
-    LightLab> send -v
+# Capture with BPF filter
+sudo python LightSniff.py -i eth0 -f 'tcp port 80' -w http.pcap
 
-#### UDP DNS Query
+# Limit capture count
+sudo python LightSniff.py -i Wi-Fi -c 100 -v
 
-    LightLab> new ip
-    LightLab> set ip.dst=8.8.8.8
-    LightLab> new udp
-    LightLab> set udp.dport=53
-    LightLab> new dns
-    LightLab> set dns.id=1234
-    LightLab> set dns.rd=1
-    LightLab> set dns.qd=DNSQR(qname="google.com", qtype=1)
-    LightLab> send -v
+# Read from PCAP file
+sudo python LightSniff.py -r capture.pcap
 
-#### HTTP GET Request
+# Read from LightBin format
+sudo python LightSniff.py --bin-load capture.lbn
 
-    LightLab> new ip
-    LightLab> set ip.dst=example.com
-    LightLab> new tcp
-    LightLab> set tcp.dport=80
-    LightLab> new http
-    LightLab> set http.Method=GET
-    LightLab> set http.Path=/
-    LightLab> set http.Host=example.com
-    LightLab> send -v
+# Show available interfaces
+sudo python LightSniff.py -I
+```
 
-#### ICMP Ping
+### Command Reference
 
-    LightLab> new ip
-    LightLab> set ip.dst=192.168.1.1
-    LightLab> new icmp
-    LightLab> set icmp.type=8
-    LightLab> set icmp.id=1234
-    LightLab> set icmp.seq=1
-    LightLab> send -v
+#### Interface Options
 
-#### ARP Request
+| Option | Description | Example |
+|--------|-------------|---------|
+| -i INTERFACE | Network interface | -i eth0 |
+| -I | Show available interfaces | -I |
+| --no-promisc | Disable promiscuous mode | --no-promisc |
 
-    LightLab> new ether
-    LightLab> set ether.dst=ff:ff:ff:ff:ff:ff
-    LightLab> new arp
-    LightLab> set arp.pdst=192.168.1.1
-    LightLab> send -v
+#### Capture Options
 
-#### VLAN Tagged Packet
+| Option | Description | Example |
+|--------|-------------|---------|
+| -f FILTER | BPF filter | -f 'tcp port 80' |
+| -c COUNT | Number of packets to capture | -c 100 |
+| --mac MAC | Filter by MAC address | --mac aa:bb:cc:dd:ee:ff |
 
-    LightLab> new vlan
-    LightLab> set vlan.vlan=100
-    LightLab> set vlan.prio=5
-    LightLab> new ip
-    LightLab> set ip.dst=192.168.1.1
-    LightLab> new icmp
-    LightLab> send -v
+#### Output Formats
 
-## LightBin - Custom Binary Format v1.0
-![](image/LightBin.ico)
+| Option | Description | File Extension |
+|--------|-------------|----------------|
+| -w WRITE | Save to PCAP/PCAPNG file | .pcap |
+| --bin-save SAVE | Save to LightBin binary format | .lbn |
+| --hex-save SAVE | Save to hexadecimal format | .lhex |
+| -C | Compress saved output (only .lbn) | -C |
 
-### Overview
-LightBin is Light-Scan's native binary packet format (.lbn). It is designed for fast loading and rich metadata storage, making it ideal for large packet captures and automated analysis.
+#### Input Formats
 
-### Features
-- 1.2-2x faster loading than PCAP
-- Rich metadata (args, stats, tool, packet_types, timestamps)
-- zlib compression for packet data and metadata
-- CRC32 checksum for header integrity
-- Smart packet detection (Ethernet, VLAN, IPv4, IPv6, ARP, raw)
-- Cross-platform (Windows, Linux, macOS, BSD)
-- Backward-compatible versioning
-- Extensible flags system
+| Option | Description | File Extension |
+|--------|-------------|----------------|
+| -r READ | Read from PCAP/PCAPNG file | .pcap |
+| --bin-load LOAD | Load from LightBin format | .lbn |
+| --hex-load LOAD | Load from hexadecimal format | .lhex |
 
-### File Structure
+#### Display Options
 
-Header (24 bytes)
+| Option | Description |
+|--------|-------------|
+| -v | Show detailed packet info |
+| -q | Quiet mode (no banner) |
+| --eth | Show Ethernet frame info (MAC addresses, frame type) |
+| --vlan | Show VLAN tags (802.1Q) |
+| --arp | Show only ARP packets |
+| --tcp | Show only TCP packets |
+| --udp | Show only UDP packets |
+| --icmp | Show only ICMP packets |
+| --igmp | Show only IGMP packets |
+| --ipv4 | Show only IPv4 packets |
+| --ipv6 | Show only IPv6 packets |
+| --sctp | Show only SCTP packets |
+| --icmpv6 | Show only ICMPv6 packets |
 
-| Offset | Size | Field | Description |
-|--------|------|-------|-------------|
-| 0-3 | 4 | Magic | LBNx00 - Identifies LightBin format |
-| 4-7 | 4 | Version | 1 - Current format version |
-| 8-11 | 4 | Created | Unix timestamp (creation time) |
-| 12-15 | 4 | Packet Count | Number of packets in file |
-| 16-19 | 4 | Flags | Bitmask: 0x01 (Compressed), 0x02 (Metadata) |
-| 20-23 | 4 | Checksum | CRC32 of version, created, count, and flags |
+### Example Scenarios
 
-Packet Header (12 bytes)
+**Capture HTTP traffic:**
+```bash
+sudo python LightSniff.py -i eth0 -f 'tcp port 80' -c 50 -v
+```
 
-| Offset | Size | Field | Description |
-|--------|------|-------|-------------|
-| 0-7 | 8 | Timestamp | Packet capture time (double precision float) |
-| 8-11 | 4 | Size | Packet size in bytes (unsigned integer) |
+**Save and compress captured traffic:**
+```bash
+sudo python LightSniff.py -i wlan0 -c 1000 --bin-save capture.lbn -C
+```
 
-Packet Data (Size bytes)
-Raw packet bytes as captured from the network.
+**Analyze previously captured traffic:**
+```bash
+python LightSniff.py --bin-load capture.lbn --tcp --verbose
+```
 
-### Comparison with PCAP
+**Filter by specific MAC address:**
+```bash
+sudo python LightSniff.py -i eth0 --mac aa:bb:cc:dd:ee:ff -v
+```
 
-| Feature | LightBin | PCAP |
-|---------|----------|------|
-| Load Speed | Faster (1.2-2x) | Slower |
-| Metadata Support | Rich (Args, Stats, Types) | Limited |
-| Compression | zlib (Full) | PCAP-NG Only |
-| Checksum | CRC32 (Header) | None |
-| Packet Detection | Auto-detects | Manual parsing |
-| Cross-Platform | Yes | Yes |
-| File Size | 1-6% Larger | Smaller |
-| Standardization | Light-Scan Native | Industry Standard |
-| Tool Support | LightSniff, LightLab | Wireshark, tcpdump |
+---
 
-## LSSE - Light-Scan Scripting Engine v1.0.6
+## 5. Mint - Attack Utility
+
+**Version: 1.0.0**
 
 ### Overview
-LSSE (Light-Scan Scripting Engine) extends the core scanner's capabilities with 13 built-in scripts for web and DNS reconnaissance, security analysis, and information gathering.
+
+Mint is a lightweight network attack utility designed for security testing and vulnerability assessment. It supports SYN flood and MAC flood attacks for testing network infrastructure resilience.
+
+### Usage
+
+```bash
+sudo python Mint.py [options]
+```
+
+### Basic Examples
+
+```bash
+# SYN flood attack
+sudo python Mint.py -T 192.168.1.1 -c 1000 -p 80 --attack-mode syn-flood
+
+# MAC flood attack
+sudo python Mint.py -T 192.168.1.1 -c 5000 --attack-mode mac-flood
+
+# SYN flood with source IP hiding
+sudo python Mint.py -T 10.0.0.1 -c 10000 -p 80 -hi --attack-mode syn-flood
+
+# Multi-port attack with shuffled order
+sudo python Mint.py -T 192.168.1.1 -c 100 -p 80,443,8080 -s --attack-mode syn-flood
+```
+
+### Command Reference
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| -T TARGET | Target IP or hostname | -T 192.168.1.1 |
+| -c C | Packet count per port | -c 1000 |
+| -p PORT | Ports to attack | -p 80 or -p 80,443,8080 |
+| -hi | Hide source IP using random ones | -hi |
+| -s | Shuffle ports order | -s |
+| --attack-mode MODE | Attack type (syn-flood, mac-flood) | --attack-mode syn-flood |
+
+### Attack Modes
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| syn-flood | SYN flood attack | Test firewall/IDS resilience |
+| mac-flood | MAC flood attack | Test switch MAC table security |
+
+### Important Notes
+
+- Both attack modes require root/administrator privileges
+- SYN flood attacks send TCP SYN packets to the target
+- MAC flood attacks send Ethernet frames with random MAC addresses
+- The -hi flag randomizes source IP addresses for SYN floods
+- Use responsibly and only on systems you own or have permission to test
+
+---
+
+## 6. LightPanel - GUI Interface
+
+**Version: 1.0.1 (Linux) / 1.0.3 (Windows)**
+
+### Overview
+
+LightPanel provides a graphical user interface for the Light-Scan framework, making it accessible to users who prefer visual tools over command-line interfaces. It supports both Linux and Windows platforms with platform-specific versions.
 
 ### Features
-- 13 built-in scripts for web and DNS reconnaissance
-- HTTP/HTTPS and DNS support
-- Extensible architecture
-- Wordlist support
-- Custom extensions and status codes
-- Redirect handling
-- Cross-platform (Windows, Linux, macOS, BSD)
 
-### HTTP/HTTPS Scripts
+- Cross-platform support (Linux and Windows)
+- Dark/Light mode switching
+- GUI-based command construction
+- Real-time output display
+- Profile management
+- Copy and clear output functions
+- Command injection protection
 
-| Script | Category | Required Args | Description |
-|--------|----------|---------------|-------------|
-| spider | safe/discovery | --url | Recursively crawls websites for links and forms |
-| http-robots | safe/discovery | --domain, -sp | Fetches and parses robots.txt |
-| http-cert | safe/analysis | --domain, -sp | Grabs SSL/TLS certificate information |
-| script | safe/discovery | --url | Detects Script tags in HTML pages |
-| http-title | safe/discovery | --domain, -sp | Extracts webpage titles |
-| http-dir | medium/discovery | --url | Brute forces directories and files |
-| http-headers | safe/analysis | --domain, -sp | Security headers analysis |
-| http-methods | safe/discovery | --domain, -sp | Checks allowed HTTP methods |
-| http-cookie | safe/analysis | --domain, -sp | Checks cookies for Secure and HttpOnly flags |
+### Usage
 
-### DNS Scripts
+**Linux:**
+```bash
+sudo python LightPanel.py
+```
 
-| Script | Category | Required Args | Description |
-|--------|----------|---------------|-------------|
-| dns-lookup | safe/discovery | --domain | Fast DNS lookup for IPv4, IPv6 |
-| dns-ns | safe/discovery | --domain | Get Name-Server (NS) records |
-| dns-subdomain-fuzzing | medium/discovery | --domain | Brute forces subdomains |
-| dns-zone-transfer | medium/extracting | --domain | Attempts AXFR zone transfer |
+**Windows:**
+```bash
+python LightPanel.py
+```
 
-### Command-Line Options
+### Interface Components
 
-    C:\Users\Heretic>Lightscan --lsse-lst
-        __    _       __    __
-       / /   (_)___ _/ /_  / /_______________ _____
-      / /   / / __ `/ __ \/ __/ ___/ ___/ __ `/ __ \
-     / /___/ / /_/ / / / / /_(__  ) /__/ /_/ / / / /
-    /_____/_/\__, /_/ /_/\__/____/\___/\__,_/_/ /_/
-            /____/
-    
-    Version : 1.1.7
-    Platform : Windows
-    
-    
-    [+] LSSE Scripts (LightScan Scripting Engine)
-    --------------------------------------------------
-    
-    [1] spider
-        Required:   --url
-        Optional:   --mxd, --mxp
-        Category:   safe/discovery/http_https
-        Description: Recursively crawls websites for links, forms, and resources
-    
-    [2] http-robots
-        Required:   --domain, -sp
-        Optional:   None
-        Category:   safe/discovery/http_https
-        Description: Fetches and parses robots.txt for hidden paths
-    
-    [3] http-cert
-        Required:   --domain, -sp
-        Optional:   None
-        Category:   safe/analysis/https
-        Description: Grabs SSL/TLS certificate information
-    
-    [4] script
-        Required:   --url
-        Optional:   None
-        Category:   safe/discovery/http_https
-        Description: Detects Script tags in HTML pages
-    
-    [5] http-title
-        Required:   --domain, -sp
-        Optional:   --redirect
-        Category:   safe/discovery/http_https
-        Description: Extracts webpage titles
-    
-    [6] http-dir
-        Required:   --url
-        Optional:   --wordlist, --status-codes, --extensions
-        Category:   medium/discovery/http_https
-        Description: Brute forces directories and files
-    
-    [7] dns-subdomain-fuzzing
-        Required:   --domain
-        Optional:   --wordlist, --dns-server
-        Category:   medium/discovery/dns
-        Description: Brute forces subdomains using wordlist
-    
-    [8] dns-lookup
-        Required:   --domain
-        Optional:   --dns-server
-        Category:   safe/discovery/dns
-        Description: Do fast dns-lookup for IPv4 ,IPv6 address
-    
-    [9] dns-ns
-        Required:   --domain
-        Optional:   --dns-server
-        Category:   safe/discovery/dns
-        Description: Get Name-Server (NS) Record of a domain
-    
-    [10] dns-zone-transfer
-        Required:   --domain
-        Optional:   --dns-server
-        Category:   medium/extracting/dns
-        Description: Attempts AXFR zone transfer to enumerate all DNS records
-    
-    [11] http-headers
-        Required:   --domain, -sp
-        Optional:   --redirect
-        Category:   safe/analysis/http_https
-        Description: Fetches HTTP headers and checks for missing security headers
-    
-    [12] http-methods
-        Required:   --domain, -sp
-        Optional:   None
-        Category:   safe/discovery/http_https
-        Description: Checks which HTTP methods are allowed by the server
-    
-    [13] http-cookie
-        Required:   --domain, -sp
-        Optional:   --redirect
-        Category:   safe/analysis/http_https
-        Description: Checks cookies for Secure and HttpOnly flags
-    
-    --------------------------------------------------
-    [+] Usage: Lightscan --lsse --script <name>
+#### Command Bar
+- **Command Entry**: Manually type or view generated commands
+- **Start Scan Button**: Execute the configured scan
+- **Copy Output Button**: Copy console output to clipboard
+- **Clear Output Button**: Clear the output display
 
-## Performance Tips
-  
-Use -F for large networks: Scan top 100 ports instead of top 1000
-  
-Adjust timeout: Reduce timeout for internal networks (-tm 1.5)
-  
-Increase threads: Use more threads for faster scanning (-t 100)
-  
-Reduce retries: Use --max-retries 1 for reliable networks
-  
-Choose appropriate scan type: SYN for speed, TCP for reliability
-  
-# Troubleshooting
-  
-  ## Scan is too slow
-  
-Reduce timeout: -tm 1.0
-  
-Increase threads: -t 150
-  
-Use faster speed preset: -s fast
-  
-  ## No results from UDP scan
-  
-UDP is connectionless - timeouts are normal
-  
-Increase retries: --max-retries 3
-  
-Check if service is actually running
-  
-  ## Host discovery missing hosts
-  
-Some hosts block ICMP
-  
-Use TCP-based discovery by using -Pt Flag
-  
-Check firewall rules on target hosts
-  
-# Legal Disclaimer
-  
-  ## This tool is intended for:
-  
-Security professionals conducting authorized assessments
-  
-Network administrators monitoring their own networks
-  
-Educational and research purposes
-  
-  Always ensure you have proper authorization before scanning any network or system. Unauthorized scanning may be illegal in your jurisdiction.
-  Contributing
-  
-  Contributions are welcome! Please feel free to submit pull requests, report bugs, or suggest new features.
+#### Configuration Options
+- **Target**: IP or hostname to scan
+- **Ports**: Port specification (e.g., 80,443 or 1-1000)
+- **Scan Type**: Select from 15 scan types
+- **Speed**: Choose from 6 speed presets
+- **Profile**: Load or save scan profiles
+- **Saving Format**: Select from 10 output formats
 
+#### Toggle Options
+- **Top 100 Ports (-F)**: Fast scan mode
+- **OS Detect (-O)**: OS fingerprinting
+- **Banner Grab (-b)**: Service banner grabbing
+- **No Ping (-Pn)**: Skip host discovery
+- **IPv6 Target (-V6)**: Enable IPv6 scanning
+- **Fragmentation (-f)**: Packet fragmentation
+- **Recursively (-Rc)**: Recursive scanning
+- **No rDNS (-n)**: Disable reverse DNS
+- **Help Menu (-h)**: Show help
 
-##  FDD Scan — Firewall Detection
+#### Output Display
+- Console output from Lightscan
+- Real-time scan results
+- Error messages and warnings
+- Copy to clipboard functionality
 
-**FDD (Firewall Detection Scan)** is a proprietary scanning technique developed exclusively for LightScan. It sends a TCP packet with the **URGENT (URG) flag** to determine whether a firewall is protecting the target port.
-The URG flag is rarely used in legitimate traffic, making it an excellent probe for firewall detection. By analyzing the response (or lack thereof), LightScan can determine if a firewall is actively filtering the port.
+### Platform-Specific Notes
 
-###  Response Interpretation
+**Linux:**
+- Requires root privileges (sudo)
+- Uses venv environment
+- Version: 1.0.1
 
-| Response Type | Classification | Explanation |
-|---------------|----------------|-------------|
-| `RST` or `RST-ACK` |  **Undefended Port** | The port responded directly — no firewall interference |
-| `No Response` |  **Defended Port** | No response suggests a firewall is blocking the probe |
-| `ICMP Type 3, Code 1,2,3,9,10,13` |  **Defended Port** | ICMP error indicates a firewall is actively rejecting the packet |
+**Windows:**
+- No sudo required (administrator may be needed)
+- Uses default Python environment
+- Version: 1.0.3
 
-###  Example Usage
+### Security Features
 
-# Run FDD scan on a single port
-    python Lightscan.py -T 192.168.1.1 -p 443 -st FDD
+The GUI implements command injection protection:
+- Blocks shell metacharacters (&, |, :, `, $, >, <)
+- Blocks dangerous commands (cd, pwd, netstat, ifconfig, winget, wmic, ls, ping, chdir, mkdir, dir)
 
-# Scan multiple ports with FDD
-    python Lightscan.py -T 192.168.1.1 -p 22,80,443,8080 -st FDD
+---
 
-# Combined with verbose output
-    python Lightscan.py -T 192.168.1.1 -p 1-1000 -st FDD -v
+## 7. License
 
+Light-Scan Framework - Network Security Scanning Framework
+Copyright (C) 2026 Adam Boulaaz
 
-## 🙏 Acknowledgments
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
-### Light-Scan is built on the shoulders of giants. We thank the open‑source community, especially to:
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
--  Scapy — The packet manipulation library that powers Light-Scan
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
--  Python — The language that makes it all possible
+---
 
--  Nmap — For setting the standard in network scanning
+## Additional Resources
 
--  The entire cybersecurity community — For pushing the boundaries of what's possible
+- GitHub Repository: [https://github.com/Light-Projects/Light-Scan]
+- Issue Tracker: [https://github.com/Light-Projects/Light-Scan/issues]
+- Community: [https://discord.gg/AP6HyXmEq]
 
-**📧 Contact:** lightscanframework@gmail.com 
+---
+
+*Light-Scan Framework v1.1.9*

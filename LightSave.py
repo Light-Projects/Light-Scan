@@ -15,7 +15,6 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import platform
 import time
 import re
 import html
@@ -23,13 +22,13 @@ import datetime
 import sys
 import json
 import csv
-import os
 import io
 import yaml
 import toml
+import os
 from font import fontpath
 
-Version = "1.0.2"
+Version = "1.0.3"
 fontpath()
 
 def parse_scan_output(output):
@@ -67,6 +66,7 @@ def parse_scan_output(output):
     host_match = re.search(fr'Host {results['target']} is (up|down)!', output)
     if host_match:
         results['host_status'] = host_match.group(1)
+
 
     ip_status_match = re.search(r'\[\+\] IP Status: (.+)', output)
     if ip_status_match:
@@ -118,22 +118,22 @@ def parse_scan_output(output):
     firewall_section = re.search(
         r'\[\!\] Firewall Analysis for .+?:\s*(.*?)(?=\[\+\] Captured Banner/s:|\[\+\] OS Fingerprint Results|\[\+\] Lightscan scanned|$)',
         output, re.DOTALL)
+
     if firewall_section:
         firewall_text = firewall_section.group(1)
 
-        conclusion_match = re.search(r'\[\+\] (.+?)(?=\n|$)', firewall_text)
+        conclusion_match = re.search(r'\[\+\] Signature:\s*(.+?)(?=\n|$)', firewall_text)
         if conclusion_match:
             conclusion = conclusion_match.group(1).strip()
             results['firewall_status'] = conclusion
 
-            if 'STRONG FIREWALL DETECTED' in conclusion:
-                results['firewall_detected'] = 'STRONG'
-            elif 'NO FIREWALL DETECTED' in conclusion:
-                results['firewall_detected'] = 'NONE'
-            elif 'WEAK FIREWALL' in conclusion:
-                results['firewall_detected'] = 'WEAK'
-            else:
-                results['firewall_detected'] = 'UNKNOWN'
+    status_match = re.search(r'\[\+\] Status:\s*(................)', output, re.DOTALL)
+
+    if status_match:
+        if "NOT DETECTED" in status_match.group(0).strip():
+            results['firewall_detected'] = False
+        else:
+            results['firewall_detected'] = True
 
     block_match = re.search(
         r'\[\+\] OS Fingerprint Results.*?:\n(.*?)(?=\n\[\+\]\s*\w.*Results|\n\n|\Z)',
@@ -450,6 +450,9 @@ def generate_toml(data, raw_output):
     open_pct = round((len(data.get('open_ports', [])) / max(1, total_ports)) * 100, 2)
 
     toml_data = {
+        'target': {
+            'target': data.get('target'),
+        },
         'metadata': {
             'report_generated': datetime.datetime.now().isoformat(),
             'tool_version': Version,
@@ -490,6 +493,8 @@ def generate_toml(data, raw_output):
         } if data.get('lsse_response') or lsse_scripts_processed else None,
         'raw_output': raw_output
     }
+
+
 
     def clean_none(obj):
         if isinstance(obj, dict):
@@ -806,10 +811,8 @@ def generate_json(data, raw_output):
         },
         'firewall_analysis': {
             'status': data.get('firewall_status'),
-            'detection_method': data.get('firewall_detected'),
-            'firewall_detected': data.get(
-                'firewall_status') != 'NO FIREWALL DETECTED : no such filtered or open | filtered ports'
-        } if data.get('firewall_status') else None,
+            'firewall_detected': data.get('firewall_detected')
+        },
         'os_fingerprint': data.get('os_fingerprint'),
         'statistics': {
             'total_ports_scanned': len(data.get('open_ports', [])) + data.get('closed_ports_count', 0) + data.get(
@@ -842,6 +845,7 @@ def generate_json(data, raw_output):
             'banners_found': len(data.get('banners', []))
         }
     }
+
 
     def clean_none(obj):
         if isinstance(obj, dict):
@@ -1174,123 +1178,128 @@ def main(filename,format,output):
     print(f"[+] Saving to: {filename}\n")
     print("-" * 60)
 
+    save_path = os.path.join(os.path.dirname(__file__), "Saving")
+    os.makedirs(save_path, exist_ok=True)
+
+    if os.path.isfile("./Saving/empty.txt"):
+        pass
+    else:
+        with open("./Saving/empty.txt", 'w', encoding='utf-8') as f:
+            f.write("""# This is where you are gonna find your saving results
+# Light-Scan developers wish you a good day""")
+
     pattern = r'(\[\+\] Scan result for : \d+\.\d+\.\d+\.\d+)'
     parts = re.split(pattern, output)
 
     if format.lower() in ["txt", "light"]:
-        with open(filename, 'w', encoding='utf-8') as f:
+        with open("./Saving/" + filename, 'w', encoding='utf-8') as f:
             f.write(output)
-        print(f"\n[+] Scan saved to {filename}")
+        print(f"\n[+] Scan saved to {"./Saving/" + filename}")
 
     elif format.lower() == "hex-str":
         print(f"\n[+] Generating Hex-Str report...")
         content = generate_hexstr(output)
-        with open(filename.replace(".hex-str",".hex"), 'w', encoding='utf-8') as f:
+        with open("./Saving/" + filename.replace(".hex-str",".hex"), 'w', encoding='utf-8') as f:
             f.write(content)
-        print(f"[+] Hex-Str report saved to {filename.replace(".hex-str",".hex")}")
+        print(f"[+] Hex-Str report saved to {"./Saving/" + filename.replace(".hex-str",".hex")}")
 
     elif format.lower() == "html":
         print(f"\n[+] Generating HTML report...")
-        html_content = ''
         j = 1
         I = 0
         for i in range(1,len(parts),2):
             parsed_data = parse_scan_output(parts[0]+parts[j+I]+parts[j+1+I])
-            html_content += generate_html(parsed_data, output)
+            html_content = generate_html(parsed_data, output)
             j+=1
             I += 1
 
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        print(f"[+] HTML report saved to {filename}")
+            with open("./Saving/" + filename.replace(".html","") + "-Target" + str(I) + ".html", 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            print(f"[+] HTML report saved to {"./Saving/" + filename.replace(".html","") + "-Target" + str(I) + ".html"}")
 
     elif format.lower() == "xml":
         print(f"\n[+] Generating XML report...")
-        xml_content = ''
         j = 1
         I = 0
         for i in range(1, len(parts), 2):
             parsed_data = parse_scan_output(parts[0] + parts[j + I] + parts[j + 1 + I])
-            xml_content += generate_xml(parsed_data, output)
+            xml_content = generate_xml(parsed_data, output)
             j += 1
             I += 1
 
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(xml_content)
-        print(f"[+] XML report saved to {filename}")
+            with open("./Saving/" + filename.replace(".xml","") + "-Target" + str(I) + ".xml" , 'w', encoding='utf-8') as f:
+                f.write(xml_content)
+            print(f"[+] XML report saved to {"./Saving/" + filename.replace(".xml","") + "-Target" + str(I) + ".xml"}")
 
     elif format.lower() == "csv":
         print(f"\n[+] Generating CSV report...")
-        csv_content = ''
         j = 1
         I = 0
         for i in range(1, len(parts), 2):
             parsed_data = parse_scan_output(parts[0] + parts[j + I] + parts[j + 1 + I])
-            csv_content += generate_csv(parsed_data, output)
+            csv_content = generate_csv(parsed_data, output)
             j += 1
             I += 1
 
-        with open(filename, 'w', encoding='utf-8', newline='') as f:
-            f.write(csv_content)
-        print(f"[+] CSV report saved to {filename}")
+            with open("./Saving/" + filename.replace(".csv","") + "-Target" + str(I) + ".csv", 'w', encoding='utf-8', newline='') as f:
+                f.write(csv_content)
+            print(f"[+] CSV report saved to {"./Saving/" + filename.replace(".csv","") + "-Target" + str(I) + ".csv"}")
 
     elif format.lower() == "json":
         print(f"\n[+] Generating JSON report...")
-        json_content = ''
         j = 1
         I = 0
         for i in range(1, len(parts), 2):
             parsed_data = parse_scan_output(parts[0] + parts[j + I] + parts[j + 1 + I])
-            json_content += generate_json(parsed_data, output)
+            json_content = generate_json(parsed_data, output)
             j += 1
             I += 1
 
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(json_content)
-        print(f"[+] JSON report saved to {filename}")
+            with open("./Saving/" + filename.replace(".json","") + "-Target" + str(I) + ".json", 'w', encoding='utf-8') as f:
+                f.write(json_content)
+            print(f"[+] JSON report saved to {"./Saving/" + filename.replace(".json","") + "-Target" + str(I) + ".json"}")
 
     elif format.lower() == "pdf":
         print(f"\n[+] Generating PDF report...")
-        pdf_content = ''
         j = 1
         I = 0
         for i in range(1, len(parts), 2):
-            parsed_data = parse_scan_output(parts[0] + parts[j + I] + parts[j + 1 + I])
-            pdf_content += generate_pdf(parsed_data, output)
+            parsed_data = parts[0] + parts[j + I] + parts[j + 1 + I]
             j += 1
             I += 1
 
-        with open(filename, 'wb') as f:
-            f.write(pdf_content)
-        print(f"[+] PDF report saved to {filename}")
+            pdf_content = generate_pdf(parse_scan_output(parsed_data), output)
+
+            with open("./Saving/" + filename.replace(".pdf","") + "-Target" + str(I) + ".pdf" , 'wb') as f:
+                f.write(pdf_content)
+
+            print(f"[+] PDF report saved to {"./Saving/" + filename.replace(".pdf","") + "-Target" + str(I) + ".pdf"}")
 
     elif format.lower() == "yaml":
         print(f"\n[+] Generating YAML report...")
-        yaml_content = ''
         j = 1
         I = 0
         for i in range(1, len(parts), 2):
             parsed_data = parse_scan_output(parts[0] + parts[j + I] + parts[j + 1 + I])
-            yaml_content += generate_yaml(parsed_data, output)
+            yaml_content = generate_yaml(parsed_data, output)
             j += 1
             I += 1
 
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(yaml_content)
-        print(f"[+] YAML report saved to {filename}")
+            with open("./Saving/" + filename.replace(".yaml","") + "-Target" + str(I) + ".yaml", 'w', encoding='utf-8') as f:
+                f.write(yaml_content)
+            print(f"[+] YAML report saved to {"./Saving/" + filename.replace(".yaml","") + "-Target" + str(I) + ".yaml"}")
 
     elif format.lower() == "toml":
         print(f"\n[+] Generating TOML report...")
-        toml_content = ''
         j = 1
         I = 0
         for i in range(1, len(parts), 2):
             parsed_data = parse_scan_output(parts[0] + parts[j + I] + parts[j + 1 + I])
-            toml_content += generate_toml(parsed_data, output)
+            toml_content = generate_toml(parsed_data, output)
             j += 1
             I += 1
 
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(toml_content)
-        print(f"[+] TOML report saved to {filename}")
+            with open("./Saving/" + filename.replace(".toml","") + "-Target" + str(I) + ".toml", 'w', encoding='utf-8') as f:
+                f.write(toml_content)
+            print(f"[+] TOML report saved to {"./Saving/" + filename.replace(".toml","") + "-Target" + str(I) + ".toml"}")
 
