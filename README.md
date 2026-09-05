@@ -180,7 +180,7 @@ sudo python Lightscan.py -T 192.168.1.1 -p 1-1000 --daemon
 | normal | 60 | 2.8s | Balanced default |
 | fast | 120 | 2.8s | Production scans |
 | insane | 240 | 1.5s | Aggressive scanning |
-| Light-mode | 400 | 1.5s | Maximum speed |
+| light-mode | 400 | 1.5s | Maximum speed |
 
 #### Ping Methods
 
