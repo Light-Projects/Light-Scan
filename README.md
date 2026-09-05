@@ -33,8 +33,8 @@ Light-Scan Framework is a comprehensive network security scanning suite develope
 |------|-------------|---------|
 | Lightscan | Advanced network port scanner with 15+ scan types | 1.1.9 |
 | LightSniff | Packet capture and analysis tool | 1.0.3 |
-| Mint | Network attack utility (SYN flood, MAC flood) | 1.0.0 |
-| LightPanel | Cross-platform GUI interface for Lightscan | 1.0.1 (Linux) / 1.0.3 (Windows) |
+| Mint | Network attack utility (SYN flood, MAC flood) | 1.0.1 |
+| LightPanel | Cross-platform GUI interface for Lightscan | 1.0.1 (Posix) / 1.0.3 (Windows) |
 
 ---
 
