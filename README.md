@@ -412,7 +412,7 @@ sudo python LightSniff.py -i eth0 --mac aa:bb:cc:dd:ee:ff -v
 
 ## 5. Mint - Attack Utility
 
-**Version: 1.0.0**
+**Version: 1.0.1**
 
 ### Overview
 
@@ -457,6 +457,7 @@ sudo python Mint.py -T 192.168.1.1 -c 100 -p 80,443,8080 -s --attack-mode syn-fl
 |------|-------------|----------|
 | syn-flood | SYN flood attack | Test firewall/IDS resilience |
 | mac-flood | MAC flood attack | Test switch MAC table security |
+| udp-flood | UDP flood attack | Test UDP services |
 
 ### Important Notes
 
@@ -470,7 +471,7 @@ sudo python Mint.py -T 192.168.1.1 -c 100 -p 80,443,8080 -s --attack-mode syn-fl
 
 ## 6. LightPanel - GUI Interface
 
-**Version: 1.0.1 (Linux) / 1.0.3 (Windows)**
+**Version: 1.0.1 (Posix) / 1.0.3 (Windows)**
 
 ### Overview
 
@@ -488,7 +489,7 @@ LightPanel provides a graphical user interface for the Light-Scan framework, mak
 
 ### Usage
 
-**Linux:**
+**Posix:**
 ```bash
 sudo python LightPanel.py
 ```
@@ -533,7 +534,7 @@ python LightPanel.py
 
 ### Platform-Specific Notes
 
-**Linux:**
+**Posix:**
 - Requires root privileges (sudo)
 - Uses venv environment
 - Version: 1.0.1
