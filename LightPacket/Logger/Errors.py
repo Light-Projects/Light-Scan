@@ -22,3 +22,12 @@ class InvalidDataTypeError(LightPacketError):
 
 class CannotCompileBPF(LightPacketError):
     pass
+
+class CannotParse(LightPacketError):
+    pass
+
+class TruncatedData(LightPacketError):
+    pass
+
+class InvalidVersion(LightPacketError):
+    pass

@@ -14,6 +14,9 @@ class ErrorCode:
     INVALID_IP = "E004"
     NOT_FOUND = "E005"
     CANNOT_COMPILE_BPF = "E006"
+    CANNOT_PARSE = "E007"
+    TRUNCATED_DATA = "E008"
+    INVALID_VESRION = "E009"
 
     ERROR_MAP = {
         'E001': InvalidMacAddressError,
@@ -22,17 +25,23 @@ class ErrorCode:
         'E004': InvalidIPAddressError,
         'E005': NotFoundError,
         'E006': CannotCompileBPF,
+        'E007': CannotParse,
+        'E008': TRUNCATED_DATA,
+        'E009': InvalidVersion,
     }
 
 class WarningCode:
     NONHEXVALUE = "W001"
+    UNKNOWN_FILE_FORMAT = "W002"
 
     WarningCodes = {
         NONHEXVALUE: "Invalid Hex-Decimal Value",
+        UNKNOWN_FILE_FORMAT: "Unknown File Format",
     }
 
     WARNING_MAP = {
         "W001": NONHEXVALUE,
+        "W002": UNKNOWN_FILE_FORMAT,
     }
 
 class Logger:
@@ -54,7 +63,7 @@ class Logger:
         if error_class:
             raise error_class(message)
         else:
-            raise ValueError(f"Unknown error code: {error_code}")
+            pass
 
     def warning(self, message,warning_code=None, **kwargs):
         if warning_code and warning_code in WarningCode.WarningCodes.keys():

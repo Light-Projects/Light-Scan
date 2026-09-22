@@ -3,8 +3,8 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 from typing import List, Dict, Optional, Tuple
-from ..Vlan import VLAN
-from ..BaseLayer import BaseLayer
+from LightPacket.Vlan import VLAN
+from LightPacket.BaseLayer import BaseLayer
 
 
 class VlanUtils:

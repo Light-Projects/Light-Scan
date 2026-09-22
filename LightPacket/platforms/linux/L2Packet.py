@@ -13,12 +13,11 @@ from LightPacket.bpf import get_bpf_bytes,free_filter
 from typing import List
 from LightPacket.Logger.LightLogger import Logger, ErrorCode
 from LightPacket.Interfaces.LibpcapInterfacesLin import get_default_interface_name_linux
-
-defaultiface = None
+from LightPacket.Config import config
 
 Logger = Logger()
-if defaultiface == None:
-    defaultiface = get_default_interface_name_linux()
+if config.network.INTERFACE == None:
+    config.network.INTERFACE = get_default_interface_name_linux()
 
 try:
     pcap_lib = ctypes.CDLL("libpcap.so.1")
@@ -29,11 +28,9 @@ except OSError:
         pass
 
 class L2Packet:
-    def __init__(self, iface=None, nonstop=True,snaplen=65535):
+    def __init__(self, iface=config.network.INTERFACE, nonstop=config.network.NON_STOP,snaplen=config.network.SNAPLEN):
         if iface is None:
-            iface = defaultiface
-            if iface is None:
-                raise RuntimeError("No network interface found")
+            raise RuntimeError("No network interface found")
 
         self.iface = iface
         self.sock = socket.socket(
@@ -120,6 +117,17 @@ class L2Packet:
         if self.sock:
             self.sock.close()
             self.closed = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            self.close()
+        except Exception:
+            if exc_type is None:
+                raise
+        return False
 
     def __del__(self):
         self.close()

@@ -1,8 +1,12 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 #include <stdio.h>
 #include <time.h>
 #include "pcap_writer.h"
 
-int create_pcap_file(const char *filename, const PcapPacketData *packetarr, int totalpackets) {
+int create_pcap_file(const char *filename, const PcapPacketData *packetarr, int totalpackets, int LINKTYPE) {
     if (filename == NULL || totalpackets < 0) return 1;
     if (totalpackets > 0 && packetarr == NULL) return 1;
 
@@ -16,7 +20,7 @@ int create_pcap_file(const char *filename, const PcapPacketData *packetarr, int 
     header.reserved1 = 0;
     header.reserved2 = 0;
     header.snaplen = PCAP_SNAPLEN;
-    header.linktype = PCAP_LINKTYPE_ETHERNET;
+    header.linktype = LINKTYPE;
 
     FILE *filePtr = fopen(filename, "wb");
     if (filePtr == NULL) return 1;

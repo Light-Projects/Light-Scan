@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 #ifndef PCAP_WRITER_H
 #define PCAP_WRITER_H
 
@@ -13,6 +17,9 @@
 
 #define PCAP_SNAPLEN 65535u
 #define PCAP_LINKTYPE_ETHERNET 1u
+#define PCAP_LINKTYPE_PPP 9u
+#define PCAP_LINKTYPE_IEEE802_11 105u
+#define PCAP_LINKTYPE_RAW 101u
 
 typedef struct {
     uint32_t magic;
@@ -42,6 +49,6 @@ _Static_assert(sizeof(PcapHeader) == 24, "PcapHeader must be exactly 24 bytes");
 _Static_assert(sizeof(PcapPacketHeader) == 16, "PcapPacketHeader must be exactly 16 bytes");
 #endif
 
-int create_pcap_file(const char *filename, const PcapPacketData *packetarr, int totalpackets);
+int create_pcap_file(const char *filename, const PcapPacketData *packetarr, int totalpackets, int LINKTYPE);
 
 #endif

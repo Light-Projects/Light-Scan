@@ -49,6 +49,7 @@ class FCS:
         if len(packet) < 4:
             return False
 
+
         data = packet[:-4]
         received_fcs = packet[-4:]
 

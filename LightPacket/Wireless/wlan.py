@@ -6,10 +6,11 @@
 """
 
 import struct
-from ..BaseLayer import BaseLayer
-from ..Logger.LightLogger import Logger, ErrorCode
-from ..Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
-from ..Consts import OUI_MAP,MC
+from LightPacket.BaseLayer import BaseLayer
+from LightPacket.Layers.register import registry
+from LightPacket.Logger.LightLogger import Logger, ErrorCode
+from LightPacket.Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
+from LightPacket.Consts import OUI_MAP,MC
 
 LLogger = Logger()
 
@@ -595,7 +596,7 @@ class WiFiParser:
 
         if verbose:
             print(f"\n{BOLD}802.11 WIFI LAYER : {RESET}Len({PURPLE}{len(data)}{RESET}) >")
-            print(f'   {BLUE}Frame Control:{CYAN} 0x{frame_control:04x}')
+            print(f'   {BLUE}Frame Control:{CYAN} 0x{data[:2].hex()}')
             print(f'   {BLUE}  Version:{CYAN} {version} ({FRAME_VERSION_NAMES.get(version, "Unknown")})')
             print(f'   {BLUE}  Type:{CYAN} {frame_type} ({FRAME_TYPE_NAMES.get(frame_type, "Unknown")})')
             print(f'   {BLUE}  Subtype:{CYAN} {subtype} ({wifi.get_subtype_name()})')
@@ -617,17 +618,38 @@ class WiFiParser:
         if len(data) > offset:
             extra = data[offset:]
             if extra:
-                if subtype == 8:
-                    raw_layer = BeaconParser.load_as_beacon_layer(extra, verbose=verbose)
+                custom = registry.get_parser('wifi_subtype', subtype)
+                if custom:
+                    raw_layer = custom['parser'](extra, verbose=verbose)
                     return wifi / raw_layer
-                elif subtype == 4:
-                    raw_layer = ProbeRequestParser.load_as_probe_request_layer(extra, verbose=verbose)
-                    return wifi / raw_layer
-                elif subtype == 5:
-                    raw_layer = ProbeResponseParser.load_as_probe_response_layer(extra, verbose=verbose)
-                    return wifi / raw_layer
+
+                if frame_type == FRAME_TYPE_MANAGEMENT:
+                    if subtype == 8:
+                        raw_layer = BeaconParser.load_as_beacon_layer(extra, verbose=verbose)
+                        return wifi / raw_layer
+                    elif subtype == 4:
+                        raw_layer = ProbeRequestParser.load_as_probe_request_layer(extra, verbose=verbose)
+                        return wifi / raw_layer
+                    elif subtype == 5:
+                        raw_layer = ProbeResponseParser.load_as_probe_response_layer(extra, verbose=verbose)
+                        return wifi / raw_layer
+
+                if frame_type == FRAME_TYPE_DATA:
+                    has_data = not (subtype & 0x04)
+                    is_protected = bool(flags & FC_FLAG_PROTECTED)
+
+                    if has_data and not is_protected and len(extra) >= 3:
+                        from LightPacket.LLC import LLCParser
+                        llc = LLCParser.load_as_llc_layer(extra, verbose=verbose)
+                        if llc is not None:
+                            return wifi / llc
+                        from LightPacket.Raw import RawParser
+                        return wifi / RawParser.load_as_Raw_layer(extra, verbose=verbose)
+
+                    from LightPacket.Raw import RawParser
+                    return wifi / RawParser.load_as_Raw_layer(extra, verbose=verbose)
                 else:
-                    from ..Raw import RawParser
+                    from LightPacket.Raw import RawParser
                     raw_layer = RawParser.load_as_Raw_layer(extra, verbose=verbose)
                     return wifi / raw_layer
 
@@ -1068,10 +1090,14 @@ class Element(BaseLayer):
     def __init__(self,
                  ie_id:int = 0,
                  lenght: int = 0,
+                 oui: bytes = b'\xff\xcc\xbb',
+                 ouitype: int = 0,
                  data:bytes = b'Light-AP'):
         super().__init__()
         self.ie_id = ie_id
         self.lenght = lenght
+        self.oui = oui
+        self.ouitype = ouitype
         self.data = data
 
     def build(self) -> bytes:
@@ -1079,8 +1105,13 @@ class Element(BaseLayer):
 
         if self.lenght == 0:
             self.lenght = len(self.data)
+            if self.ie_id == 221:
+                self.lenght += len(self.oui) + 1
 
         result = struct.pack('!BB', self.ie_id, self.lenght)
+        if self.ie_id == 221:
+            result += self.oui
+            result += struct.pack('!B', self.ouitype)
         result += self.data
 
         if payload_bytes:
@@ -1098,6 +1129,8 @@ class Element(BaseLayer):
         new_layer = Element(
             ie_id=self.ie_id,
             lenght=self.lenght,
+            oui=self.oui,
+            ouitype=self.ouitype,
             data=self.data
         )
         if self.payload:
@@ -1110,7 +1143,9 @@ class Element(BaseLayer):
         fields = [
             f"ie_id={self.ie_id}",
             f"lenght={self.lenght}ms",
-            f"data={self.data} ]",
+            f"data={self.data}",
+            f"oui={self.oui}",
+            f"ouitype={self.ouitype} ]",
         ]
         return fields
 
@@ -1127,157 +1162,255 @@ class ElementParser:
 
         data = raw_packet[0]
 
-        if len(data) < 3:
+        if len(data) < 2:
             LLogger.error(error_code=ErrorCode.INVALID_DATA_LENGTH,
-                          message="Element data requires at least 3 bytes")
+                          message="Element requires at least 2 bytes")
 
-        ie_id,lenght = struct.unpack('!BB', data[:2])
+        ie_id, length = struct.unpack('!BB', data[:2])
+
+        oui = b''
+        ouitype = b''
+        extra = 0
+        if ie_id == 221:
+            extra = 4
+            oui = data[2:5]
+            ouitype = data[5:6]
 
         element = Element(
             ie_id=ie_id,
-            lenght=lenght,
-            data=data[2:lenght + 2]
+            lenght=length,
+            oui=oui,
+            data=data[2 + extra:length + 2],
+            ouitype=ouitype
         )
+
         if verbose:
-            ssid = ""
-            if ie_id == IE_SSID:
-                if lenght >= 3 and ie_id == IE_SSID:
-                    try:
-                        ssid = data[2:lenght + 2].decode('utf-8', errors='ignore')
-                    except:
-                        ssid = str(data[2:lenght + 2])
-                    pass
+            ElementParser._print_element(data, ie_id, length, oui, ouitype, extra)
 
-            channel = 0
-            if ie_id == IE_DS_PARAMETER_SET:
-                if lenght >= 1 and ie_id == IE_DS_PARAMETER_SET:
-                    channel = data[2:lenght + 2]
-
-            rates = []
-            if ie_id == 1:
-                if lenght < 3:
-                    pass
-                if ie_id in (1, 50):
-                    for i in range(lenght):
-                        val = data[2 + i]
-                        rate = (val & 0x7f) / 2.0
-                        basic = bool(val & 0x80)
-                        rates.append((rate, basic))
-
-            rsn = None
-            if lenght >= 3 and ie_id == IE_RSN :
-                rsn = parse_rsn_ie(data[2:lenght + 2])
-
-            print(f"\n{BOLD}802.11 BEACON ELEMENT : {RESET}Len({PURPLE}{len(data)}{RESET}) >")
-            print(f"   {BLUE}ID:{CYAN} {ie_id}")
-            print(f"   {BLUE}LEN:{CYAN} {lenght} {RESET}")
-
-            if ssid:
-                print(f'   {BLUE}SSID:{CYAN} "{ssid}" {RESET}')
-            elif channel:
-                print(f'   {BLUE}Channel:{CYAN} {channel[0]} {RESET}')
-            elif rates:
-                print(f'   {BLUE}Rates:{CYAN} {rates} [Mbit/sec]{RESET}')
-            elif rsn:
-                print(f"   {BLUE}RSN Information:{CYAN} ")
-                print(f"     {BLUE}Version:{CYAN} {rsn['version']}")
-                print(f"     {BLUE}Group Cipher:{CYAN} {rsn['group_cipher_suite']}")
-                print(f"     {BLUE}Pairwise Ciphers:{CYAN} {', '.join(rsn['pairwise_cipher_suites'])}")
-                print(f"     {BLUE}AKM Suites:{CYAN}  {', '.join(rsn['akm_suites'])}")
-                print(f"     {BLUE}Capabilities:{CYAN}")
-                print(f"       {BLUE}PRE AUTH:{CYAN} {rsn['rsn_capabilities']['pre_auth']}")
-                print(f"       {BLUE}NO PAIRWISE:{CYAN} {rsn['rsn_capabilities']['no_pairwise']}")
-                print(f"       {BLUE}MFP Capable:{CYAN} {rsn['rsn_capabilities']['mfp_capable']}")
-                print(f"       {BLUE}MFP Required:{CYAN} {rsn['rsn_capabilities']['mfp_required']}")
-                print(f"       {BLUE}PTKSA COUNTER:{CYAN} {rsn['rsn_capabilities']['ptksa_replay_counter']}")
-                print(f"       {BLUE}GTKSA COUNTER:{CYAN} {rsn['rsn_capabilities']['gtksa_replay_counter']}")
-                print(f"       {BLUE}PEER KEY{CYAN} {rsn['rsn_capabilities']['peerkey_enabled']}")
-                print(f"       {BLUE}MULTIBAND RSNA:{CYAN} {rsn['rsn_capabilities']['joint_multi_band_rsna']}")
-                print(f"       {BLUE}EXT KEY ID:{CYAN} {rsn['rsn_capabilities']['extended_key_id']} {RESET}")
-            elif ie_id == IE_HT_CAPABILITIES:
-                if lenght >= 26:
-                    ht_cap = parse_ht_capabilities_ie(data[2:lenght + 2])
-                    print(f"   {BLUE}HT Capabilities (802.11n):{CYAN}")
-                    cap = ht_cap['capability_info']
-                    print(f"     {BLUE}Capability Info:{CYAN} 0x{cap['raw']:04x}")
-                    print(f"       {BLUE}LDPC Coding:{CYAN} {cap['ldpc']}")
-                    print(f"       {BLUE}40 MHz Support:{CYAN} {cap['forty_mhz']}")
-                    print(f"       {BLUE}SM Power Save:{CYAN} {cap['sm_power_save']}")
-                    print(f"       {BLUE}Green Field Preamble:{CYAN} {cap['green_field']}")
-                    print(f"       {BLUE}Short GI (20 MHz):{CYAN} {cap['short_gi_20']}")
-                    print(f"       {BLUE}Short GI (40 MHz):{CYAN} {cap['short_gi_40']}")
-                    print(f"       {BLUE}Tx STBC:{CYAN} {cap['tx_stbc']}")
-                    print(f"       {BLUE}Rx STBC:{CYAN} {cap['rx_stbc']} (0=No, 1=1stream, 2=2streams, 3=3streams)")
-                    print(f"       {BLUE}Delayed Block Ack:{CYAN} {cap['delayed_ba']}")
-                    print(f"       {BLUE}Max A-MSDU:{CYAN} {cap['max_amsdu']} (0=3839, 1=7935 bytes)")
-                    print(f"       {BLUE}DSSS/CCK in 40MHz:{CYAN} {cap['dsss_cck_40']}")
-                    print(f"       {BLUE}40MHz Intolerant:{CYAN} {cap['forty_mhz_intolerant']}")
-                    print(f"       {BLUE}L-SIG TXOP Protection:{CYAN} {cap['l_sig_txop']}")
-                    ampdu = ht_cap['ampdu_params']
-                    print(f"     {BLUE}AMPDU Parameters:{CYAN} 0x{ampdu['raw']:02x}")
-                    print(f"       {BLUE}Max AMPDU Length:{CYAN} {ampdu['max_ampdu_length']}")
-                    print(f"       {BLUE}Min MPDU Spacing:{CYAN} {ampdu['min_mpdu_spacing']}")
-                    mcs = ht_cap['mcs_set']
-                    print(f"     {BLUE}Supported MCS Set:{CYAN} (Raw: {mcs['raw']})")
-                    mcs_list = mcs['supported_mcs']
-                    if mcs_list:
-                        chunks = []
-                        for i in range(0, 77, 8):
-                            chunk = [str(x) for x in mcs_list if i <= x < i + 8]
-                            if chunk:
-                                chunks.append(f"MCS{i}-{i + 7}: " + ", ".join(chunk) if chunk else "None")
-                        print(f"       {BLUE}Supported:{CYAN} {mcs_list}")
-
-                        ranges = []
-                        if mcs_list:
-                            start = mcs_list[0]
-                            end = start
-                            for m in mcs_list[1:]:
-                                if m == end + 1:
-                                    end = m
-                                else:
-                                    ranges.append(f"{start}-{end}" if start != end else str(start))
-                                    start = m
-                                    end = m
-                            ranges.append(f"{start}-{end}" if start != end else str(start))
-                            print(f"       {BLUE}MCS Ranges:{CYAN} {', '.join(ranges)}")
-                    else:
-                        print(f"       {BLUE}Supported:{CYAN} None")
-
-                    ht_ext = ht_cap['ht_extended']
-                    print(f"     {BLUE}HT Extended Capabilities:{CYAN} 0x{ht_ext['raw']:04x}")
-                    tx_bf = ht_cap['tx_beamforming']
-                    print(f"     {BLUE}Transmit Beamforming:{CYAN} {tx_bf['raw']}")
-                    asel = ht_cap['asel']
-                    print(f"     {BLUE}Antenna Selection (ASEL):{CYAN} 0x{asel['raw']:02x}")
-                    print(RESET)
-            elif ie_id == IE_HT_OPERATION:
-                if lenght >= 22:
-                    ht_op = parse_ht_operation_ie(data[2:lenght + 2])
-                    print(f"   {BLUE}HT Operation (802.11n):{CYAN}")
-                    print(f"     {BLUE}Primary Channel:{CYAN} {ht_op['primary_channel']}")
-                    print(f"     {BLUE}Secondary Offset:{CYAN} {ht_op['secondary_channel_offset']['name']} ({ht_op['secondary_channel_offset']['raw']})")
-                    print(f"     {BLUE}Channel Width:{CYAN} {ht_op['sta_channel_width']['name']}")
-                    print(f"     {BLUE}RIFS Mode:{CYAN} {ht_op['rifs_mode']}")
-                    print(f"     {BLUE}HT Protection:{CYAN} {ht_op['ht_protection']['name']}")
-                    print(f"     {BLUE}Non-GF Present:{CYAN} {ht_op['non_gf_present']}")
-                    print(f"     {BLUE}OBSS Non-GF Present:{CYAN} {ht_op['obss_non_gf_present']}")
-                    print(f"     {BLUE}Dual Beacon:{CYAN} {ht_op['dual_beacon']}")
-                    print(f"     {BLUE}Dual CTS Protection:{CYAN} {ht_op['dual_cts_protection']}")
-                    print(f"     {BLUE}STBC Beacon:{CYAN} {ht_op['stbc_beacon']}")
-                    print(f"     {BLUE}L-SIG TXOP Protection:{CYAN} {ht_op['l_sig_txop_protection']}")
-                    print(f"     {BLUE}PCO Active:{CYAN} {ht_op['pco_active']}")
-                    print(f"     {BLUE}PCO Phase:{CYAN} {ht_op['pco_phase']}")
-                    print(f"     {BLUE}Basic MCS Set:{CYAN} {ht_op['basic_mcs_set']['mcs_list']} (raw: 0x{ht_op['basic_mcs_set']['raw']:04x})")
-                    print(RESET)
-            else:
-                print(f"     {BLUE}DATA:{CYAN} {data[2:lenght + 2]} {RESET}")
-
-        if len(data) > lenght and data[lenght+2:] != b'':
-            raw = ElementParser.load_as_element_layer(data[lenght+2:], verbose=verbose)
+        if len(data) > length and data[length + 2:] != b'':
+            raw = ElementParser.load_as_element_layer(data[length + 2:], verbose=verbose)
             return element / raw
 
         return element
+
+    @staticmethod
+    def _print_element(data, ie_id, length, oui, ouitype, extra):
+        print(f"\n{BOLD}802.11 BEACON ELEMENT : {RESET}Len({PURPLE}{len(data)}{RESET}) >")
+        print(f"   {BLUE}ID:{CYAN} {ie_id}")
+        print(f"   {BLUE}LEN:{CYAN} {length} {RESET}")
+
+        if ie_id == 0:
+            ElementParser._print_ssid(data, length)
+        elif ie_id == 1 or ie_id == 50:
+            ElementParser._print_rates(data, length)
+        elif ie_id == 3:
+            ElementParser._print_channel(data, length)
+        elif ie_id == 45:
+            ElementParser._print_ht_capabilities(data, length)
+        elif ie_id == 48:
+            ElementParser._print_rsn(data, length)
+        elif ie_id == 61:
+            ElementParser._print_ht_operation(data, length)
+        elif ie_id == 107:
+            ElementParser._print_interworking(data, length)
+        elif ie_id == 114:
+            ElementParser._print_mesh_id(data, length)
+        elif ie_id == 221:
+            ElementParser._print_vendor_specific(data, length, oui, ouitype)
+        else:
+            ElementParser._print_raw(data, length)
+
+    @staticmethod
+    def _print_ssid(data, length):
+        try:
+            ssid = data[2:length + 2].decode('utf-8', errors='ignore')
+            print(f'   {BLUE}SSID:{CYAN} "{ssid}" {RESET}')
+        except:
+            print(f'   {BLUE}SSID:{CYAN} {data[2:length + 2]} {RESET}')
+
+    @staticmethod
+    def _print_rates(data, length):
+        rates = []
+        for i in range(length):
+            val = data[2 + i]
+            rate = (val & 0x7f) / 2.0
+            basic = bool(val & 0x80)
+            rates.append((rate, basic))
+        print(f'   {BLUE}Rates:{CYAN} {rates} [Mbit/sec]{RESET}')
+
+    @staticmethod
+    def _print_channel(data, length):
+        if length >= 1:
+            print(f'   {BLUE}Channel:{CYAN} {data[2]} {RESET}')
+
+    @staticmethod
+    def _print_mesh_id(data, length):
+        mesh_id = data[2:length + 2]
+        try:
+            mesh_str = mesh_id.decode('utf-8', errors='ignore')
+            print(f'   {BLUE}MESH ID:{CYAN} "{mesh_str}" {RESET}')
+        except:
+            print(f'   {BLUE}MESH ID:{CYAN} {mesh_id} {RESET}')
+
+    @staticmethod
+    def _print_vendor_specific(data, length, oui, ouitype):
+        oui_str = oui.hex()
+        oui_name = OUI_MAP.get(oui_str, 'Unknown')
+        print(f"   {BLUE}OUI:{CYAN} {oui_str} ({oui_name})")
+        print(f"   {BLUE}TYPE:{CYAN} {ouitype.hex()}")
+        print(f"   {BLUE}DATA:{CYAN} {data[6:length + 2]} {RESET}")
+
+    @staticmethod
+    def _print_interworking(data, length):
+        payload = data[2:length + 2]
+        if len(payload) < 2:
+            print(f"   {PURPLE}(Interworking) — Invalid length: {len(payload)} bytes {RESET}")
+            return
+
+        access_type = payload[0] & 0x0F
+        internet = (payload[0] >> 4) & 0x01
+        asra = payload[1] & 0x01
+        esr = (payload[1] >> 1) & 0x01
+
+        venue_group = None
+        venue_type = None
+        hessid = None
+        hessid_str = None
+
+        if len(payload) >= 4:
+            venue_group = payload[2]
+            venue_type = payload[3]
+
+        if len(payload) >= 10:
+            hessid = payload[4:10]
+            hessid_str = ':'.join(f'{b:02x}' for b in hessid)
+
+        access_names = {
+            0: "Private network", 1: "Private with guest",
+            2: "Chargeable public", 3: "Free public",
+            4: "Personal device", 5: "Emergency services",
+            6: "Test/experimental", 7: "Wildcard"
+        }
+        venue_group_names = {
+            0: "Unspecified", 1: "Assembly", 2: "Business",
+            3: "Educational", 4: "Factory/Industrial",
+            5: "Institutional", 6: "Mercantile",
+            7: "Residential", 8: "Storage",
+            9: "Utility/Miscellaneous", 10: "Vehicular",
+            11: "Outdoor"
+        }
+
+        print(f"   {BLUE}Access Type:{CYAN} {access_type} ({access_names.get(access_type, 'Unknown')})")
+        print(f"   {BLUE}Internet Available:{CYAN} {internet}")
+        print(f"   {BLUE}Additional Step Required:{CYAN} {asra}")
+        print(f"   {BLUE}Emergency Services Reachable:{CYAN} {esr}")
+        if venue_group is not None:
+            print(f"   {BLUE}Venue Group:{CYAN} {venue_group} ({venue_group_names.get(venue_group, 'Unknown')})")
+            print(f"   {BLUE}Venue Type:{CYAN} {venue_type}")
+        else:
+            print(f"   {BLUE}Venue Info:{CYAN} Not present")
+        if hessid_str:
+            print(f"   {BLUE}HESSID:{CYAN} {hessid_str}")
+        else:
+            print(f"   {BLUE}HESSID:{CYAN} Not present")
+        print(RESET)
+
+    @staticmethod
+    def _print_rsn(data, length):
+        rsn = parse_rsn_ie(data[2:length + 2])
+        print(f"   {BLUE}RSN Information:{CYAN}")
+        print(f"     {BLUE}Version:{CYAN} {rsn['version']}")
+        print(f"     {BLUE}Group Cipher:{CYAN} {rsn['group_cipher_suite']}")
+        print(f"     {BLUE}Pairwise Ciphers:{CYAN} {', '.join(rsn['pairwise_cipher_suites'])}")
+        print(f"     {BLUE}AKM Suites:{CYAN}  {', '.join(rsn['akm_suites'])}")
+        print(f"     {BLUE}Capabilities:{CYAN}")
+        print(f"       {BLUE}PRE AUTH:{CYAN} {rsn['rsn_capabilities']['pre_auth']}")
+        print(f"       {BLUE}NO PAIRWISE:{CYAN} {rsn['rsn_capabilities']['no_pairwise']}")
+        print(f"       {BLUE}MFP Capable:{CYAN} {rsn['rsn_capabilities']['mfp_capable']}")
+        print(f"       {BLUE}MFP Required:{CYAN} {rsn['rsn_capabilities']['mfp_required']}")
+        print(f"       {BLUE}PTKSA COUNTER:{CYAN} {rsn['rsn_capabilities']['ptksa_replay_counter']}")
+        print(f"       {BLUE}GTKSA COUNTER:{CYAN} {rsn['rsn_capabilities']['gtksa_replay_counter']}")
+        print(f"       {BLUE}PEER KEY{CYAN} {rsn['rsn_capabilities']['peerkey_enabled']}")
+        print(f"       {BLUE}MULTIBAND RSNA:{CYAN} {rsn['rsn_capabilities']['joint_multi_band_rsna']}")
+        print(f"       {BLUE}EXT KEY ID:{CYAN} {rsn['rsn_capabilities']['extended_key_id']} {RESET}")
+
+    @staticmethod
+    def _print_ht_capabilities(data, length):
+        if length < 26:
+            return
+        ht_cap = parse_ht_capabilities_ie(data[2:length + 2])
+        cap = ht_cap['capability_info']
+        ampdu = ht_cap['ampdu_params']
+        mcs = ht_cap['mcs_set']
+        ht_ext = ht_cap['ht_extended']
+        tx_bf = ht_cap['tx_beamforming']
+        asel = ht_cap['asel']
+
+        print(f"   {BLUE}HT Capabilities (802.11n):{CYAN}")
+        print(f"     {BLUE}Capability Info:{CYAN} 0x{cap['raw']:04x}")
+        print(f"       {BLUE}LDPC Coding:{CYAN} {cap['ldpc']}")
+        print(f"       {BLUE}40 MHz Support:{CYAN} {cap['forty_mhz']}")
+        print(f"       {BLUE}SM Power Save:{CYAN} {cap['sm_power_save']}")
+        print(f"       {BLUE}Green Field Preamble:{CYAN} {cap['green_field']}")
+        print(f"       {BLUE}Short GI (20 MHz):{CYAN} {cap['short_gi_20']}")
+        print(f"       {BLUE}Short GI (40 MHz):{CYAN} {cap['short_gi_40']}")
+        print(f"       {BLUE}Tx STBC:{CYAN} {cap['tx_stbc']}")
+        print(f"       {BLUE}Rx STBC:{CYAN} {cap['rx_stbc']} (0=No, 1=1stream, 2=2streams, 3=3streams)")
+        print(f"       {BLUE}Delayed Block Ack:{CYAN} {cap['delayed_ba']}")
+        print(f"       {BLUE}Max A-MSDU:{CYAN} {cap['max_amsdu']} (0=3839, 1=7935 bytes)")
+        print(f"       {BLUE}DSSS/CCK in 40MHz:{CYAN} {cap['dsss_cck_40']}")
+        print(f"       {BLUE}40MHz Intolerant:{CYAN} {cap['forty_mhz_intolerant']}")
+        print(f"       {BLUE}L-SIG TXOP Protection:{CYAN} {cap['l_sig_txop']}")
+        print(f"     {BLUE}AMPDU Parameters:{CYAN} 0x{ampdu['raw']:02x}")
+        print(f"       {BLUE}Max AMPDU Length:{CYAN} {ampdu['max_ampdu_length']}")
+        print(f"       {BLUE}Min MPDU Spacing:{CYAN} {ampdu['min_mpdu_spacing']}")
+        print(f"     {BLUE}Supported MCS Set:{CYAN} (Raw: {mcs['raw']})")
+        mcs_list = mcs['supported_mcs']
+        if mcs_list:
+            ranges = []
+            start = mcs_list[0]
+            end = start
+            for m in mcs_list[1:]:
+                if m == end + 1:
+                    end = m
+                else:
+                    ranges.append(f"{start}-{end}" if start != end else str(start))
+                    start = m
+                    end = m
+            ranges.append(f"{start}-{end}" if start != end else str(start))
+            print(f"       {BLUE}MCS Ranges:{CYAN} {', '.join(ranges)}")
+        else:
+            print(f"       {BLUE}Supported:{CYAN} None")
+        print(f"     {BLUE}HT Extended Capabilities:{CYAN} 0x{ht_ext['raw']:04x}")
+        print(f"     {BLUE}Transmit Beamforming:{CYAN} {tx_bf['raw']}")
+        print(f"     {BLUE}Antenna Selection (ASEL):{CYAN} 0x{asel['raw']:02x}")
+        print(RESET)
+
+    @staticmethod
+    def _print_ht_operation(data, length):
+        if length < 22:
+            return
+        ht_op = parse_ht_operation_ie(data[2:length + 2])
+        print(f"   {BLUE}HT Operation (802.11n):{CYAN}")
+        print(f"     {BLUE}Primary Channel:{CYAN} {ht_op['primary_channel']}")
+        print(f"     {BLUE}Secondary Offset:{CYAN} {ht_op['secondary_channel_offset']['name']} ({ht_op['secondary_channel_offset']['raw']})")
+        print(f"     {BLUE}Channel Width:{CYAN} {ht_op['sta_channel_width']['name']}")
+        print(f"     {BLUE}RIFS Mode:{CYAN} {ht_op['rifs_mode']}")
+        print(f"     {BLUE}HT Protection:{CYAN} {ht_op['ht_protection']['name']}")
+        print(f"     {BLUE}Non-GF Present:{CYAN} {ht_op['non_gf_present']}")
+        print(f"     {BLUE}OBSS Non-GF Present:{CYAN} {ht_op['obss_non_gf_present']}")
+        print(f"     {BLUE}Dual Beacon:{CYAN} {ht_op['dual_beacon']}")
+        print(f"     {BLUE}Dual CTS Protection:{CYAN} {ht_op['dual_cts_protection']}")
+        print(f"     {BLUE}STBC Beacon:{CYAN} {ht_op['stbc_beacon']}")
+        print(f"     {BLUE}L-SIG TXOP Protection:{CYAN} {ht_op['l_sig_txop_protection']}")
+        print(f"     {BLUE}PCO Active:{CYAN} {ht_op['pco_active']}")
+        print(f"     {BLUE}PCO Phase:{CYAN} {ht_op['pco_phase']}")
+        print(f"     {BLUE}Basic MCS Set:{CYAN} {ht_op['basic_mcs_set']['mcs_list']} (raw: 0x{ht_op['basic_mcs_set']['raw']:04x})")
+        print(RESET)
+
+    @staticmethod
+    def _print_raw(data, length):
+        print(f"   {BLUE}DATA:{CYAN} {data[2:length + 2]} {RESET}")
 
 """
 Probe Request Frame (Subtype 4)

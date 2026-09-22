@@ -7,7 +7,7 @@ import socket
 import re
 from typing import List, Optional, Union
 from itertools import product
-from ..helper.network import is_in_same_network
+from LightPacket.helper.network import is_in_same_network
 
 
 class TargetParser:
