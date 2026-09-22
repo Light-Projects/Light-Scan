@@ -19,13 +19,11 @@ import struct
 import zlib
 import time
 from datetime import datetime
-import pickle
 
 LIGHTBIN_MAGIC = b'LBN\x00'
 LIGHTBIN_VERSION = 1
-FLAG_NULL = 0x00
 FLAG_COMPRESSED = 0x01
-FLAG_METADATA_ONLY = 0x02
+FLAG_NULL = 0x00
 
 GREEN = '\033[92m'
 RED = '\033[91m'
@@ -59,13 +57,10 @@ def save_binary(filename, packets, null=False, compress=False, scapy_compatible=
 
         creation_time = int(time.time())
         packet_count = 0
-        packet_types = []
         if compress:
             FLAG = FLAG_COMPRESSED
-        elif null:
-            FLAG = FLAG_NULL
         else:
-            FLAG = FLAG_METADATA_ONLY
+            FLAG = FLAG_NULL
 
         with open(filename, 'wb') as f:
             header = struct.pack(
@@ -87,30 +82,10 @@ def save_binary(filename, packets, null=False, compress=False, scapy_compatible=
                 else:
                     raw_bytes = bytes(pkt)
 
-                if scapy_compatible:
-                    from HexSave.ScapyLoader.ScapyPacketsLoader import DetectScapyLayer
-                    typeofpacket = DetectScapyLayer(raw_bytes)
-                    packet_types.append(typeofpacket)
-
                 f.write(struct.pack('<dI', timestamp, len(raw_bytes)))
                 f.write(raw_bytes)
 
                 packet_count += 1
-            if not null:
-                metadata = {
-                    'version': LIGHTBIN_VERSION,
-                    'created': creation_time,
-                    'packet_count': packet_count,
-                    'stats': stats,
-                    'tool': 'LightBin',
-                    'packet_types': packet_types
-                }
-
-                metadata_bytes = pickle.dumps(metadata)
-                if compress:
-                    metadata_bytes = zlib.compress(metadata_bytes, 6)
-                f.write(struct.pack('<I', len(metadata_bytes)))
-                f.write(metadata_bytes)
 
             f.seek(header_pos + 12)
             f.write(struct.pack('<I', packet_count))
@@ -139,7 +114,6 @@ def load_binary(filename,scapy_compatible=False,checksum_bypass=False):
                 raise ValueError(f"Invalid LightBin file (magic: {magic})")
 
             is_compressed = bool(flags & FLAG_COMPRESSED)
-            is_only_met = bool(flags & FLAG_METADATA_ONLY)
             CHKSUM = lbn_chksum(version, created, count, flags)
 
             print(f"{GREEN}[+] Loading LightBin file...{RESET}")
@@ -148,8 +122,8 @@ def load_binary(filename,scapy_compatible=False,checksum_bypass=False):
             print(f"{CYAN}    Packets: {count}{RESET}")
             if is_compressed:
                 print(f"{CYAN}    Compression: Enabled{RESET}")
-            elif is_only_met:
-                print(f"{CYAN}    Metadata-Only: Enabled{RESET}")
+            else:
+                pass
 
             if CHKSUM != ck:
                 print(f"{RED}    Chksum: Invalid{RESET}")
@@ -176,26 +150,9 @@ def load_binary(filename,scapy_compatible=False,checksum_bypass=False):
 
                 packets.append(pkt_data)
                 packet_timestamps.append(timestamp)
-            if flags != FLAG_NULL:
-                metadata_size_bytes = f.read(4)
-                if metadata_size_bytes:
-                    metadata_size = struct.unpack('<I', metadata_size_bytes)[0]
-                    metadata_bytes = f.read(metadata_size)
-                    if is_compressed:
-                        try:
-                            metadata_bytes = zlib.decompress(metadata_bytes)
-                        except zlib.error as e:
-                            print(f"{YELLOW}[!] Warning: Could not decompress metadata: {e}{RESET}")
-                    metadata = pickle.loads(metadata_bytes)
-                else:
-                    metadata = {}
 
             print(f"{GREEN}[+] Loaded {len(packets)} packets from {filename}{RESET}")
 
-            if flags != FLAG_NULL:
-                metadata['packet_timestamps'] = packet_timestamps
-
-                return packets, metadata
             return packets,None
 
     except FileNotFoundError:

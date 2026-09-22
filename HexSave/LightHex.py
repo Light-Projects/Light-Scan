@@ -72,6 +72,7 @@ def load_hexdump(filename):
                     line.startswith("Hexdump of") or
                     line.startswith("End of hexdump") or
                     not line.strip()):
+
                 continue
 
             match = re.match(r'^\s+[0-9a-fA-F]+:\s+((?:[0-9a-fA-F]{2}\s*)+)', line)
