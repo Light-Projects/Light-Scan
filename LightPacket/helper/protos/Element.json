@@ -5,6 +5,8 @@
     "Fields": [
       "ie_id          {8 bits}   = 0",
       "lenght         {8 bits}   = 100",
+      "oui            {24 bits}  = b'\\xff\\xcc\\xbb' ",
+      "ouitype        {8 bits}   = 0",
       "data           {variable} = b''"
     ]
   }

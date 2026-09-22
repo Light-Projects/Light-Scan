@@ -1,0 +1,12 @@
+{
+  "Proto": {
+    "Name": "Loopback",
+    "Description": "Test local communication paths without needing network layer (IP) configurations",
+    "Fields": [
+      "skipcount       {16 bits}   = 1",
+      "func            {16 bits}   = 1",
+      "fmac            {48 bits}   = b'\\xff\\xff\\xff\\xff\\xff\\xff'",
+      "data            {variable}  = b'\\x00\\x00Ping'"
+    ]
+  }
+}

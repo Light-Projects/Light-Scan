@@ -13,9 +13,9 @@ from ctypes import (
 import os
 import sys
 import time
-import select
 from typing import Optional
 from LightPacket.Interfaces.WinInterfaces import get_default_interface_npcap_name_windows
+from LightPacket.Config import config
 
 
 if sys.platform != "win32":
@@ -27,6 +27,30 @@ if not os.path.isfile(_npcap_path):
     _npcap_path = "wpcap.dll"
 
 pcap_lib = ctypes.windll.LoadLibrary(_npcap_path)
+
+_kernel32 = ctypes.windll.kernel32
+_kernel32.WaitForSingleObject.restype = ctypes.c_uint32
+_kernel32.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+
+WAIT_OBJECT_0 = 0x00000000
+WAIT_TIMEOUT = 0x00000102
+WAIT_FAILED = 0xFFFFFFFF
+INFINITE = 0xFFFFFFFF
+
+
+def _wait_for_handle(handle, timeout: Optional[float]) -> bool:
+
+    if not handle:
+        time.sleep(min(timeout, 0.01) if timeout and timeout > 0 else 0.01)
+        return True
+
+    if timeout is None or timeout < 0:
+        ms = INFINITE
+    else:
+        ms = max(0, int(timeout * 1000))
+
+    result = _kernel32.WaitForSingleObject(handle, ms)
+    return result == WAIT_OBJECT_0
 
 class pcap_pkthdr(ctypes.Structure):
     _fields_ = [
@@ -69,8 +93,8 @@ pcap_set_timeout.argtypes = [c_void_p, c_int]
 pcap_lib.pcap_set_immediate_mode.argtypes = [c_void_p, c_int]
 pcap_lib.pcap_set_immediate_mode.restype = c_int
 
-pcap_lib.pcap_get_selectable_fd.argtypes = [c_void_p]
-pcap_lib.pcap_get_selectable_fd.restype = c_int
+pcap_lib.pcap_getevent.argtypes = [c_void_p]
+pcap_lib.pcap_getevent.restype = c_void_p
 
 pcap_set_rfmon = pcap_lib.pcap_set_rfmon
 pcap_set_rfmon.restype = c_int
@@ -114,11 +138,19 @@ pcap_geterr = pcap_lib.pcap_geterr
 pcap_geterr.restype = c_char_p
 pcap_geterr.argtypes = [c_void_p]
 
+pcap_datalink = pcap_lib.pcap_datalink
+pcap_datalink.restype = c_int
+pcap_datalink.argtypes = [c_void_p]
+
+if config.network.INTERFACE == None:
+    config.network.INTERFACE = get_default_interface_npcap_name_windows()
 
 class L2Socket:
     """Raw layer-2 socket for Windows (Npcap)."""
 
-    def __init__(self, iface=get_default_interface_npcap_name_windows(), snaplen=65535, promisc=True, to_ms=100, monitor=False):
+    def __init__(self, iface=config.network.INTERFACE,
+                 snaplen=config.network.SNAPLEN, promisc=config.network.PROMISC,
+                 to_ms=config.network.TIMEOUT_MS, monitor=config.network.MONITOR_MODE):
         self.iface = iface
         self.pcap = None
         self._filter = None
@@ -148,6 +180,37 @@ class L2Socket:
 
         self._errbuf = errbuf
         self.closed = False
+
+    def recv_one(self, timeout=None):
+        if self.closed:
+            raise RuntimeError("recv_one on closed L2Socket")
+        rc, data = self._read_one(timeout=timeout)
+        if rc == 0:
+            return None
+        if rc < 0:
+            raise RuntimeError(f"L2Socket recv error (rc={rc})")
+        return data
+
+    def _read_one(self, timeout=None):
+        header_ptr = POINTER(pcap_pkthdr)()
+        data_ptr = POINTER(c_ubyte)()
+
+        if timeout is not None and timeout > 0:
+            fd = pcap_lib.pcap_getevent(self.pcap)
+            if fd:
+                if not _wait_for_handle(fd, timeout):
+                    return 0, None
+            else:
+                time.sleep(min(timeout, 0.01))
+
+        rc = pcap_lib.pcap_next_ex(self.pcap, byref(header_ptr), byref(data_ptr))
+
+        if rc == 1:
+            raw = ctypes.string_at(data_ptr, header_ptr.contents.len)
+            return 1, raw
+        if rc == 0:
+            return 0, None
+        return rc, None
 
     def _err(self, errbuf):
         """Extract error message from errbuf."""
@@ -189,7 +252,7 @@ class L2Socket:
         if self.closed or not self.pcap:
             raise RuntimeError("Socket closed")
 
-        fd = pcap_lib.pcap_get_selectable_fd(self.pcap)
+        fd = pcap_lib.pcap_getevent(self.pcap)
 
         packets = []
         deadline = time.time() + timeout
@@ -200,9 +263,8 @@ class L2Socket:
             if timeout > 0 and remaining <= 0:
                 break
 
-            if fd >= 0 and timeout > 0:
-                ready, _, _ = select.select([fd], [], [], remaining)
-                if not ready:
+            if fd and timeout > 0:
+                if not _wait_for_handle(fd, remaining):
                     break
 
             header_ptr = POINTER(pcap_pkthdr)()
@@ -244,7 +306,7 @@ class L2Socket:
         if filter_str:
             self.set_filter(filter_str)
 
-        fd = pcap_lib.pcap_get_selectable_fd(self.pcap)
+        fd = pcap_lib.pcap_getevent(self.pcap)
 
         response = None
         deadline = time.time() + timeout
@@ -254,9 +316,8 @@ class L2Socket:
             if remaining <= 0:
                 break
 
-            if fd >= 0:
-                ready, _, _ = select.select([fd], [], [], remaining)
-                if not ready:
+            if fd:
+                if not _wait_for_handle(fd, remaining):
                     break
 
             header_ptr = POINTER(pcap_pkthdr)()
@@ -299,7 +360,7 @@ class L2Socket:
         if filter_str:
             self.set_filter(filter_str)
 
-        fd = pcap_lib.pcap_get_selectable_fd(self.pcap)
+        fd = pcap_lib.pcap_getevent(self.pcap)
 
         deadline = time.time() + timeout
         received = 0
@@ -308,9 +369,8 @@ class L2Socket:
             remaining = deadline - time.time()
             if remaining <= 0:
                 break
-            if fd >= 0:
-                ready, _, _ = select.select([fd], [], [], remaining)
-                if not ready:
+            if fd:
+                if not _wait_for_handle(fd, remaining):
                     break
 
             header_ptr = POINTER(pcap_pkthdr)()
@@ -349,6 +409,19 @@ class L2Socket:
             self.pcap = None
             self.closed = True
 
+    def datalink(self):
+        return pcap_datalink(self.pcap)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            self.close()
+        except Exception:
+            if exc_type is None:
+                raise
+        return False
+
     def __del__(self):
         self.close()
-

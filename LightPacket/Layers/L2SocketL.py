@@ -19,8 +19,7 @@ import subprocess
 from typing import Optional
 from LightPacket.Interfaces.LibpcapInterfacesLin import get_default_interface_name_linux
 from LightPacket.Interfaces.UnixInterfaces import get_default_interface_bsd
-
-defaultiface = None
+from LightPacket.Config import config
 
 if sys.platform == "darwin":
     pcap_path = find_library("pcap")
@@ -155,11 +154,15 @@ pcap_lib.pcap_freealldevs.restype = None
 pcap_lib.pcap_lookupdev.argtypes = [c_char_p]
 pcap_lib.pcap_lookupdev.restype = c_char_p
 
-if defaultiface == None:
+pcap_datalink = pcap_lib.pcap_datalink
+pcap_datalink.restype = c_int
+pcap_datalink.argtypes = [c_void_p]
+
+if config.network.INTERFACE == None:
     if sys.platform == "linux":
-        defaultiface = get_default_interface_name_linux()
+        config.network.INTERFACE = get_default_interface_name_linux()
     else:
-        defaultiface = get_default_interface_bsd()['name']
+        config.network.INTERFACE = get_default_interface_bsd()['name']
 
 def compile_filter_tcpdump(filter_string, iface):
     """Compiles a BPF filter using tcpdump."""
@@ -202,48 +205,14 @@ class sock_fprog(ctypes.Structure):
         ("filter", POINTER(bpf_insn)),
     ]
 
-def compile_filter_pcap(filter_str: str, iface: str):
-    """Compiles a BPF filter using libpcap."""
-    errbuf = create_string_buffer(256)
-    pcap = pcap_lib.pcap_create(iface.encode('utf-8'), errbuf)
-    if not pcap:
-        return None
-    if pcap_lib.pcap_activate(pcap) != 0:
-        pcap_lib.pcap_close(pcap)
-        return None
-
-    fp = bpf_program()
-    filter_bytes = filter_str.encode('utf-8')
-
-    result = pcap_lib.pcap_compile(pcap, byref(fp), filter_bytes, 1, 0)
-    if result != 0:
-        pcap_lib.pcap_close(pcap)
-        return None
-
-    insns_count = fp.bf_len
-    insns_size = insns_count * ctypes.sizeof(bpf_insn)
-
-    insn_buffer = (bpf_insn * insns_count)()
-    ctypes.memmove(insn_buffer, fp.bf_insns, insns_size)
-
-    pcap_lib.pcap_freecode(byref(fp))
-    pcap_lib.pcap_close(pcap)
-
-    fprog = sock_fprog()
-    fprog.len = insns_count
-    fprog.filter = cast(insn_buffer, POINTER(bpf_insn))
-    packed = struct.pack("H6xQ" if sys.maxsize > 2 ** 32 else "HL",
-                         fprog.len, addressof(insn_buffer))
-    return packed
-
 
 class L2Socket:
 
-    def __init__(self, iface=None, snaplen=65535, promisc=True, to_ms=100, monitor=False):
+    def __init__(self, iface=config.network.INTERFACE, snaplen=config.network.SNAPLEN,
+                 promisc=config.network.PROMISC, to_ms=config.network.TIMEOUT_MS,
+                 monitor=config.network.MONITOR_MODE):
         if iface is None:
-            iface = defaultiface
-            if iface is None:
-                raise RuntimeError("No network interface found")
+            raise RuntimeError("No network interface found")
         
         self.iface = iface
         self.pcap = None
@@ -272,6 +241,41 @@ class L2Socket:
 
         self._errbuf = errbuf
         self.closed = False
+
+    def recv_one(self, timeout=None):
+        if self.closed:
+            raise RuntimeError("recv_one on closed L2Socket")
+        rc, data = self._read_one(timeout=timeout)
+        if rc == 0:
+            return None
+        if rc < 0:
+            raise RuntimeError(f"L2Socket recv error (rc={rc})")
+        return data
+
+    def _read_one(self, timeout=None):
+        header_ptr = POINTER(pcap_pkthdr)()
+        data_ptr = POINTER(c_ubyte)()
+
+        if timeout is not None and timeout > 0:
+            fd = pcap_lib.pcap_get_selectable_fd(self.pcap)
+            if fd >= 0:
+                try:
+                    ready, _, _ = select.select([fd], [], [], timeout)
+                except InterruptedError:
+                    return 0, None
+                if not ready:
+                    return 0, None
+            else:
+                time.sleep(min(timeout, 0.01))
+
+        rc = pcap_lib.pcap_next_ex(self.pcap, byref(header_ptr), byref(data_ptr))
+
+        if rc == 1:
+            raw = ctypes.string_at(data_ptr, header_ptr.contents.len)
+            return 1, raw
+        if rc == 0:
+            return 0, None
+        return rc, None
 
     def _err(self, errbuf):
         """Extract error message from errbuf."""
@@ -475,6 +479,20 @@ class L2Socket:
             pcap_lib.pcap_close(self.pcap)
             self.pcap = None
             self.closed = True
+
+    def datalink(self):
+        return pcap_datalink(self.pcap)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            self.close()
+        except Exception:
+            if exc_type is None:
+                raise
+        return False
 
     def __del__(self):
         self.close()

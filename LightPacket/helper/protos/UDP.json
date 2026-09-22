@@ -1,0 +1,12 @@
+{
+  "Proto": {
+    "Name": "UDP",
+    "Description": "Layer 4 User Datagram Protocol. Connectionless, unreliable transport with minimal overhead \u2014 no handshake, ordering, or retransmission.",
+    "Fields": [
+      "sport         {16 bits}  = 10000 ",
+      "dport         {16 bits}  = 443 ",
+      "length        {16 bits}  = auto ",
+      "checksum      {16 bits}  = auto "
+    ]
+  }
+}

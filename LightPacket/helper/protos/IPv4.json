@@ -1,0 +1,21 @@
+{
+  "Proto": {
+    "Name": "IPv4",
+    "Description": "Layer 3 Internet Protocol version 4 header, providing addressing, fragmentation and routing information for upper-layer protocols (TCP, UDP, ICMP, etc.).",
+    "Fields": [
+      "version       {4 bits}   = 4 ",
+      "ihl           {4 bits}   = 5 (computed, 5 + options/4) ",
+      "tos           {8 bits}   = 0 ",
+      "total_len     {16 bits}  = auto (header + payload length) ",
+      "id            {16 bits}  = 0 ",
+      "flags         {3 bits}   = 0 ",
+      "frag_offset   {13 bits}  = 0 ",
+      "ttl           {8 bits}   = 64 ",
+      "proto         {8 bits}   = auto (inferred from payload layer, default TCP=6) ",
+      "checksum      {16 bits}  = auto (computed one's complement) ",
+      "src           {32 bits}  = default-gateway ",
+      "dst           {32 bits}  = 0.0.0.0 ",
+      "options       {variable} = none (IPOptions, TLV-encoded "
+    ]
+  }
+}

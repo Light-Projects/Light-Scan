@@ -1,0 +1,20 @@
+{
+  "Proto": {
+    "Name": "ISL",
+    "Description": "Cisco Inter-Switch Link (VLAN encapsulation)",
+    "Fields": [
+      "dst           {40 bits}  = 01:00:0c:00:00:00",
+      "type_code     {16 bits}  = 0x0000",
+      "user_priority {4 bits}   = 0",
+      "vlan_id       {15 bits}  = 100",
+      "bpdu          {1 bit}    = 1",
+      "src           {48 bits}  = auto-detected",
+      "length        {16 bits}  = auto-calculated",
+      "snap_lsap     {24 bits}  = 0xAAAA03",
+      "snap_oui      {24 bits}  = 0x000000",
+      "snap_type     {16 bits}  = 0x0000",
+      "index         {16 bits}  = 0",
+      "reserved      {16 bits}  = 0"
+    ]
+  }
+}
