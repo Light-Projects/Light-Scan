@@ -1,0 +1,18 @@
+@ Light-Scan 1.2.0
+
+## rewrite LightPanel fully with PySide6 100%
+## new windows in LightPanel 100%
+## Scan Status in LightPanel 100%
+## Stop Scan in LightPanel 100%
+## Targets and Command Logs in LightPanel 100%
+## LightPanel GUI for LightSniff 100%
+## CLI Options for Multi GUIs in LightPanel (--gui lightsniff) 100%
+## Dashboard for Lightscan Panel6 100%
+## full rewrite for Lightscan.py 100%
+## full rewrite for LightSave.py 100%
+## full rewrite for LightEngine.py 100%
+## LightDiff comparison utility 100%
+## I/O with LightPacket in LightSniff 100%
+## Sniffer class for LightSniff (LightPacket) 100%
+## Custom Flag Scaning in Lightscan 100%
+## Interfaces List in Lightscan 100%
