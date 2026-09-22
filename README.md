@@ -29,13 +29,13 @@ Light-Scan Framework is a comprehensive network security scanning suite develope
 
 ### Framework Components
 
-| Tool | Description | Version |
-|------|-------------|---------|
-| Lightscan | Advanced network port scanner with 15+ scan types | 1.1.9 |
-| LightSniff | Packet capture and analysis tool | 1.0.3 |
-| Mint | Network attack utility (SYN flood, MAC flood) | 1.0.1 |
-| LightPanel | Cross-platform GUI interface for Lightscan | 1.0.1 (Posix) / 1.0.3 (Windows) |
-
+| Tool        | Description                                          | Version                         |
+|-------------|------------------------------------------------------|---------------------------------|
+| Lightscan   | Advanced network port scanner with 15+ scan types    | 1.2.0                           |
+| LightSniff  | Packet capture and analysis tool                     | 1.0.3                           |
+| Mint        | Network attack utility (SYN flood, MAC flood)        | 1.0.0                           |
+| LightPanel  | Cross-platform GUI interface for Lightscan (CTK)     | 1.0.1 (Linux) / 1.0.3 (Windows) |
+| LightPanel6 | Cross-platform GUI interface for Lightscan (PySide6) | 1.0.0                           |
 ---
 
 ## 2. Installation
@@ -66,7 +66,8 @@ Light-Scan/
 ├── Lightscan.py          # Main scanner (v1.1.9)
 ├── LightSniff.py         # Packet capture (v1.0.3)
 ├── Mint.py               # Attack utility (v1.0.0)
-├── LightPanel.py         # GUI launcher
+├── LightPanel.py         # GUI launcher (CTK)
+├── LightPanel6.py         # GUI launcher (PySide6)
 ├── LightPanelLin.py      # Linux GUI (v1.0.1)
 ├── LightPanelWin.py      # Windows GUI (v1.0.3)
 └── ....
@@ -76,7 +77,7 @@ Light-Scan/
 
 ## 3. Lightscan - Network Port Scanner
 
-**Version: 1.1.9**
+**Version: 1.2.0**
 
 ### Overview
 
@@ -84,12 +85,12 @@ Lightscan is a comprehensive network scanner supporting multiple scan types, OS 
 
 ### Key Features
 
-- 15+ Scan Types (TCP, SYN, UDP, NULL, FIN, ACK, XMAS, WINDOW, MAIMON, FDD, FTP-BOUNCE, IPPROTO, IDLE, SCTP-INIT, PING)
+- 15+ Scan Types (TCP, SYN, UDP, NULL, FIN, ACK, XMAS, WINDOW, MAIMON, FDD, FTP-BOUNCE, IPPROTO, IDLE, SCTP-INIT, PING, CUSTOM)
 - 10+ Ping Methods (ARP, TCP, SYN, ACK, UDP, ICMP variants, IGMP)
 - OS Fingerprinting with configurable confidence scores
 - Banner Grabbing for service detection
 - Scripting Engine (LSSE) for extensible functionality
-- 10 Output Formats (txt, light, html, xml, csv, json, pdf, yaml, toml, hex-str)
+- 9 Output Formats (txt, light, html, xml, csv, json, yaml, toml, hex-str)
 - Profile System for saving/loading scan configurations
 - IPv6 Support with full feature parity
 - Stealth Options (fragmentation, TTL manipulation, source port spoofing)
@@ -148,7 +149,7 @@ sudo python Lightscan.py -T 192.168.1.1 -p 1-1000 --daemon
 |--------|-------------|---------|
 | -p PORT | Ports to scan | -p 80,443 or -p 1-1000 |
 | -F | Scan top 100 ports | -F |
-| --shuffle | Randomize port order | --shuffle |
+| --shufle | Randomize port order | --shufle |
 | -pp PING_PORT | Ports for ping | -pp 80,443 |
 
 #### Scan Types
@@ -170,6 +171,7 @@ sudo python Lightscan.py -T 192.168.1.1 -p 1-1000 --daemon
 | IDLE | Idle/zombie scan | Advanced stealth |
 | PING | Ping sweep | Host discovery |
 | SCTP-INIT | SCTP scan | SCTP services |
+| CUSTOM | Custom flag scanning | Advanced custom scans |
 
 #### Speed Presets
 
@@ -180,7 +182,7 @@ sudo python Lightscan.py -T 192.168.1.1 -p 1-1000 --daemon
 | normal | 60 | 2.8s | Balanced default |
 | fast | 120 | 2.8s | Production scans |
 | insane | 240 | 1.5s | Aggressive scanning |
-| light-mode | 400 | 1.5s | Maximum speed |
+| Light-mode | 400 | 1.5s | Maximum speed |
 
 #### Ping Methods
 
@@ -188,7 +190,7 @@ sudo python Lightscan.py -T 192.168.1.1 -p 1-1000 --daemon
 |--------|-------------|
 | -sn | Host discovery only (no port scan) |
 | -Pn | Disable ping |
-| -Pan | ARP/NDP ping (local networks) |
+| -Pan | ARP ping (local networks) |
 | -Pt | TCP ping |
 | -Ps | SYN ping |
 | -Pk | ACK ping |
@@ -252,7 +254,6 @@ sudo python Lightscan.py -T 192.168.1.1 -p 1-1000 --daemon
 - xml - XML data
 - csv - Comma-separated values
 - json - JSON data
-- pdf - PDF report
 - yaml - YAML data
 - toml - TOML data
 - hex-str - Hex string format
@@ -265,7 +266,6 @@ The LightScan Scripting Engine (LSSE) allows extensible scanning functionality.
 |--------|-------------|---------|
 | --lsse | Run only scripts (no scan) | --lsse |
 | --script SCRIPT | Run specific script | --script http-cert |
-| --script-help SCRIPT | List script infos | --script-help eternalblue |
 | --lsse-lst | List available scripts | --lsse-lst |
 | --url URL | Target URL | --url https://example.com |
 | --domain DOMAIN | Domain for HTTP/DNS scripts | --domain example.com |
@@ -457,7 +457,6 @@ sudo python Mint.py -T 192.168.1.1 -c 100 -p 80,443,8080 -s --attack-mode syn-fl
 |------|-------------|----------|
 | syn-flood | SYN flood attack | Test firewall/IDS resilience |
 | mac-flood | MAC flood attack | Test switch MAC table security |
-| udp-flood | UDP flood attack | Test UDP services |
 
 ### Important Notes
 
@@ -471,7 +470,7 @@ sudo python Mint.py -T 192.168.1.1 -c 100 -p 80,443,8080 -s --attack-mode syn-fl
 
 ## 6. LightPanel - GUI Interface
 
-**Version: 1.0.1 (Posix) / 1.0.3 (Windows)**
+**Version: 1.0.1 (Linux) / 1.0.3 (Windows)**
 
 ### Overview
 
@@ -489,7 +488,7 @@ LightPanel provides a graphical user interface for the Light-Scan framework, mak
 
 ### Usage
 
-**Posix:**
+**Linux:**
 ```bash
 sudo python LightPanel.py
 ```
@@ -534,7 +533,7 @@ python LightPanel.py
 
 ### Platform-Specific Notes
 
-**Posix:**
+**Linux:**
 - Requires root privileges (sudo)
 - Uses venv environment
 - Version: 1.0.1
@@ -543,6 +542,48 @@ python LightPanel.py
 - No sudo required (administrator may be needed)
 - Uses default Python environment
 - Version: 1.0.3
+
+---
+
+## 6.1 LightPanel6 - GUI Interface (PySide6)
+
+**Version:** 1.0.0 (Linux / MacOS / BSD / Windows) – rebuilt using **PySide6** for a modern, responsive UI.
+
+### Overview
+
+LightPanel6 supersedes the original LightPanel, offering new windows, scan status display, stop‑scan capability, target/command logs, and a dedicated dashboard for Lightscan. The legacy **LightPanel** binary remains for compatibility but is **unmaintained** and may become unstable in future releases.
+
+### Features
+
+- Full PySide6 implementation with native dark/light themes
+- Real‑time scan status and command logs
+- Stop‑scan button
+- Integrated dashboard for Lightscan Panel6
+- Multi‑GUI support via `--gui lightsniff` option
+- Backwards‑compatible launch of legacy LightPanel (not recommended)
+
+### Usage
+
+**Linux:**
+```bash
+sudo python LightPanel6.py
+```
+**Windows:**
+```bash
+python LightPanel6.py
+```
+
+#### Interface Components (LightPanel6)
+
+- **Command Bar**: entry, start, copy, clear
+- **Configuration Options**: target, ports, scan type, speed, profile, saving format
+- **Toggle Options**: top 100 ports, OS detect, banner grab, no ping, IPv6, fragmentation, recursively, no rDNS, help
+- **Output Display**: real‑time scan results, logs, copy to clipboard
+
+### Platform‑Specific Notes
+
+- **Linux:** requires root privileges (sudo), uses venv, version 1.0.0
+- **Windows:** may require administrator, version 1.0.0
 
 ### Security Features
 
@@ -573,4 +614,4 @@ You should have received a copy of the GNU General Public License along with thi
 
 ---
 
-*Light-Scan Framework v1.1.9*
+*Light-Scan Framework v1.2.0*

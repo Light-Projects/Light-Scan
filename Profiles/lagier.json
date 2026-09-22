@@ -1,0 +1,14 @@
+{
+  "name": "lagier",
+  "description": "Light-Scan profile: lagier",
+  "settings": {
+    "target": "scanme.nmap.org",
+    "scan_type": "SYN",
+    "speed": "normal",
+    "max_retries": 1,
+    "interval": 0.02,
+    "banner": true,
+    "os": true,
+    "F": true
+  }
+}

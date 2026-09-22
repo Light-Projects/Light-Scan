@@ -17,21 +17,39 @@
 
 import argparse
 import time
-from HexSave.LightBin import load_binary
+import signal
+
+from HexSave.LightHex import load_hexdump, save_hexdump
+from HexSave.ScapyLoader.ScapyPacketsLoader import LoadFromLightHexToScapyPackets
+
+
+# hex_save
 from ch_admin import check_admin
-from Sfaces import get_interfaces, get_eth_type_name, detect_file_type
-from scapy.all import sniff, wrpcap, rdpcap, Ether, Raw, IP, TCP, UDP, ICMP, ARP, DNS, conf
-from scapy.layers.sctp import SCTP, SCTPChunkInit, SCTPChunkInitAck, SCTPChunkCookieEcho, SCTPChunkCookieAck, \
-    SCTPChunkAbort, SCTPChunkData, SCTPChunkShutdown, SCTPChunkShutdownAck, SCTPChunkShutdownComplete, SCTPChunkSACK, \
+from Sfaces import get_eth_type_name, detect_file_type
+from Interfaces import interfaces
+
+from packet_process import print_table_header, apply_filter, export_stats_to_file
+from Decoration.Colors import *
+
+from LightPacket import (
+    Sniffer,PcapWrite,PcapRead,LbnWrite,LbnRead,PcapngWriter,PcapngReader
+)
+
+from scapy.all import Ether, Raw, IP, TCP, UDP, ICMP, ARP, DNS, conf
+from scapy.layers.sctp import (
+    SCTP, SCTPChunkInit, SCTPChunkInitAck, SCTPChunkCookieEcho, SCTPChunkCookieAck,
+    SCTPChunkAbort, SCTPChunkData, SCTPChunkShutdown, SCTPChunkShutdownAck, SCTPChunkShutdownComplete, SCTPChunkSACK,
     SCTPChunkHeartbeatReq, SCTPChunkHeartbeatAck, SCTPChunkError
+)
 from scapy.contrib.igmp import IGMP
 from scapy.contrib.igmpv3 import IGMPv3, IGMPv3mq, IGMPv3mr, IGMPv3gr
 from scapy.layers.inet6 import IPv6, ICMPv6EchoRequest, ICMPv6EchoReply
-from scapy.layers.l2 import Dot1Q
-from HexSave.LightHex import load_hexdump
-from packet_process import print_table_header, export_hex_and_bin, apply_filter, export_stats_to_file
-from HexSave.ScapyLoader.ScapyPacketsLoader import LoadFromLightHexToScapyPackets
-from Decoration.Colors import *
+from scapy.layers.l2 import Dot1Q, CookedLinux
+
+def signal_handler(sig,frame):
+    raise SystemExit()
+
+signal.signal(signal.SIGTERM,signal_handler)
 
 conf.use_pcap = True
 conf.use_npcap = True
@@ -185,14 +203,10 @@ Examples:
     basic.add_argument("-c", "--count", type=int, default=0,
                         help="Number of packets to capture/process (0 = infinite/all). "
                              "Was previously defaulted to 100, which silently truncated "
-                             "--read/--bin-load/--hex-load files to their first 100 packets.")
-    saving.add_argument("-w", "--write", help="Save to PCAP/PCAPNG file")
-    saving.add_argument("-r", "--read", help="Read packets from PCAP/PCAPNG file (offline mode)")
-    saving.add_argument("--bin-save", help="Save to LightBin binary format (.lbn)")
-    saving.add_argument("--bin-load", help="Load from LightBin binary format (.lbn)")
-    saving.add_argument("--hex-save", help="Save to hexadecimal format (.lhex)")
-    saving.add_argument("--hex-load", help="Load from hexadecimal format (.lhex)")
-    saving.add_argument("-C", "--compress", action="store_true", help="To compress saved output (only for .lbn)")
+                             "--read/-r files to their first 100 packets.")
+    saving.add_argument("-w", "--write", help="Save to PCAP/PCAPNG/LBN/LHEX file")
+    saving.add_argument("-r", "--read", help="Read packets from PCAP/PCAPNG/LBN/LHEX file (offline mode)")
+    saving.add_argument("-C", "--compress", action="store_true", help="To compress saved output (only for LBN)")
     basic.add_argument("-v", "--verbose", action="store_true", help="Show detailed packet info")
     adv.add_argument("--no-promisc", action="store_true", help="Disable promiscuous mode")
     basic.add_argument("-q", "--quiet", action="store_true", help="Quiet mode (no banner)")
@@ -404,8 +418,9 @@ def detect_quicc(payload, dport, sport):
     return True, "Short", details
 
 
-def packet_callback(packet, verbose, packet_count, args):
+def packet_callback(packet, verbose, packet_count, args,linktype):
     timestamp = time.strftime('%H:%M:%S')
+    packet = LoadFromLightHexToScapyPackets([packet])[0]
 
     eth = packet[Ether] if Ether in packet else None
     src_mac = eth.src if eth else "N/A"
@@ -428,6 +443,28 @@ def packet_callback(packet, verbose, packet_count, args):
     if Ether in packet:
         proto = "Ether"
         proto_color = GREY
+
+    if CookedLinux in packet:
+        sll = packet[CookedLinux]
+        proto = "SLL"
+        proto_color = CYAN
+        src_mac = sll.src if hasattr(sll, 'src') else "N/A"
+        dst_mac = "N/A"
+        eth_type = sll.proto
+        eth_type_name = get_eth_type_name(eth_type)
+
+        pkttype = sll.pkttype
+        pkttype_names = {
+            0: "unicast-to-us",
+            1: "broadcast",
+            2: "multicast",
+            3: "unicast-to-another",
+            4: "sent-by-us"
+        }
+        details = f"SLL pkttype:{pkttype_names.get(pkttype, pkttype)}"
+
+        if eth_type == 0x0800:
+            pass
 
     if IP in packet:
         ip = packet[IP]
@@ -947,7 +984,7 @@ def packet_callback(packet, verbose, packet_count, args):
                   f"{DIM}{details}{RESET}")
 
 
-def process_packets(packets, args, lightpcap=False):
+def process_packets(packets, args, lightpcap=False,link=1):
     if not packets:
         print(f"{YELLOW}[!] No packets to process{RESET}")
         return
@@ -969,7 +1006,7 @@ def process_packets(packets, args, lightpcap=False):
                     continue
 
         packet_count += 1
-        packet_callback(packet, args.verbose, packet_count, args)
+        packet_callback(packet, args.verbose, packet_count, args,link)
 
     print(f"\n{GREEN}[+] Processed {packet_count} packets{RESET}")
 
@@ -977,46 +1014,28 @@ def process_packets(packets, args, lightpcap=False):
 def main():
     args = parse_args()
 
-    if args.bin_load:
-        packets, metadata = load_binary(args.bin_load,scapy_compatible=True)
-        if packets is None:
-            return
-        process_packets(packets, args)
-
-        if args.write and packets:
-            wrpcap(args.write, packets)
-            print(f"{GREEN}[+] Saved {len(packets)} packets to {args.write}{RESET}")
-
-        export_hex_and_bin(packets, args)
-        return
-
-    if args.hex_load:
-        packets = load_hexdump(args.hex_load)
-        if packets is None:
-            return
-        scapy_packets = LoadFromLightHexToScapyPackets(packets)
-        process_packets(scapy_packets, args)
-
-        if args.write and packets:
-            wrpcap(args.write, packets)
-            print(f"{GREEN}[+] Saved {len(packets)} packets to {args.write}{RESET}")
-
-        export_hex_and_bin(scapy_packets, args)
-        return
-
     if args.read:
         try:
             file_type = detect_file_type(args.read)
 
             if file_type == 'lightbin':
-                packets, metadata = load_binary(args.read,scapy_compatible=True)
+                packets = LbnRead(args.read)
                 if packets is None:
                     return
+            elif file_type == 'pcap':
+                packets = [i['data'] for i in PcapRead(args.read)[1]]
+            elif file_type == 'pcapng':
+                packets = []
+                with PcapngReader(args.read) as pcap:
+                    p = list(pcap)
+                    packets.extend([i.data for i in p])
+            elif args.read.endswith('.lhex') or args.read.endswith('.hex'):
+                packets = load_hexdump(args.read)
             else:
                 if file_type == 'unknown':
                     print(f"{YELLOW}[!] Unknown file format: {args.read}{RESET}")
                     print(f"{YELLOW}[!] Trying as PCAP...{RESET}")
-                packets = rdpcap(args.read)
+                packets = [i['data'] for i in PcapRead(args.read)[1]]
                 print(f"{GREEN}[+] Loaded {len(packets)} packets from {args.read}{RESET}")
 
             if not packets:
@@ -1033,10 +1052,20 @@ def main():
             process_packets(packets, args)
 
             if args.write and packets:
-                wrpcap(args.write, packets)
+                if args.write.endswith('.pcap'):
+                    PcapWrite(packets, args.write, linktype=1)
+                elif args.write.endswith('.pcapng'):
+                    with PcapngWriter(args.write) as pcap:
+                        ifa = pcap.add_interface(1, 65535, args.interface)
+                        for i in packets:
+                            pcap.write_packet(ifa, int(time.time()) * 1_000_000, i)
+                        pcap.close()
+                elif args.write.endswith('.lhex') or args.write.endswith('.hex'):
+                    save_hexdump(packets, args.write)
+                else:
+                    LbnWrite(args.write, packets)
                 print(f"{GREEN}[+] Saved {len(packets)} packets to {args.write}{RESET}")
 
-            export_hex_and_bin(packets, args)
             return
 
         except FileNotFoundError:
@@ -1092,7 +1121,7 @@ def main():
 
     if args.interfaces:
         print(f"{GREEN}[+] Available interfaces:{RESET}")
-        for iface in get_interfaces():
+        for iface in interfaces:
             print(f"    - {iface}")
         print(f"\n{GREEN}[+] Usage: LightSniff -i eth0 -f 'tcp port 80' -w capture.pcap{RESET}")
         return
@@ -1100,7 +1129,7 @@ def main():
     if not args.interface:
         print(f"{YELLOW}[!] No interface specified{RESET}")
         print(f"{GREEN}[+] Available interfaces:{RESET}")
-        for iface in get_interfaces():
+        for iface in interfaces:
             print(f"    - {iface}")
         print(f"\n{GREEN}[+] Usage: LightSniff -i eth0 -f 'tcp port 80' -w capture.pcap{RESET}")
         return
@@ -1120,12 +1149,18 @@ def main():
         print(f"{YELLOW}[+] Capturing {args.count} packets...{RESET}")
     else:
         print(f"{YELLOW}[+] Press Ctrl+C to stop{RESET}")
+
+    if args.count > 0:
+        print(f"{YELLOW}[+] Sniffing indefinitely. Press Ctrl+C to stop...{RESET}\n")
+
     print()
 
     print_table_header(args)
 
     packets = []
     packet_count = 0
+    _linktype = 1
+    snaplen = 65535
 
     def callback(packet):
         nonlocal packet_count
@@ -1141,34 +1176,35 @@ def main():
             stats.update(packet)
 
         packets.append(packet)
-        packet_callback(packet, args.verbose, len(packets), args)
+        packet_callback(packet, args.verbose, len(packets), args, _linktype)
+
 
     try:
-        if args.count > 0:
-            sniff(
-                iface=args.interface,
-                filter=args.filter,
-                count=args.count,
-                prn=callback,
-                store=True,
-                promisc=not args.no_promisc
-            )
-        else:
-            print(f"{YELLOW}[+] Sniffing indefinitely. Press Ctrl+C to stop...{RESET}\n")
-            sniff(
-                iface=args.interface,
-                filter=args.filter,
-                prn=callback,
-                store=True,
-                promisc=not args.no_promisc,
-                timeout=None
-            )
+        _sniffer = Sniffer(
+            iface=args.interface,
+            filter=args.filter,
+            count=args.count,
+            promisc=not args.no_promisc,
+        )
+        _linktype = _sniffer.__link__()
+        snaplen = _sniffer.snaplen
+        _sniffer.start(callback=callback)
 
         if args.write and packets:
-            wrpcap(args.write, packets)
+            if args.write.endswith('.pcap'):
+                PcapWrite(packets,args.write,linktype=_linktype)
+            elif args.write.endswith('.pcapng'):
+                with PcapngWriter(args.write) as pcap:
+                    ifa = pcap.add_interface(_linktype,snaplen,args.interface)
+                    for i in packets:
+                        pcap.write_packet(ifa,int(time.time()) * 1_000_000,i)
+                    pcap.close()
+            elif args.write.endswith('.lhex') or args.write.endswith('.hex'):
+                save_hexdump(packets,args.write)
+            else:
+                LbnWrite(args.write,packets)
             print(f"\n{GREEN}[+] Saved {len(packets)} packets to {args.write}{RESET}")
 
-        export_hex_and_bin(packets, args)
 
         if stats and args.stats:
             stats.display_summary()
@@ -1179,7 +1215,18 @@ def main():
     except KeyboardInterrupt:
         print(f"\n{YELLOW}[!] Stopped by user{RESET}")
         if args.write and packets:
-            wrpcap(args.write, packets)
+            if args.write.endswith('.pcap'):
+                PcapWrite(packets, args.write, linktype=_linktype)
+            elif args.write.endswith('.pcapng'):
+                with PcapngWriter(args.write) as pcap:
+                    ifa = pcap.add_interface(_linktype, snaplen, args.interface)
+                    for i in packets:
+                        pcap.write_packet(ifa, int(time.time()) * 1_000_000, i)
+                    pcap.close()
+            elif args.write.endswith('.lhex') or args.write.endswith('.hex'):
+                save_hexdump(packets,args.write)
+            else:
+                LbnWrite(args.write, packets)
             print(f"{GREEN}[+] Saved {len(packets)} packets to {args.write}{RESET}")
 
         if stats and args.stats:
@@ -1190,8 +1237,31 @@ def main():
             export_stats_to_file(stats, args.export_stats)
     except PermissionError:
         print(f"{RED}[-] Permission denied! Run as administrator/root.{RESET}")
+    except SystemExit:
+        if args.write and packets:
+            if args.write.endswith('.pcap'):
+                PcapWrite(packets, args.write, linktype=_linktype)
+            elif args.write.endswith('.pcapng'):
+                with PcapngWriter(args.write) as pcap:
+                    ifa = pcap.add_interface(_linktype, snaplen, args.interface)
+                    for i in packets:
+                        pcap.write_packet(ifa, int(time.time()) * 1_000_000, i)
+                    pcap.close()
+            elif args.write.endswith('.lhex') or args.write.endswith('.hex'):
+                save_hexdump(packets,args.write)
+            else:
+                LbnWrite(args.write, packets)
+            print(f"{GREEN}[+] Saved {len(packets)} packets to {args.write}{RESET}")
+
+        if stats and args.stats:
+            print("\n")
+            stats.display_summary()
+
+        if stats and args.export_stats:
+            export_stats_to_file(stats, args.export_stats)
     except Exception as e:
         print(f"{RED}[-] Error: {e}{RESET}")
+
 
     if packets and args.verbose:
         print(f"\n{GREEN}[+] Captured {len(packets)} packets{RESET}")

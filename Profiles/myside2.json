@@ -1,0 +1,15 @@
+{
+  "name": "myside2",
+  "description": "Light-Scan profile: myside2",
+  "settings": {
+    "target": "nmap.org",
+    "scan_type": "SYN",
+    "speed": "fast",
+    "max_retries": 1,
+    "save": "JSON",
+    "interval": 0.02,
+    "banner": true,
+    "os": true,
+    "F": true
+  }
+}

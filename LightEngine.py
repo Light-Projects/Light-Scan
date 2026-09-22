@@ -16,8 +16,10 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import scapy.all as scapy
-from scapy.layers.inet6 import IPv6, ICMPv6DestUnreach, ICMPv6EchoReply, ICMPv6ParamProblem, ICMPv6TimeExceeded, \
-    ICMPv6ND_NS, ICMPv6ND_NA, ICMPv6EchoRequest
+from scapy.layers.inet6 import (
+    IPv6, ICMPv6DestUnreach, ICMPv6EchoReply, ICMPv6ParamProblem,
+    ICMPv6TimeExceeded, ICMPv6ND_NS, ICMPv6ND_NA, ICMPv6EchoRequest,
+)
 from decoy import decoy, decoy_order
 from LightPacket.utils.Nsec.arp_resolution import arp_scan
 from LightPacket.Arp import ARP
@@ -37,10 +39,103 @@ yellow = "\033[33m"
 green = "\033[32m"
 cyan = "\033[36m"
 
+
 def is_loopback(target):
     return (target == '127.0.0.1' or target == '::1' or
             target.startswith('127.') or target == 'localhost' or
             target == GetIPv4())
+
+PORT_TO_SERVICES = {
+    "open_ports":               "opened_ports_services",
+    "closed_ports":             "closed_ports_services",
+    "filtered_ports":           "filtered_ports_services",
+    "open_filtered_ports":      "open_filtered_ports_services",
+    "null_ports":               "null_ports_services",
+    "fin_ports":                "fin_ports_services",
+    "defended_ports":           "defended_ports_services",
+    "undefended_ports":         "undefended_ports_services",
+    "unfiltered_ports":         "unfiltered_ports_services",
+    "closed_filtered_ports":    "closed_filtered_ports_services",
+    "open_protocols":           "open_protocols_names",
+    "closed_protocols":         "closed_protocols_names",
+    "filtered_protocols":       "filtered_protocols_names",
+    "open_filtered_protocols":  "open_filtered_protocols_names",
+}
+
+TCP_FLAG_SCANS = {
+    "null": {
+        "flags": "",
+        "on_no_response":   "null_ports",
+        "on_rst":           "closed_ports",
+        "on_other_tcp":     "null_ports",
+        "on_icmp":          "filtered_ports",
+        "on_icmpv6_closed": "closed_ports",
+        "on_icmpv6_other":  "filtered_ports",
+    },
+    "fin": {
+        "flags": "F",
+        "on_no_response":   "fin_ports",
+        "on_rst":           "closed_ports",
+        "on_other_tcp":     "filtered_ports",
+        "on_icmp":          "filtered_ports",
+        "on_icmpv6_closed": "closed_ports",
+        "on_icmpv6_other":  "filtered_ports",
+    },
+    "custom": {
+        "on_no_response":   "filtered_ports",
+        "on_rst":           "closed_ports",
+        "on_other_tcp":     "filtered_ports",
+        "on_icmp":          "filtered_ports",
+        "on_icmpv6_closed": "closed_ports",
+        "on_icmpv6_other":  "filtered_ports",
+    },
+    "ack": {
+        "flags": "A",
+        "on_no_response":   "filtered_ports",
+        "on_rst":           "unfiltered_ports",
+        "on_other_tcp":     "filtered_ports",
+        "on_icmp":          "filtered_ports",
+        "on_icmpv6_closed": "closed_ports",
+        "on_icmpv6_other":  "filtered_ports",
+    },
+    "xmas": {
+        "flags": "FPU",
+        "on_no_response":   "open_filtered_ports",
+        "on_rst":           "closed_ports",
+        "on_other_tcp":     "filtered_ports",
+        "on_icmp":          "filtered_ports",
+        "on_icmpv6_closed": "closed_ports",
+        "on_icmpv6_other":  "filtered_ports",
+    },
+    "maimon": {
+        "flags": "FA",
+        "on_no_response":   "open_filtered_ports",
+        "on_rst":           "closed_ports",
+        "on_other_tcp":     "filtered_ports",
+        "on_icmp":          "filtered_ports",
+        "on_icmpv6_closed": "closed_ports",
+        "on_icmpv6_other":  "filtered_ports",
+    },
+    "window": {
+        "flags": "A",
+        "on_no_response":   "filtered_ports",
+        "on_rst":           "closed_ports",
+        "on_other_tcp":     "filtered_ports",
+        "on_icmp":          "filtered_ports",
+        "on_icmpv6_closed": "closed_ports",
+        "on_icmpv6_other":  "filtered_ports",
+        "window_check": True,
+    },
+    "fdd": {
+        "flags": "U",
+        "on_no_response":   "defended_ports",
+        "on_rst":           "undefended_ports",
+        "on_other_tcp":     "undefended_ports",
+        "on_icmp":          "defended_ports",
+        "on_icmpv6_closed": "defended_ports",
+        "on_icmpv6_other":  "defended_ports",
+    },
+}
 
 
 class Payloads:
@@ -66,14 +161,14 @@ class Payloads:
         return options
 
     @staticmethod
-    def fragementation(packet, Proto, scan_type, verbose,fragsize=None, v6=False):
+    def fragementation(packet, Proto, scan_type, verbose, fragsize=None, v6=False):
         from IPfrag import fragementation
-        fragementation(packet, Proto, scan_type, verbose,fragsize=fragsize, v6=v6)
+        fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize, v6=v6)
 
     @staticmethod
     def is_private_ip(target):
         try:
-            if target.lower() in ["localhost", "127.0.0.1","::1"]:
+            if target.lower() in ["localhost", "127.0.0.1", "::1"]:
                 return "Local"
 
             ip = ipaddress.ip_address(target)
@@ -217,7 +312,7 @@ class Payloads:
 
     @staticmethod
     def arp_Scan(target, targets, targets_num):
-        result = arp_scan(target_input=target,verbose=True)
+        result = arp_scan(target_input=target, verbose=True)
         for res in result:
             if targets_num == 1:
                 if res:
@@ -257,1158 +352,523 @@ class Payloads:
                             print(f"{red}[!] ARP Ping error: {e}{reset}")
 
     @staticmethod
-    def Null_Scan(target, port, max_retries, fragmente, recursively, verbose, socket_timeout, lock, target_results,
-                  banner_option, initialize_target_results, service_detection, version, ttl, hlim, sport, payload, id,
-                  flags, fragsize, D):
+    def _record(target, port, bucket, service, banner_option, verbose, version,
+                lock, target_results, initialize_target_results):
+        services_key = PORT_TO_SERVICES.get(bucket, bucket + "_services")
+
+        with lock:
+            if target not in target_results:
+                initialize_target_results(target)
+            target_results[target][bucket].append(port)
+
+        banner_text, banner_service = None, service
+        if banner_option:
+            try:
+                b = Banner.grab(target, port, protocol="tcp", timeout=3,
+                                verbose=verbose, version=version)
+                if b and b.get('banner') and b.get('service'):
+                    banner_text = b['banner']
+                    banner_service = b['service']
+            except Exception:
+                pass
+
+        with lock:
+            if banner_text:
+                target_results[target]['banners'].append(banner_text)
+                target_results[target]['banners_ports'].append(port)
+            target_results[target][services_key].append(banner_service)
+
+    @staticmethod
+    def _record_protocol(target, protocol, proto_name, bucket,
+                         lock, target_results, initialize_target_results):
+        services_key = PORT_TO_SERVICES.get(bucket, bucket + "_names")
+        with lock:
+            if target not in target_results:
+                initialize_target_results(target)
+            target_results[target][bucket].append(protocol)
+            target_results[target][services_key].append(proto_name)
+
+    @staticmethod
+    def _decoy_meta(D, version):
+        if not D:
+            return None, None, None, None
+        mach = decoy(D, version)
+        first, last, index = decoy_order(mach)
+        return mach, first, last, index
+
+    @staticmethod
+    def _send_decoys(packet, mach, start, end, version):
+        if not mach:
+            return
+        for ma in mach[start:end]:
+            if version == 6:
+                packet[IPv6].src = ma
+            else:
+                packet[scapy.IP].src = ma
+            scapy.send(packet, verbose=0)
+
+    @staticmethod
+    def _build_flag_packet(target, port, version, flags_str, payload,
+                           ttl, hlim, sport, ip_id, ip_flags):
+        if payload is None:
+            payloads = mirage.random_payload()
+        else:
+            payloads = payload
+
+        if version == 6:
+            return IPv6(dst=target, nh=6, hlim=hlim) / scapy.TCP(
+                dport=port, sport=sport,
+                seq=mirage.tcp_seq(), window=mirage.tcp_window(),
+                options=mirage.Stealth_tcp_options(),
+                flags=flags_str) / scapy.Raw(load=payloads)
+
+        return scapy.IP(dst=target, id=ip_id, ttl=ttl, flags=ip_flags) / scapy.TCP(
+            dport=port, sport=sport,
+            seq=mirage.tcp_seq(), window=mirage.tcp_window(),
+            options=mirage.Stealth_tcp_options(),
+            flags=flags_str) / scapy.Raw(load=payloads)
+
+    @staticmethod
+    def Flag_Scan(target, port, scan_name, max_retries, fragmente, recursively,
+                  verbose, socket_timeout, lock, target_results, banner_option,
+                  initialize_target_results, service_detection, version,
+                  ttl, hlim, sport, payload, ip_id, ip_flags, fragsize, D,
+                  immediate=False,custom=False,flag_str__=""):
+
+        if custom:
+            cfg = TCP_FLAG_SCANS["custom"]
+
+            raw = (flag_str__ or "").upper()
+            valid = set("FSRPAUECNGH")
+            flags_str = "".join(ch for ch in raw if ch in valid)
+
+            if not flags_str:
+                if verbose:
+                    print(f"{yellow}[!] Invalid or empty custom TCP flags "
+                          f"({flag_str__!r}); defaulting to 'S'.{reset}")
+                flags_str = "S"
+        else:
+            cfg = TCP_FLAG_SCANS[scan_name]
+            flags_str = cfg["flags"]
+
         for attempt in range(max_retries):
             try:
-                if D:
-                    mach = decoy(D, version)
-                    first, last, index = decoy_order(mach)
-                else:
-                    first, last = None, None
-                Proto = "tcp"
-                scan_type = "null"
-                if payload == None:
-                    payloads = mirage.random_payload()
-                else:
-                    payloads = payload
-                if ttl:
-                    TTL = ttl
-                else:
-                    TTL = mirage.ipv4_ttl()
+                mach, first, last, index = Payloads._decoy_meta(D, version)
 
-                if hlim:
-                    HLIM = hlim
-                else:
-                    HLIM = mirage.ipv6_hlim()
+                TTL = ttl if ttl else mirage.ipv4_ttl()
+                HLIM = hlim if hlim else mirage.ipv6_hlim()
+                SPORT = sport if sport else mirage.tcp_sport()
+                ID = ip_id if ip_id else mirage.ipv4_id()
+                FLAGS = ip_flags if ip_flags is not None else mirage.ipv4_flags()
 
-                if sport:
-                    SPORT = sport
-                else:
-                    SPORT = mirage.tcp_sport()
-                if version == 6:
-                    packet = IPv6(dst=target, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="") / scapy.Raw(
-                        load=payloads)
-                else:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    packet = scapy.IP(dst=target, id=ID, ttl=TTL, flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                                                           seq=mirage.tcp_seq(),
-                                                                                           window=mirage.tcp_window(),
-                                                                                           options=mirage.Stealth_tcp_options(),
-                                                                                           flags="") / scapy.Raw(
-                        load=payloads)
+                packet = Payloads._build_flag_packet(
+                    target, port, version, flags_str, payload,
+                    TTL, HLIM, SPORT, ID, FLAGS)
 
                 if first:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    for ma in mach[:index]:
-                        if version == 4:
-                            scapy.send(scapy.IP(dst=target,src=ma, id=ID, ttl=TTL, flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                                                           seq=mirage.tcp_seq(),
-                                                                                           window=mirage.tcp_window(),
-                                                                                           options=mirage.Stealth_tcp_options(),
-                                                                                           flags="") / scapy.Raw(
-                        load=payloads), verbose=0)
-                        else:
-                            scapy.send(IPv6(dst=target,src=ma, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="") / scapy.Raw(
-                        load=payloads), verbose=0)
+                    Payloads._send_decoys(packet, mach, 0, index, version)
 
-                if fragmente:
-                    if recursively:
-                        if version == 6:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize,v6=True)
-                        else:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose,fragsize=fragsize)
-                        if verbose:
-                            print(
-                                "\n[+] Demo Fragementation (if you find an error while using it leave it in our github for future updates)\n")
+                if fragmente and recursively:
+                    if version == 6:
+                        response = Payloads.fragementation(
+                            packet, "tcp", scan_name, verbose,
+                            fragsize=fragsize, v6=True)
                     else:
-                        if verbose:
-                            print(
-                                f"\n{yellow}[+] Fragmentation is Forbiden with NULL packets (if you want use flag -Rc){reset}\n")
-                        response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
+                        response = Payloads.fragementation(
+                            packet, "tcp", scan_name, verbose,
+                            fragsize=fragsize)
+                    if verbose:
+                        print("\n[+] Demo Fragementation (if you find an error while "
+                              "using it leave it in our github for future updates)\n")
+                elif fragmente:
+                    if verbose:
+                        print(f"\n{yellow}[+] Fragmentation is Forbiden with "
+                              f"{scan_name.upper()} packets (use -Rc){reset}\n")
+                    response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
                 else:
                     response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
+
                 if last:
-                    for ma in mach[index:]:
-                        if version == 4:
-                            packet[scapy.IP].src = ma
-                            scapy.send(packet, verbose=0)
-                        else:
-                            packet[IPv6].src = ma
-                            scapy.send(packet, verbose=0)
+                    Payloads._send_decoy_phase_after(packet, mach, index, version)
+
                 service = service_detection(port)
 
                 if response is None:
+                    Payloads._record(target, port, cfg["on_no_response"], service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
+                    return
 
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['null_ports'].append(port)
+                if response.haslayer(scapy.TCP):
+                    tcp_flags = response.getlayer(scapy.TCP).flags
 
-                    if banner_option:
-                        banner = Banner.grab(
-                            target,
-                            port,
-                            protocol="tcp",
-                            timeout=3,
-                            verbose=verbose,
-                            version=version
-                        )
+                    if tcp_flags in (0x14, 0x04):
+                        if cfg.get("window_check"):
+                            window = response.getlayer(scapy.TCP).window
+                            if window == 0:
+                                Payloads._record(
+                                    target, port, "closed_ports", service,
+                                    banner_option, verbose, version,
+                                    lock, target_results, initialize_target_results)
+                            else:
+                                if immediate:
+                                    print(f"[+] Port {port} is open .")
+                                Payloads._record(
+                                    target, port, "open_ports", service,
+                                    banner_option, verbose, version,
+                                    lock, target_results, initialize_target_results)
+                            return
 
-                        if banner:
-                            with lock:
-                                target_results[target]['banners'].append(banner['banner'])
-                                target_results[target]['banners_ports'].append(port)
-                                target_results[target]['null_ports_services'].append(banner['service'])
-                        else:
-                            target_results[target]['null_ports_services'].append(service)
-                    else:
-                        target_results[target]['null_ports_services'].append(service)
+                        Payloads._record(target, port, cfg["on_rst"], service,
+                                         banner_option, verbose, version,
+                                         lock, target_results, initialize_target_results)
+                        return
 
-                elif response.haslayer(scapy.TCP):
-                    flags = response.getlayer(scapy.TCP).flags
+                    if tcp_flags == 0x12:
+                        Payloads._record(
+                            target, port, "open_ports", service,
+                            banner_option, verbose, version,
+                            lock, target_results, initialize_target_results)
+                        return
 
-                    if flags == 0x14 or flags == 0x04:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_ports'].append(port)
-                            target_results[target]['closed_ports_services'].append(service)
+                    if verbose:
+                        print(tcp_flags)
+                    Payloads._record(target, port, cfg["on_other_tcp"], service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
+                    return
 
-                    else:
-                        print(flags)
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['null_ports'].append(port)
-                            target_results[target]['null_ports_services'].append(service)
-                        break
-
-                elif response.haslayer(ICMPv6DestUnreach):
+                if response.haslayer(ICMPv6DestUnreach):
                     code = response.getlayer(ICMPv6DestUnreach).code
-                    if code == 4:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_ports'].append(port)
-                            target_results[target]['closed_ports_services'].append(service)
-                        break
-                    elif code == 1:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
+                    bucket = (cfg["on_icmpv6_closed"] if code == 4
+                              else cfg["on_icmpv6_other"])
+                    Payloads._record(target, port, bucket, service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
+                    return
 
-                elif response.haslayer(scapy.ICMP):
-                    icmp_type = response.getlayer(scapy.ICMP).type
-                    icmp_code = response.getlayer(scapy.ICMP).code
+                if response.haslayer(scapy.ICMP):
+                    Payloads._record(target, port, cfg["on_icmp"], service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
+                    return
 
-                    if icmp_type == 3 and icmp_code in [1, 2, 3, 9, 10, 13]:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-
-                else:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-
-                    break
+                Payloads._record(target, port, cfg["on_icmp"], service,
+                                 banner_option, verbose, version,
+                                 lock, target_results, initialize_target_results)
+                return
 
             except Exception as e:
                 if verbose:
-                    print(f"{red}[!] Error scanning port {port}: {e}{reset}")
+                    print(f"{red}[!] Error scanning port {port} ({scan_name}): {e}{reset}")
                 if attempt == max_retries - 1:
                     service = service_detection(port)
                     with lock:
                         if target not in target_results:
                             initialize_target_results(target)
+                        if port in target_results[target]['open_ports']:
+                            return
                         target_results[target]['filtered_ports'].append(port)
                         target_results[target]['filtered_ports_services'].append(service)
-                else:
-                    time.sleep(0.1)
-                    continue
+                    return
+                time.sleep(0.1)
+                continue
 
     @staticmethod
-    def threaded_null_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout, target_results,
-                           banner_option, max_threads, targetss, ports_to_scan, i, s, version, ttl, hlim, sport,
-                           payload, id, flags, interval,fs, d):
+    def _send_decoy_phase_after(packet, mach, index, version):
+        if not mach:
+            return
+        for ma in mach[index:]:
+            if version == 6:
+                packet[IPv6].src = ma
+            else:
+                packet[scapy.IP].src = ma
+            scapy.send(packet, verbose=0)
+
+    @staticmethod
+    def Null_Scan(target, port, max_retries, fragmente, recursively, verbose,
+                  socket_timeout, lock, target_results, banner_option,
+                  initialize_target_results, service_detection, version, ttl, hlim,
+                  sport, payload, id, flags, fragsize, D):
+        Payloads.Flag_Scan(target, port, "null", max_retries, fragmente, recursively,
+                           verbose, socket_timeout, lock, target_results, banner_option,
+                           initialize_target_results, service_detection, version,
+                           ttl, hlim, sport, payload, id, flags, fragsize, D)
+
+    @staticmethod
+    def Custom_Scan(target, port, max_retries, fragmente, recursively, verbose,
+                    socket_timeout, lock, target_results, banner_option,
+                    initialize_target_results, service_detection, version, ttl, hlim,
+                    sport, payload, id, flags, fragsize, D, c, flagss):
+        Payloads.Flag_Scan(target, port, "custom",
+                           max_retries, fragmente, recursively,
+                           verbose, socket_timeout, lock, target_results, banner_option,
+                           initialize_target_results, service_detection, version,
+                           ttl, hlim, sport, payload, id, flags, fragsize, D,
+                           custom=True, flag_str__=flagss)
+
+    @staticmethod
+    def Fin_Scan(target, port, max_retries, fragmente, recursively, verbose,
+                 socket_timeout, lock, target_results, banner_option,
+                 initialize_target_results, service_detection, version, ttl, hlim,
+                 sport, payload, id, flags, fragsize, D):
+        Payloads.Flag_Scan(target, port, "fin", max_retries, fragmente, recursively,
+                           verbose, socket_timeout, lock, target_results, banner_option,
+                           initialize_target_results, service_detection, version,
+                           ttl, hlim, sport, payload, id, flags, fragsize, D)
+
+    @staticmethod
+    def Ack_Scan(target, port, max_retries, fragmente, recursively, verbose,
+                 socket_timeout, lock, target_results, banner_option,
+                 initialize_target_results, service_detection, version, ttl, hlim,
+                 sport, payload, id, flags, fragsize, D):
+        Payloads.Flag_Scan(target, port, "ack", max_retries, fragmente, recursively,
+                           verbose, socket_timeout, lock, target_results, banner_option,
+                           initialize_target_results, service_detection, version,
+                           ttl, hlim, sport, payload, id, flags, fragsize, D)
+
+    @staticmethod
+    def Xmas_Scan(target, port, max_retries, fragmente, recursively, verbose,
+                  socket_timeout, lock, target_results, banner_option,
+                  initialize_target_results, service_detection, version, ttl, hlim,
+                  sport, payload, id, flags, fragsize, D):
+        Payloads.Flag_Scan(target, port, "xmas", max_retries, fragmente, recursively,
+                           verbose, socket_timeout, lock, target_results, banner_option,
+                           initialize_target_results, service_detection, version,
+                           ttl, hlim, sport, payload, id, flags, fragsize, D)
+
+    @staticmethod
+    def Maimon_Scan(target, port, max_retries, fragmente, recursively, verbose,
+                    socket_timeout, lock, target_results, banner_option,
+                    initialize_target_results, service_detection, version, ttl, hlim,
+                    sport, payload, id, flags, fragsize, D):
+        Payloads.Flag_Scan(target, port, "maimon", max_retries, fragmente, recursively,
+                           verbose, socket_timeout, lock, target_results, banner_option,
+                           initialize_target_results, service_detection, version,
+                           ttl, hlim, sport, payload, id, flags, fragsize, D)
+
+    @staticmethod
+    def Window_Scan(target, port, max_retries, fragmente, recursively, verbose,
+                    socket_timeout, lock, target_results, banner_option,
+                    initialize_target_results, service_detection, version, ttl, hlim,
+                    sport, payload, id, flags, I, fragsize, D):
+        Payloads.Flag_Scan(target, port, "window", max_retries, fragmente, recursively,
+                           verbose, socket_timeout, lock, target_results, banner_option,
+                           initialize_target_results, service_detection, version,
+                           ttl, hlim, sport, payload, id, flags, fragsize, D,
+                           immediate=I)
+
+    @staticmethod
+    def Fdd_Scan(target, port, max_retries, fragmente, recursively, verbose,
+                 socket_timeout, lock, target_results, banner_option,
+                 initialize_target_results, service_detection, version, ttl, hlim,
+                 sport, payload, id, flags, fragsize, D):
+        Payloads.Flag_Scan(target, port, "fdd", max_retries, fragmente, recursively,
+                           verbose, socket_timeout, lock, target_results, banner_option,
+                           initialize_target_results, service_detection, version,
+                           ttl, hlim, sport, payload, id, flags, fragsize, D)
+
+    @staticmethod
+    def _threaded_flag_scan(scan_fn, max_retries, lock, verbose, fragmente, recursively,
+                            socket_timeout, target_results, banner_option, max_threads,
+                            targetss, ports_to_scan, i, s, version, ttl, hlim, sport,
+                            payload, id, flags, interval, fs, d, extra_after_flags=None,
+                            c=False, f=""):
+
+        def work(target, port):
+            base = [target, port, max_retries, fragmente, recursively,
+                    verbose, socket_timeout, lock, target_results,
+                    banner_option, i, s, version, ttl, hlim, sport, payload,
+                    id, flags]
+
+            if c:
+                scan_fn(*base, fs, d, c, f)
+            elif extra_after_flags is not None:
+                scan_fn(*base, extra_after_flags, fs, d)
+            else:
+                scan_fn(*base, fs, d)
 
         if max_threads == 1:
             for target in targetss:
                 for port in ports_to_scan:
-                    Payloads.Null_Scan(target, port, max_retries, fragmente, recursively,
-                                       verbose, socket_timeout, lock, target_results,
-                                       banner_option, i, s, version, ttl, hlim, sport, payload,
-                                       id, flags, fs, d
-                                       )
+                    work(target, port)
         else:
             with ThreadPoolExecutor(max_workers=max_threads) as executor:
                 futures = []
                 for target in targetss:
                     for port in ports_to_scan:
-                        future = executor.submit(
-                            Payloads.Null_Scan,
-                            target, port, max_retries, fragmente, recursively,
-                            verbose, socket_timeout, lock, target_results,
-                            banner_option, i, s, version, ttl, hlim, sport, payload, id, flags, fs, d
-                        )
+                        futures.append(executor.submit(work, target, port))
                         time.sleep(interval)
-                        futures.append(future)
-
                 for future in as_completed(futures):
                     try:
                         future.result()
                     except Exception as e:
                         if verbose:
-                            print(f"{red}[!] Null scan error: {e}{reset}")
+                            print(f"{red}[!] Flag scan error: {e}{reset}")
 
     @staticmethod
-    def Fin_Scan(target, port, max_retries, fragmente, recursively, verbose, socket_timeout, lock, target_results,
-                 banner_option, initialize_target_results, service_detection, version, ttl, hlim, sport, payload, id,
-                 flags,fragsize,D):
+    def threaded_null_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout,
+                           target_results, banner_option, max_threads, targetss, ports_to_scan,
+                           i, s, version, ttl, hlim, sport, payload, id, flags, interval, fs, d):
+        Payloads._threaded_flag_scan(
+            Payloads.Null_Scan, max_retries, lock, verbose, fragmente, recursively,
+            socket_timeout, target_results, banner_option, max_threads, targetss,
+            ports_to_scan, i, s, version, ttl, hlim, sport, payload, id, flags,
+            interval, fs, d)
+
+    @staticmethod
+    def threaded_custom_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout,
+                           target_results, banner_option, max_threads, targetss, ports_to_scan,
+                           i, s, version, ttl, hlim, sport, payload, id, flags, interval, fs, d, flagss):
+        Payloads._threaded_flag_scan(
+            Payloads.Custom_Scan, max_retries, lock, verbose, fragmente, recursively,
+            socket_timeout, target_results, banner_option, max_threads, targetss,
+            ports_to_scan, i, s, version, ttl, hlim, sport, payload, id, flags,
+            interval, fs, d, c=True,f=flagss)
+
+    @staticmethod
+    def threaded_fin_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout,
+                          target_results, banner_option, max_threads, targetss, ports_to_scan,
+                          i, s, version, ttl, hlim, sport, payload, id, flags, interval, fg, d):
+        Payloads._threaded_flag_scan(
+            Payloads.Fin_Scan, max_retries, lock, verbose, fragmente, recursively,
+            socket_timeout, target_results, banner_option, max_threads, targetss,
+            ports_to_scan, i, s, version, ttl, hlim, sport, payload, id, flags,
+            interval, fg, d)
+
+    @staticmethod
+    def threaded_ack_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout,
+                          target_results, banner_option, max_threads, targetss, ports_to_scan,
+                          i, s, version, ttl, hlim, sport, payload, id, flags, interval, fg, d):
+        Payloads._threaded_flag_scan(
+            Payloads.Ack_Scan, max_retries, lock, verbose, fragmente, recursively,
+            socket_timeout, target_results, banner_option, max_threads, targetss,
+            ports_to_scan, i, s, version, ttl, hlim, sport, payload, id, flags,
+            interval, fg, d)
+
+    @staticmethod
+    def threaded_xmas_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout,
+                           target_results, banner_option, max_threads, targetss, ports_to_scan,
+                           i, s, version, ttl, hlim, sport, payload, id, flags, interval, fg, d):
+        Payloads._threaded_flag_scan(
+            Payloads.Xmas_Scan, max_retries, lock, verbose, fragmente, recursively,
+            socket_timeout, target_results, banner_option, max_threads, targetss,
+            ports_to_scan, i, s, version, ttl, hlim, sport, payload, id, flags,
+            interval, fg, d)
+
+    @staticmethod
+    def threaded_maimon_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout,
+                             target_results, banner_option, max_threads, targetss, ports_to_scan,
+                             i, s, version, ttl, hlim, sport, payload, id, flags, interval, fg, d):
+        Payloads._threaded_flag_scan(
+            Payloads.Maimon_Scan, max_retries, lock, verbose, fragmente, recursively,
+            socket_timeout, target_results, banner_option, max_threads, targetss,
+            ports_to_scan, i, s, version, ttl, hlim, sport, payload, id, flags,
+            interval, fg, d)
+
+    @staticmethod
+    def threaded_window_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout,
+                             target_results, banner_option, max_threads, targetss, ports_to_scan,
+                             i, s, version, ttl, hlim, sport, payload, id, flags, interval, I, fg, d):
+        Payloads._threaded_flag_scan(
+            Payloads.Window_Scan, max_retries, lock, verbose, fragmente, recursively,
+            socket_timeout, target_results, banner_option, max_threads, targetss,
+            ports_to_scan, i, s, version, ttl, hlim, sport, payload, id, flags,
+            interval, fg, d, extra_after_flags=I)
+
+    @staticmethod
+    def threaded_fdd_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout,
+                          target_results, banner_option, max_threads, targetss, ports_to_scan,
+                          i, s, version, ttl, hlim, sport, payload, id, flags, interval, fg, d):
+        Payloads._threaded_flag_scan(
+            Payloads.Fdd_Scan, max_retries, lock, verbose, fragmente, recursively,
+            socket_timeout, target_results, banner_option, max_threads, targetss,
+            ports_to_scan, i, s, version, ttl, hlim, sport, payload, id, flags,
+            interval, fg, d)
+
+    @staticmethod
+    def _build_ip_proto_packet(target, protocol, version, ttl, hlim, sport, ip_id, ip_flags, payloads):
+        if version == 6:
+            packet = IPv6(dst=target, nh=protocol, hlim=hlim, fl=0)
+        else:
+            packet = scapy.IP(dst=target, proto=protocol, ttl=ttl, id=ip_id, flags=ip_flags)
+
+        if protocol == 1 and version != 6:
+            packet = packet / scapy.ICMP(type=8, code=0) / scapy.Raw(load=random.choice(payloads))
+        elif protocol == 58 and version == 6:
+            packet = packet / ICMPv6EchoRequest(data=b"ping") / scapy.Raw(load=random.choice(payloads))
+        elif protocol == 6:
+            packet = packet / scapy.TCP(sport=sport, dport=random.randint(1, 65535),
+                                        flags="S", seq=random.randint(1, 4294967295)) \
+                / scapy.Raw(load=random.choice(payloads))
+        elif protocol == 17:
+            packet = mirage.dns_payload_udp(target, version)
+        elif protocol == 132:
+            try:
+                from scapy.layers.sctp import SCTP, SCTPChunkInit
+                packet = packet / SCTP(sport=sport, dport=80) / SCTPChunkInit() \
+                    / scapy.Raw(load=random.choice(payloads))
+            except ImportError:
+                pass
+        elif protocol == 47:
+            packet = packet / b"\x00\x00\x00\x00"
+        elif protocol == 50:
+            packet = packet / b"\x00\x00\x00\x01\x00\x00\x00\x00"
+        elif protocol == 51:
+            packet = packet / b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        elif protocol == 89:
+            packet = packet / b"\x01\x00\x00\x00"
+
+        return packet
+
+    @staticmethod
+    def IP_Scan(target, protocol, max_retries, fragmente, recursively, verbose, socket_timeout,
+                lock, target_results, banner_option, initialize_target_results, service_detection,
+                version, ttl, hlim, sport, payload, id, flags, fragsize, D):
+        proto_names = _IP_PROTOCOL_NAMES
+        proto_name = proto_names.get(protocol, f"Proto{protocol}")
+        is_localhost = target in ["127.0.0.1", "::1", "localhost"]
+
         for attempt in range(max_retries):
             try:
-                if D:
-                    mach = decoy(D, version)
-                    first, last, index = decoy_order(mach)
-                else:
-                    first, last = None, None
-                Proto = "tcp"
-                scan_type = "fin"
-                if payload == None:
-                    payloads = mirage.random_payload()
-                else:
-                    payloads = payload
-                if ttl:
-                    TTL = ttl
-                else:
-                    TTL = mirage.ipv4_ttl()
+                mach, first, last, index = Payloads._decoy_meta(D, version)
 
-                if hlim:
-                    HLIM = hlim
-                else:
-                    HLIM = mirage.ipv6_hlim()
+                TTL = ttl if ttl else mirage.ipv4_ttl()
+                HLIM = hlim if hlim else mirage.ipv6_hlim()
+                SPORT = sport if sport else mirage.tcp_sport()
+                ID = id if id else mirage.ipv4_id()
+                FLAGS = flags if flags is not None else mirage.ipv4_flags()
 
-                if sport:
-                    SPORT = sport
+                if payload is None:
+                    payloads = ["PING", "URGENT", "!HHHH", "LIGHTSCAN", "UDP", "TCP", "-Pu", "KIWI"]
                 else:
-                    SPORT = mirage.tcp_sport()
-                if version == 6:
-                    packet = IPv6(dst=target, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="F") / scapy.Raw(
-                        load=payloads)
-                else:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    packet = scapy.IP(dst=target, id=ID, ttl=TTL,
-                                      flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                               seq=mirage.tcp_seq(),
-                                                               window=mirage.tcp_window(),
-                                                               options=mirage.Stealth_tcp_options(),flags="F") / scapy.Raw(load=payloads)
+                    payloads = [payload]
+
+                packet = Payloads._build_ip_proto_packet(
+                    target, protocol, version, TTL, HLIM, SPORT, ID, FLAGS, payloads)
+
                 if first:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
                     for ma in mach[:index]:
-                        if version == 4:
-                            scapy.send(scapy.IP(dst=target,src=ma, id=ID, ttl=TTL,
-                                      flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                               seq=mirage.tcp_seq(),
-                                                               window=mirage.tcp_window(),
-                                                               options=mirage.Stealth_tcp_options(),flags="F") / scapy.Raw(load=payloads), verbose=0)
-                        else:
-                            scapy.send(IPv6(dst=target,src=ma, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="F") / scapy.Raw(
-                        load=payloads), verbose=0)
-                if fragmente:
-                    if recursively:
+                        Pipo = deepcopy(packet)
                         if version == 6:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize, v6=True)
+                            Pipo[IPv6].src = ma
                         else:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize)
-                        if verbose:
-                            print(
-                                "\n[+] Demo Fragementation (if you find an error while using it leave it in our github for future updates)\n")
-                    else:
-                        if verbose:
-                            print(
-                                f"\n{yellow}[+] Fragmentation is Forbiden with FIN packets (if you want use flag -Rc){reset}\n")
-                        response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
-                else:
-                    response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
-                if last:
-                    for ma in mach[index:]:
-                        if version == 4:
-                            packet[scapy.IP].src = ma
-                            scapy.send(packet, verbose=0)
-                        else:
-                            packet[IPv6].src = ma
-                            scapy.send(packet, verbose=0)
-                service = service_detection(port)
-
-                if response is None:
-
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['fin_ports'].append(port)
-
-                    if banner_option:
-                        banner = Banner.grab(
-                            target,
-                            port,
-                            protocol="tcp",
-                            timeout=3,
-                            verbose=verbose,
-                            version=version
-                        )
-
-                        if banner:
-                            with lock:
-                                target_results[target]['banners'].append(banner['banner'])
-                                target_results[target]['banners_ports'].append(port)
-                                target_results[target]['fin_ports_services'].append(banner['service'])
-                        else:
-                            target_results[target]['fin_ports_services'].append(service)
-                    else:
-                        target_results[target]['fin_ports_services'].append(service)
-
-                elif response.haslayer(scapy.TCP):
-                    flags = response.getlayer(scapy.TCP).flags
-
-                    if flags == 0x14 or flags == 0x04:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_ports'].append(port)
-                            target_results[target]['closed_ports_services'].append(service)
-
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                elif response.haslayer(ICMPv6DestUnreach):
-                    code = response.getlayer(ICMPv6DestUnreach).code
-                    if code == 4:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_ports'].append(port)
-                            target_results[target]['closed_ports_services'].append(service)
-                        break
-                    elif code == 1:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                elif response.haslayer(scapy.ICMP):
-                    icmp_type = response.getlayer(scapy.ICMP).type
-                    icmp_code = response.getlayer(scapy.ICMP).code
-
-                    if icmp_type == 3 and icmp_code in [1, 2, 3, 9, 10, 13]:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                else:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-                    break
-
-            except Exception as e:
-                if verbose:
-                    print(f"{red}[!] Error scanning port {port}: {e}{reset}")
-                if attempt == max_retries - 1:
-                    service = service_detection(port)
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-                else:
-                    time.sleep(0.1)
-                    continue
-
-    @staticmethod
-    def threaded_fin_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout, target_results,
-                          banner_option, max_threads, targetss, ports_to_scan, i, s, version, ttl, hlim, sport, payload,
-                          id, flags, interval,fg,d):
-
-        if max_threads == 1:
-            for target in targetss:
-                for port in ports_to_scan:
-                    Payloads.Fin_Scan(target, port, max_retries, fragmente, recursively,
-                                      verbose, socket_timeout, lock, target_results,
-                                      banner_option, i, s, version, ttl, hlim, sport, payload,
-                                      id, flags,fg,d
-                                      )
-        else:
-            with ThreadPoolExecutor(max_workers=max_threads) as executor:
-                futures = []
-                for target in targetss:
-                    for port in ports_to_scan:
-                        future = executor.submit(
-                            Payloads.Fin_Scan,
-                            target, port, max_retries, fragmente, recursively,
-                            verbose, socket_timeout, lock, target_results,
-                            banner_option, i, s, version, ttl, hlim, sport, payload, id, flags,fg,d
-                        )
-                        time.sleep(interval)
-                        futures.append(future)
-
-                for future in as_completed(futures):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        if verbose:
-                            print(f"{red}[!] Fin scan error: {e}{reset}")
-
-    @staticmethod
-    def Ack_Scan(target, port, max_retries, fragmente, recursively, verbose, socket_timeout, lock, target_results,
-                 banner_option, initialize_target_results, service_detection, version, ttl, hlim, sport, payload, id,
-                 flags,fragsize,D):
-        for attempt in range(max_retries):
-            try:
-                if D:
-                    mach = decoy(D, version)
-                    first, last, index = decoy_order(mach)
-                else:
-                    first, last = None, None
-                Proto = "tcp"
-                scan_type = "ack"
-                if payload == None:
-                    payloads = mirage.random_payload()
-                else:
-                    payloads = payload
-                if ttl:
-                    TTL = ttl
-                else:
-                    TTL = mirage.ipv4_ttl()
-
-                if hlim:
-                    HLIM = hlim
-                else:
-                    HLIM = mirage.ipv6_hlim()
-
-                if sport:
-                    SPORT = sport
-                else:
-                    SPORT = mirage.tcp_sport()
-                if version == 6:
-                    packet = IPv6(dst=target, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="A") / scapy.Raw(
-                        load=payloads)
-                else:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    packet = scapy.IP(dst=target, id=ID, ttl=TTL,
-                                      flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                               seq=mirage.tcp_seq(),
-                                                               window=mirage.tcp_window(),
-                                                               options=mirage.Stealth_tcp_options(),
-                                                               flags="A") / scapy.Raw(load=payloads)
-                if first:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    for ma in mach[:index]:
-                        if version == 4:
-                            scapy.send(scapy.IP(dst=target,src=ma, id=ID, ttl=TTL,
-                                      flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                               seq=mirage.tcp_seq(),
-                                                               window=mirage.tcp_window(),
-                                                               options=mirage.Stealth_tcp_options(),flags="A") / scapy.Raw(load=payloads), verbose=0)
-                        else:
-                            scapy.send(IPv6(dst=target,src=ma, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="A") / scapy.Raw(
-                        load=payloads), verbose=0)
-                if fragmente:
-                    if recursively:
-                        if version == 6:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize, v6=True)
-                        else:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize)
-                        if verbose:
-                            print(
-                                "\n[+] Demo Fragementation (if you find an error while using it leave it in our github for future updates)\n")
-                    else:
-                        if verbose:
-                            print(
-                                f"\n{yellow}[+] Fragmentation is Forbiden with ACK packets (if you want use flag -Rc){reset}\n")
-                        response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
-                else:
-                    response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
-                if last:
-                    for ma in mach[index:]:
-                        if version == 4:
-                            packet[scapy.IP].src = ma
-                            scapy.send(packet, verbose=0)
-                        else:
-                            packet[IPv6].src = ma
-                            scapy.send(packet, verbose=0)
-
-                service = service_detection(port)
-
-                if response is None:
-
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-
-                    if banner_option:
-                        banner = Banner.grab(
-                            target,
-                            port,
-                            protocol="tcp",
-                            timeout=3,
-                            verbose=verbose,
-                            version=version
-                        )
-
-                        if banner:
-                            with lock:
-                                target_results[target]['banners'].append(banner['banner'])
-                                target_results[target]['banners_ports'].append(port)
-                                target_results[target]['filtered_ports_services'].append(banner['service'])
-                        else:
-                            target_results[target]['filtered_ports_services'].append(service)
-                    else:
-                        target_results[target]['filtered_ports_services'].append(service)
-
-                elif response.haslayer(scapy.TCP):
-                    flags = response.getlayer(scapy.TCP).flags
-
-                    if flags == 0x14 or flags == 0x04:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['unfiltered_ports'].append(port)
-                            target_results[target]['unfiltered_ports_services'].append(service)
-
-                    else:
-                        print(flags)
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                elif response.haslayer(ICMPv6DestUnreach):
-                    code = response.getlayer(ICMPv6DestUnreach).code
-                    if code == 4:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_ports'].append(port)
-                            target_results[target]['closed_ports_services'].append(service)
-                        break
-                    elif code == 1:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                elif response.haslayer(scapy.ICMP):
-                    icmp_type = response.getlayer(scapy.ICMP).type
-                    icmp_code = response.getlayer(scapy.ICMP).code
-
-                    if icmp_type == 3 and icmp_code in [1, 2, 3, 9, 10, 13]:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                else:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-                    break
-
-            except Exception as e:
-                if verbose:
-                    print(f"{red}[!] Error scanning port {port}: {e}{reset}")
-                if attempt == max_retries - 1:
-                    service = service_detection(port)
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-                else:
-                    time.sleep(0.1)
-                    continue
-
-    @staticmethod
-    def threaded_ack_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout, target_results,
-                          banner_option, max_threads, targetss, ports_to_scan, i, s, version, ttl, hlim, sport, payload,
-                          id, flags, interval,fg,d):
-
-        if max_threads == 1:
-            for target in targetss:
-                for port in ports_to_scan:
-                    Payloads.Ack_Scan(target, port, max_retries, fragmente, recursively,
-                                      verbose, socket_timeout, lock, target_results,
-                                      banner_option, i, s, version, ttl, hlim, sport, payload, id, flags,fg,d)
-        else:
-            with ThreadPoolExecutor(max_workers=max_threads) as executor:
-                futures = []
-                for target in targetss:
-                    for port in ports_to_scan:
-                        future = executor.submit(
-                            Payloads.Ack_Scan,
-                            target, port, max_retries, fragmente, recursively,
-                            verbose, socket_timeout, lock, target_results,
-                            banner_option, i, s, version, ttl, hlim, sport, payload, id, flags,fg,d
-                        )
-                        time.sleep(interval)
-                        futures.append(future)
-
-                for future in as_completed(futures):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        if verbose:
-                            print(f"{red}[!] Ack scan error: {e}{reset}")
-
-    @staticmethod
-    def Xmas_Scan(target, port, max_retries, fragmente, recursively, verbose, socket_timeout, lock, target_results,
-                  banner_option, initialize_target_results, service_detection, version, ttl, hlim, sport, payload, id,
-                  flags,fragsize,D):
-        for attempt in range(max_retries):
-            try:
-                if D:
-                    mach = decoy(D, version)
-                    first, last, index = decoy_order(mach)
-                else:
-                    first, last = None, None
-                Proto = "tcp"
-                scan_type = "xmas"
-                if payload == None:
-                    payloads = mirage.random_payload()
-                else:
-                    payloads = payload
-                if ttl:
-                    TTL = ttl
-                else:
-                    TTL = mirage.ipv4_ttl()
-
-                if hlim:
-                    HLIM = hlim
-                else:
-                    HLIM = mirage.ipv6_hlim()
-
-                if sport:
-                    SPORT = sport
-                else:
-                    SPORT = mirage.tcp_sport()
-                if version == 6:
-                    packet = IPv6(dst=target, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="FPU") / scapy.Raw(
-                        load=payloads)
-                else:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    packet = scapy.IP(dst=target, id=ID, ttl=TTL,
-                                      flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                               seq=mirage.tcp_seq(),
-                                                               window=mirage.tcp_window(),
-                                                               options=mirage.Stealth_tcp_options(),
-                                                               flags="FPU") / scapy.Raw(load=payloads)
-                if first:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    for ma in mach[:index]:
-                        if version == 4:
-                            scapy.send(scapy.IP(dst=target,src=ma, id=ID, ttl=TTL,
-                                      flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                               seq=mirage.tcp_seq(),
-                                                               window=mirage.tcp_window(),
-                                                               options=mirage.Stealth_tcp_options(),
-                                                               flags="FPU") / scapy.Raw(load=payloads), verbose=0)
-                        else:
-                            scapy.send(IPv6(dst=target,src=ma, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="FPU") / scapy.Raw(
-                        load=payloads), verbose=0)
-                if fragmente:
-                    if recursively:
-                        if version == 6:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize, v6=True)
-                        else:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize)
-                        if verbose:
-                            print(
-                                "\n[+] Demo Fragementation (if you find an error while using it leave it in our github for future updates)\n")
-                    else:
-                        if verbose:
-                            print(
-                                f"\n{yellow}[+] Fragmentation is Forbiden with XMAS packets (if you want use flag -Rc){reset}\n")
-                        response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
-                else:
-                    response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
-
-                if last:
-                    for ma in mach[index:]:
-                        if version == 4:
-                            packet[scapy.IP].src = ma
-                            scapy.send(packet, verbose=0)
-                        else:
-                            packet[IPv6].src = ma
-                            scapy.send(packet, verbose=0)
-
-                service = service_detection(port)
-
-                if response is None:
-
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['open_filtered_ports'].append(port)
-
-                    if banner_option:
-                        banner = Banner.grab(
-                            target,
-                            port,
-                            protocol="tcp",
-                            timeout=3,
-                            verbose=verbose,
-                            version=version
-                        )
-
-                        if banner:
-                            with lock:
-                                target_results[target]['banners'].append(banner['banner'])
-                                target_results[target]['banners_ports'].append(port)
-                                target_results[target]['open_filtered_ports_services'].append(banner['service'])
-                        else:
-                            target_results[target]['open_filtered_ports_services'].append(service)
-                    else:
-                        target_results[target]['open_filtered_ports_services'].append(service)
-
-                elif response.haslayer(scapy.TCP):
-                    flags = response.getlayer(scapy.TCP).flags
-
-                    if flags == 0x14 or flags == 0x04:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_ports'].append(port)
-                            target_results[target]['closed_ports_services'].append(service)
-
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                elif response.haslayer(ICMPv6DestUnreach):
-                    code = response.getlayer(ICMPv6DestUnreach).code
-                    if code == 4:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_ports'].append(port)
-                            target_results[target]['closed_ports_services'].append(service)
-                        break
-                    elif code == 1:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                elif response.haslayer(scapy.ICMP):
-                    icmp_type = response.getlayer(scapy.ICMP).type
-                    icmp_code = response.getlayer(scapy.ICMP).code
-
-                    if icmp_type == 3 and icmp_code in [1, 2, 3, 9, 10, 13]:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                else:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-                    break
-
-            except Exception as e:
-                if verbose:
-                    print(f"{red}[!] Error scanning port {port}: {e}{reset}")
-                if attempt == max_retries - 1:
-                    service = service_detection(port)
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-                else:
-                    time.sleep(0.1)
-                    continue
-
-    @staticmethod
-    def threaded_xmas_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout, target_results,
-                           banner_option, max_threads, targetss, ports_to_scan, i, s, version, ttl, hlim, sport,
-                           payload, id, flags, interval,fg,d):
-
-        if max_threads == 1:
-            for target in targetss:
-                for port in ports_to_scan:
-                    Payloads.Xmas_Scan(target, port, max_retries, fragmente, recursively,
-                                       verbose, socket_timeout, lock, target_results,
-                                       banner_option, i, s, version, ttl, hlim, sport, payload,
-                                       id, flags, fg,d
-                                       )
-        else:
-            with ThreadPoolExecutor(max_workers=max_threads) as executor:
-                futures = []
-                for target in targetss:
-                    for port in ports_to_scan:
-                        future = executor.submit(
-                            Payloads.Xmas_Scan,
-                            target, port, max_retries, fragmente, recursively,
-                            verbose, socket_timeout, lock, target_results,
-                            banner_option, i, s, version, ttl, hlim, sport, payload, id, flags, fg, d
-                        )
-                        time.sleep(interval)
-                        futures.append(future)
-
-                for future in as_completed(futures):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        if verbose:
-                            print(f"{red}[!] Xmas scan error: {e}{reset}")
-
-    @staticmethod
-    def IP_Scan(target, protocol, max_retries, fragmente, recursively, verbose, socket_timeout, lock, target_results,
-                banner_option, initialize_target_results, service_detection, version, ttl, hlim, sport, payload, id,
-                flags, fragsize,D):
-        if ttl:
-            TTL = ttl
-        else:
-            TTL = mirage.ipv4_ttl()
-        if D:
-            mach = decoy(D, version)
-            first, last, index = decoy_order(mach)
-        else:
-            first, last = None, None
-        if payload == None:
-            payloads = ["PING", "URGENT", "!HHHH", "LIGHTSCAN", "UDP", "TCP", "-Pu", "KIWI"]
-        else:
-            payloads = [payload]
-
-        if hlim:
-            HLIM = hlim
-        else:
-            HLIM = mirage.ipv6_hlim()
-
-        if sport:
-            SPORT = sport
-        else:
-            SPORT = mirage.tcp_sport()
-        for attempt in range(max_retries):
-            try:
-                Proto = "ip"
-                scan_type = "ipproto"
-
-                proto_names = {
-                    0: "HOPOPT", 1: "ICMP", 2: "IGMP", 3: "GGP", 4: "IPv4", 5: "ST", 6: "TCP", 7: "CBT", 8: "EGP",
-                    9: "IGP",
-                    10: "BBN-RCC-MON", 11: "NVP-II", 12: "PUP", 13: "ARGUS", 14: "EMCON", 15: "XNET", 16: "CHAOS",
-                    17: "UDP", 18: "MUX", 19: "DCN-MEAS", 20: "HMP", 21: "PRM", 22: "XNS-IDP", 23: "TRUNK-1",
-                    24: "TRUNK-2", 25: "LEAF-1", 26: "LEAF-2", 27: "RDP", 28: "IRTP", 29: "ISO-TP4",
-                    30: "NETBLT", 31: "MFE-NSP", 32: "MERIT-INP", 33: "DCCP", 34: "3PC", 35: "IDPR",
-                    36: "XTP", 37: "DDP", 38: "IDPR-CMTP", 39: "TP++", 40: "IL", 41: "IPv6", 42: "SDRP",
-                    43: "IPv6-Route", 44: "IPv6-Frag", 45: "IDRP", 46: "RSVP", 47: "GRE", 48: "DSR",
-                    49: "BNA", 50: "ESP", 51: "AH", 52: "I-NLSP", 53: "SWIPE", 54: "NARP", 55: "MOBILE",
-                    56: "TLSP", 57: "SKIP", 58: "ICMPv6", 59: "IPv6-NoNxt", 60: "IPv6-Opts", 61: "AnyHost",
-                    62: "CFTP", 63: "AnyLocal", 64: "SAT-EXPAK", 65: "KRYPTOLAN", 66: "RVD", 67: "IPPC",
-                    68: "AnyDistFS", 69: "SAT-MON", 70: "VISA", 71: "IPCV", 72: "CPNX", 73: "CPHB", 74: "WSN",
-                    75: "PVP", 76: "BR-SAT-MON", 77: "SUN-ND", 78: "WB-MON", 79: "WB-EXPAK", 80: "ISO-IP",
-                    81: "VMTP", 82: "SECURE-VMTP", 83: "VINES", 84: "TTP", 85: "NSFNET-IGP", 86: "DGP",
-                    87: "TCF", 88: "EIGRP", 89: "OSPF", 90: "Sprite-RPC", 91: "LARP", 92: "MTP", 93: "AX.25",
-                    94: "IPIP", 95: "MICP", 96: "SCC-SP", 97: "ETHERIP", 98: "ENCAP", 99: "AnyPrivate",
-                    100: "GMTP", 101: "IFMP", 102: "PNNI", 103: "PIM", 104: "ARIS", 105: "SCPS", 106: "QNX",
-                    107: "A/N", 108: "IPComp", 109: "SNP", 110: "Compaq-Peer", 111: "IPX-in-IP", 112: "VRRP",
-                    113: "PGM", 114: "Any0-hop", 115: "L2TP", 116: "DDX", 117: "IATP", 118: "STP", 119: "SRP",
-                    120: "UTI", 121: "SMP", 122: "SM", 123: "PTP", 124: "ISIS-over-IPv4", 125: "FIRE",
-                    126: "CRTP", 127: "CRUDP", 128: "SSCOPMCE", 129: "IPLT", 130: "SPS", 131: "PIPE",
-                    132: "SCTP", 133: "FC", 134: "RSVP-E2E-IGNORE", 135: "Mobility-Header", 136: "UDPLite",
-                    137: "MPLS-in-IP", 138: "manet", 139: "HIP", 140: "Shim6", 141: "WESP", 142: "ROHC",
-                    143: "Ethernet", 144: "AGGFRAG", 145: "NSH", 146: "unassigned", 147: "unassigned",
-                    148: "unassigned", 149: "unassigned", 150: "unassigned", 151: "unassigned", 152: "unassigned",
-                    153: "unassigned", 154: "unassigned", 155: "unassigned", 156: "unassigned", 157: "unassigned",
-                    158: "unassigned", 159: "unassigned", 160: "unassigned", 161: "unassigned", 162: "unassigned",
-                    163: "unassigned", 164: "unassigned", 165: "unassigned", 166: "unassigned", 167: "unassigned",
-                    168: "unassigned", 169: "unassigned", 170: "unassigned", 171: "unassigned", 172: "unassigned",
-                    173: "unassigned", 174: "unassigned", 175: "unassigned", 176: "unassigned", 177: "unassigned",
-                    178: "unassigned", 179: "unassigned", 180: "unassigned", 181: "unassigned", 182: "unassigned",
-                    183: "unassigned", 184: "unassigned", 185: "unassigned", 186: "unassigned", 187: "unassigned",
-                    188: "unassigned", 189: "unassigned", 190: "unassigned", 191: "unassigned", 192: "unassigned",
-                    193: "unassigned", 194: "unassigned", 195: "unassigned", 196: "unassigned", 197: "unassigned",
-                    198: "unassigned", 199: "unassigned", 200: "unassigned", 201: "unassigned", 202: "unassigned",
-                    203: "unassigned", 204: "unassigned", 205: "unassigned", 206: "unassigned", 207: "unassigned",
-                    208: "unassigned", 209: "unassigned", 210: "unassigned", 211: "unassigned", 212: "unassigned",
-                    213: "unassigned", 214: "unassigned", 215: "unassigned", 216: "unassigned", 217: "unassigned",
-                    218: "unassigned", 219: "unassigned", 220: "unassigned", 221: "unassigned", 222: "unassigned",
-                    223: "unassigned", 224: "unassigned", 225: "unassigned", 226: "unassigned", 227: "unassigned",
-                    228: "unassigned", 229: "unassigned", 230: "unassigned", 231: "unassigned", 232: "unassigned",
-                    233: "unassigned", 234: "unassigned", 235: "unassigned", 236: "unassigned", 237: "unassigned",
-                    238: "unassigned", 239: "unassigned", 240: "unassigned", 241: "unassigned", 242: "unassigned",
-                    243: "unassigned", 244: "unassigned", 245: "unassigned", 246: "unassigned", 247: "unassigned",
-                    248: "unassigned", 249: "unassigned", 250: "unassigned", 251: "unassigned", 252: "unassigned",
-                    253: "unassigned", 254: "unassigned", 255: "RAW"
-                }
-                proto_name = proto_names.get(protocol, f"Proto{protocol}")
-
-                is_localhost = target in ["127.0.0.1", "::1", "localhost"]
-
-                if version == 6:
-                    packet = IPv6(dst=target, nh=protocol, hlim=HLIM, fl=0)
-                else:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    packet = scapy.IP(dst=target, proto=protocol, ttl=TTL,
-                                      id=ID, flags=FLAGS)
-
-                if protocol == 1 and version != 6:
-                    packet = packet / scapy.ICMP(type=8, code=0) / scapy.Raw(load=random.choice(payloads))
-                elif protocol == 58 and version == 6:
-                    packet = packet / ICMPv6EchoRequest(data=b"ping") / scapy.Raw(load=random.choice(payloads))
-                elif protocol == 6:
-                    packet = packet / scapy.TCP(
-                        sport=SPORT,
-                        dport=random.randint(1, 65535),
-                        flags="S",
-                        seq=random.randint(1, 4294967295)
-                    ) / scapy.Raw(load=random.choice(payloads))
-
-                elif protocol == 17:
-                    packet = packet / scapy.UDP(
-                        sport=SPORT,
-                        dport=random.randint(1, 65535)) / scapy.Raw(load=random.choice(payloads))
-
-                elif protocol == 132:
-                    try:
-                        from scapy.layers.sctp import SCTP, SCTPChunkInit
-                        packet = packet / SCTP(
-                            sport=SPORT,
-                            dport=80
-                        ) / SCTPChunkInit() / scapy.Raw(load=random.choice(payloads))
-                    except ImportError:
-                        pass
-                elif protocol == 47:
-                    packet = packet / b"\x00\x00\x00\x00"
-                elif protocol == 50:
-                    packet = packet / b"\x00\x00\x00\x01\x00\x00\x00\x00"
-                elif protocol == 51:
-                    packet = packet / b"\x00\x00\x00\x00\x00\x00\x00\x00"
-                elif protocol == 89:
-                    packet = packet / b"\x01\x00\x00\x00"
-
-                if first:
-                    for ma in mach[:index]:
-                        if version == 4:
-                            Pipo = deepcopy(packet)
                             Pipo[scapy.IP].src = ma
-                            scapy.send(Pipo, verbose=0)
-                        else:
-                            Pipo = deepcopy(packet)
-                            Pipo[scapy.IP].src = ma
-                            scapy.send(Pipo, verbose=0)
+                        scapy.send(Pipo, verbose=0)
 
-                if fragmente:
-                    if recursively:
-                        if version == 6:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize, v6=True)
-                        else:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize)
-                        if verbose:
-                            print("\n[+] Fragmentation enabled for IP Protocol scan\n")
+                if fragmente and recursively:
+                    if version == 6:
+                        response = Payloads.fragementation(packet, "ip", "ipproto", verbose,
+                                                           fragsize=fragsize, v6=True)
                     else:
-                        if verbose:
-                            print(f"\n{yellow}[+] Fragmentation not supported for IP Protocol scan (use -Rc){reset}\n")
-                        response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
+                        response = Payloads.fragementation(packet, "ip", "ipproto", verbose,
+                                                           fragsize=fragsize)
+                    if verbose:
+                        print("\n[+] Fragmentation enabled for IP Protocol scan\n")
+                elif fragmente:
+                    if verbose:
+                        print(f"\n{yellow}[+] Fragmentation not supported for IP Protocol scan (use -Rc){reset}\n")
+                    response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
                 else:
                     response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
 
@@ -1416,120 +876,69 @@ class Payloads:
                     for ma in mach[index:]:
                         if version == 4:
                             packet[scapy.IP].src = ma
-                            scapy.send(packet, verbose=0)
                         else:
                             packet[IPv6].src = ma
-                            scapy.send(packet, verbose=0)
+                        scapy.send(packet, verbose=0)
 
                 if response and response.haslayer(scapy.ICMP):
                     icmp_type = response.getlayer(scapy.ICMP).type
                     icmp_code = response.getlayer(scapy.ICMP).code
 
                     if icmp_type == 3 and icmp_code == 2:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_protocols'].append(protocol)
-                            target_results[target]['closed_protocols_names'].append(proto_name)
-                        break
+                        Payloads._record_protocol(target, protocol, proto_name,
+                                                  "closed_protocols", lock,
+                                                  target_results, initialize_target_results)
+                        return
                     elif icmp_type == 0:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['open_protocols'].append(protocol)
-                            target_results[target]['open_protocols_names'].append(proto_name)
-                        break
+                        Payloads._record_protocol(target, protocol, proto_name,
+                                                  "open_protocols", lock,
+                                                  target_results, initialize_target_results)
+                        return
                     elif icmp_type == 3 and icmp_code in [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_protocols'].append(protocol)
-                            target_results[target]['filtered_protocols_names'].append(proto_name)
-                        break
+                        Payloads._record_protocol(target, protocol, proto_name,
+                                                  "filtered_protocols", lock,
+                                                  target_results, initialize_target_results)
+                        return
 
-                elif response and response.haslayer(ICMPv6DestUnreach):
+                if response and response.haslayer(ICMPv6DestUnreach):
                     code = response.getlayer(ICMPv6DestUnreach).code
-                    if code == 4:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_protocols'].append(protocol)
-                            target_results[target]['closed_protocols_names'].append(proto_name)
-                        break
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_protocols'].append(protocol)
-                            target_results[target]['filtered_protocols_names'].append(proto_name)
-                        break
+                    bucket = "closed_protocols" if code == 4 else "filtered_protocols"
+                    Payloads._record_protocol(target, protocol, proto_name, bucket,
+                                              lock, target_results, initialize_target_results)
+                    return
 
-                if response and response.haslayer(scapy.TCP):
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['open_protocols'].append(protocol)
-                        target_results[target]['open_protocols_names'].append(proto_name)
-                    break
-
-                if response and response.haslayer(scapy.UDP):
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['open_protocols'].append(protocol)
-                        target_results[target]['open_protocols_names'].append(proto_name)
-                    break
-
-                if response and response.haslayer(scapy.ICMP):
-                    icmp_type = response.getlayer(scapy.ICMP).type
-                    if icmp_type in [0, 14, 18]:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['open_protocols'].append(protocol)
-                            target_results[target]['open_protocols_names'].append(proto_name)
-                        break
-
-                if response and (
-                        (version == 6 and response.nh == protocol) or (version != 6 and response.proto == protocol)):
-                    if is_localhost:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_protocols'].append(protocol)
-                            target_results[target]['closed_protocols_names'].append(proto_name)
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['open_filtered_protocols'].append(protocol)
-                            target_results[target]['open_filtered_protocols_names'].append(proto_name)
-                    break
+                if response and (response.haslayer(scapy.TCP) or response.haslayer(scapy.UDP)):
+                    Payloads._record_protocol(target, protocol, proto_name,
+                                              "open_protocols", lock,
+                                              target_results, initialize_target_results)
+                    return
 
                 if response is None:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['open_filtered_protocols'].append(protocol)
-                        target_results[target]['open_filtered_protocols_names'].append(proto_name)
-                    break
+                    Payloads._record_protocol(target, protocol, proto_name,
+                                              "open_filtered_protocols", lock,
+                                              target_results, initialize_target_results)
+                    return
 
-                with lock:
-                    if target not in target_results:
-                        initialize_target_results(target)
-                    target_results[target]['closed_protocols'].append(protocol)
-                    target_results[target]['closed_protocols_names'].append(proto_name)
-                break
+                # Proto field match → open_filtered (or closed for localhost)
+                proto_field = response.nh if version == 6 else response.proto
+                if proto_field == protocol:
+                    bucket = "closed_protocols" if is_localhost else "open_filtered_protocols"
+                    Payloads._record_protocol(target, protocol, proto_name, bucket,
+                                              lock, target_results, initialize_target_results)
+                    return
+
+                Payloads._record_protocol(target, protocol, proto_name,
+                                          "closed_protocols", lock,
+                                          target_results, initialize_target_results)
+                return
 
             except Exception as e:
                 if verbose:
                     print(f"{red}[!] Error scanning protocol {protocol}: {e}{reset}")
                 if attempt == max_retries - 1:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_protocols'].append(protocol)
-                        target_results[target]['filtered_protocols_names'].append(proto_name)
+                    Payloads._record_protocol(target, protocol, proto_name,
+                                              "filtered_protocols", lock,
+                                              target_results, initialize_target_results)
                 else:
                     time.sleep(0.1)
                     continue
@@ -1537,31 +946,25 @@ class Payloads:
     @staticmethod
     def threaded_ip_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout,
                          target_results, banner_option, max_threads, targetss, protocols_to_scan,
-                         initialize_target_results, service_detection, version, ttl, hlim, sport, payload, id,
-                         flags,interval,fg,d):
-
+                         initialize_target_results, service_detection, version, ttl, hlim, sport,
+                         payload, id, flags, interval, fg, d):
         if max_threads == 1:
             for target in targetss:
                 for protocol in protocols_to_scan:
-                    Payloads.IP_Scan(
-                        target, protocol, max_retries, fragmente, recursively,
-                        verbose, socket_timeout, lock, target_results,
-                        banner_option, initialize_target_results, service_detection, version, ttl, hlim, sport, payload,
-                        id, flags, fg, d
-                    )
+                    Payloads.IP_Scan(target, protocol, max_retries, fragmente, recursively,
+                                     verbose, socket_timeout, lock, target_results,
+                                     banner_option, initialize_target_results, service_detection,
+                                     version, ttl, hlim, sport, payload, id, flags, fg, d)
         else:
             with ThreadPoolExecutor(max_workers=max_threads) as executor:
                 futures = []
                 for target in targetss:
                     for protocol in protocols_to_scan:
                         future = executor.submit(
-                            Payloads.IP_Scan,
-                            target, protocol, max_retries, fragmente, recursively,
-                            verbose, socket_timeout, lock, target_results,
-                            banner_option, initialize_target_results, service_detection, version, ttl, hlim, sport,
-                            payload,
-                            id, flags, fg, d
-                        )
+                            Payloads.IP_Scan, target, protocol, max_retries, fragmente,
+                            recursively, verbose, socket_timeout, lock, target_results,
+                            banner_option, initialize_target_results, service_detection,
+                            version, ttl, hlim, sport, payload, id, flags, fg, d)
                         time.sleep(interval)
                         futures.append(future)
 
@@ -1574,157 +977,109 @@ class Payloads:
 
     @staticmethod
     def IP_Ping(target, protocol, verbose, socket_timeout,
-                target_results, ttl, hlim, id, flags, D,v6=False):
-        count = 0
-
-        if is_loopback(target):
-            target_results[target]['up'] += 1
-            print(f"[SYS] Host {target} is up! ")
-            return
-        if v6:
-            version=6
-        else:
-            version=4
-
-        if D:
-            mach = decoy(D, version)
-            first, last, index = decoy_order(mach)
-        else:
-            first, last = None, None
+                target_results, ttl, hlim, id, flags, D, v6=False):
+        version = 6 if v6 else 4
+        mach, first, last, index = Payloads._decoy_meta(D, version)
 
         for i in range(2):
             try:
-                if ttl:
-                    TTL = ttl
-                else:
-                    TTL = mirage.ipv4_ttl()
+                TTL = ttl if ttl else mirage.ipv4_ttl()
+                HLIM = hlim if hlim else mirage.ipv6_hlim()
+                ID = id if id else mirage.ipv4_id()
+                FLAGS = flags if flags is not None else mirage.ipv4_flags()
 
-                if hlim:
-                    HLIM = hlim
-                else:
-                    HLIM = mirage.ipv6_hlim()
                 if v6:
                     packet = IPv6(dst=target, nh=protocol, hlim=HLIM, fl=0)
                 else:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
                     packet = scapy.IP(dst=target, proto=protocol, ttl=TTL, id=ID, flags=FLAGS)
+
                 if first:
                     for ma in mach[:index]:
                         if version == 4:
-                            if id:
-                                ID = id
-                            else:
-                                ID = mirage.ipv4_id()
-                            if flags:
-                                FLAGS = flags
-                            else:
-                                FLAGS = mirage.ipv4_flags()
-                            scapy.send(scapy.IP(dst=target,src=ma, proto=protocol, ttl=TTL, id=ID, flags=FLAGS), verbose=0)
+                            scapy.send(scapy.IP(dst=target, src=ma, proto=protocol, ttl=TTL,
+                                                id=ID, flags=FLAGS), verbose=0)
                         else:
-                            scapy.send(IPv6(dst=target, nh=protocol, hlim=HLIM, fl=0), verbose=0)
+                            scapy.send(IPv6(dst=target, src=ma, nh=protocol, hlim=HLIM, fl=0), verbose=0)
+
                 response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
+
                 if last:
                     for ma in mach[index:]:
                         if version == 4:
                             packet[scapy.IP].src = ma
-                            scapy.send(packet, verbose=0)
                         else:
                             packet[IPv6].src = ma
-                            scapy.send(packet, verbose=0)
+                        scapy.send(packet, verbose=0)
 
                 if response:
-                    if v6:
-                        if response.haslayer(ICMPv6DestUnreach):
-                            icmpv6 = response.getlayer(ICMPv6DestUnreach)
-                            code = icmpv6.code
-                            if code in [1, 3, 4]:
-                                target_results[target]['up'] += 1
-                            else:
-                                target_results[target]['filtered'] += 1
-                        elif response.haslayer(ICMPv6EchoReply):
-                            target_results[target]['up'] += 1
-                        elif response.haslayer(ICMPv6TimeExceeded):
-                            target_results[target]['filtered'] += 1
-                        elif response.haslayer(ICMPv6ParamProblem):
-                            target_results[target]['filtered'] += 1
-                        elif response.haslayer(scapy.TCP):
-                            flags = response.getlayer(scapy.TCP).flags
-                            if flags in [0x12, 0x14, 0x04]:
-                                target_results[target]['up'] += 1
-                            else:
-                                target_results[target]['up'] += 1
-                        elif response.haslayer(scapy.UDP):
-                            target_results[target]['up'] += 1
-                        elif response.nh == protocol:
-                            target_results[target]['up'] += 1
-                        else:
-                            target_results[target]['up'] += 1
-                    else:
-                        if response.haslayer(scapy.ICMP):
-                            icmp = response.getlayer(scapy.ICMP)
-                            if icmp.type == 3:
-                                if icmp.code in [13, 1, 2, 9, 10]:
-                                    target_results[target]['filtered'] += 1
-                                elif icmp.code == 3:
-                                    target_results[target]['up'] += 1
-                                else:
-                                    target_results[target]['down'] += 1
-                            elif icmp.type in [0, 14, 18]:
-                                target_results[target]['up'] += 1
-                            elif icmp.type == 11:
-                                target_results[target]['filtered'] += 1
-                            else:
-                                target_results[target]['up'] += 1
-                        elif response.haslayer(scapy.TCP):
-                            flags = response.getlayer(scapy.TCP).flags
-                            if flags in [0x12, 0x14, 0x04]:
-                                target_results[target]['up'] += 1
-                            else:
-                                target_results[target]['up'] += 1
-                        elif response.haslayer(scapy.UDP):
-                            target_results[target]['up'] += 1
-                        elif response.proto == protocol:
-                            target_results[target]['up'] += 1
-                        else:
-                            target_results[target]['up'] += 1
+                    bucket = Payloads._classify_ip_ping_response(response, protocol, v6)
                 else:
-                    target_results[target]['down'] += 1
+                    bucket = "down"
+
+                target_results[target][bucket] += 1
 
             except Exception as e:
                 if verbose:
                     print(f"{red}[!] IP Ping Error (IPv6={v6}, protocol={protocol}): {e}{reset}")
                 target_results[target]['filtered'] += 1
 
-            count += 1
+    @staticmethod
+    def _classify_ip_ping_response(response, protocol, v6):
+        if v6:
+            if response.haslayer(ICMPv6DestUnreach):
+                code = response.getlayer(ICMPv6DestUnreach).code
+                return "up" if code in [1, 3, 4] else "filtered"
+            if response.haslayer(ICMPv6EchoReply):
+                return "up"
+            if response.haslayer(ICMPv6TimeExceeded):
+                return "filtered"
+            if response.haslayer(ICMPv6ParamProblem):
+                return "filtered"
+            if response.haslayer(scapy.TCP):
+                return "up"
+            if response.haslayer(scapy.UDP):
+                return "up"
+            return "up"
+
+        if response.haslayer(scapy.ICMP):
+            icmp = response.getlayer(scapy.ICMP)
+            if icmp.type == 3:
+                if icmp.code in [13, 1, 2, 9, 10]:
+                    return "filtered"
+                if icmp.code == 3:
+                    return "up"
+                return "down"
+            if icmp.type in [0, 14, 18]:
+                return "up"
+            if icmp.type == 11:
+                return "filtered"
+            return "up"
+
+        if response.haslayer(scapy.TCP):
+            return "up"
+        if response.haslayer(scapy.UDP):
+            return "up"
+        return "up"
 
     @staticmethod
     def threaded_ip_ping(max_threads, verbose, socket_timeout, targets,
-                         Target, protocols, target_results, ttl, hlim, id, flags, v6, interval,d):
+                         Target, protocols, target_results, ttl, hlim, id, flags, v6, interval, d):
         for target in targets:
             target_results[target] = {'up': 0, 'down': 0, 'filtered': 0}
 
         if max_threads == 1:
             for target in targets:
                 for protocol in protocols:
-                    Payloads.IP_Ping(target, protocol, verbose,
-                                     socket_timeout, target_results, ttl, hlim, id, flags, d, v6)
+                    Payloads.IP_Ping(target, protocol, verbose, socket_timeout,
+                                     target_results, ttl, hlim, id, flags, d, v6)
         else:
             futures = []
             with ThreadPoolExecutor(max_workers=max_threads) as executor:
                 for target in targets:
                     for protocol in protocols:
                         future = executor.submit(
-                            Payloads.IP_Ping,
-                            target, protocol, verbose,
-                            socket_timeout, target_results, ttl, hlim, id, flags,d, v6
-                        )
+                            Payloads.IP_Ping, target, protocol, verbose,
+                            socket_timeout, target_results, ttl, hlim, id, flags, d, v6)
                         time.sleep(interval)
                         futures.append(future)
 
@@ -1736,539 +1091,121 @@ class Payloads:
                             print(f"{red}[!] Error: {e}{reset}")
 
         for target in targets:
-            if len(targets) == 1:
-                up = target_results[target]['up']
-                down = target_results[target]['down']
-                filtered = target_results[target]['filtered']
+            up = target_results[target]['up']
+            down = target_results[target]['down']
+            filtered = target_results[target]['filtered']
+            single = (len(targets) == 1)
 
-                if up > down and up > filtered:
-                    print(f"[IP] Host {target} is up! ({up} up, {down} down)")
-                    if target not in Target:
-                        Target.append(target)
-                elif up < down and down > filtered:
-                    print(f"[IP] Host {target} appears down ({up} up, {down} down)")
-                    if target not in Target:
-                        Target.append(target)
-                elif filtered > up and filtered > down:
-                    print(
-                        f"[IP] Host {target} appears to be not responding ({up} up, {down} down, {filtered} filtered)")
-                    if target not in Target:
-                        Target.append(target)
-                else:
-                    print(f"[IP] Host {target}: Inconclusive ({up} up, {down} down, {filtered} filtered)")
-                    if target not in Target:
-                        Target.append(target)
+            if up > down and up > filtered:
+                print(f"[IP] Host {target} is up! ({up} up, {down} down)")
+                if target not in Target:
+                    Target.append(target)
+            elif down > up and down > filtered:
+                print(f"[IP] Host {target} appears down ({up} up, {down} down)")
+                if single and target not in Target:
+                    Target.append(target)
+            elif filtered > up and filtered > down:
+                print(f"[IP] Host {target} appears to be not responding "
+                      f"({up} up, {down} down, {filtered} filtered)")
+                if single and target not in Target:
+                    Target.append(target)
             else:
-                up = target_results[target]['up']
-                down = target_results[target]['down']
-                filtered = target_results[target]['filtered']
-
-                if up > down and up > filtered:
-                    print(f"[IP] Host {target} is up! ({up} up, {down} down)")
-                    if target not in Target:
-                        Target.append(target)
-                elif up < down and down > filtered:
-                    print(f"[IP] Host {target} appears down ({up} up, {down} down)")
-                elif filtered > up and filtered > down:
-                    print(
-                        f"[IP] Host {target} appears to be not responding ({up} up, {down} down, {filtered} filtered)")
-                else:
-                    print(f"[IP] Host {target}: Inconclusive ({up} up, {down} down, {filtered} filtered)")
-                    if target not in Target:
-                        Target.append(target)
+                print(f"[IP] Host {target}: Inconclusive ({up} up, {down} down, {filtered} filtered)")
+                if single and target not in Target:
+                    Target.append(target)
 
     @staticmethod
-    def Window_Scan(target, port, max_retries, fragmente, recursively, verbose, socket_timeout, lock, target_results,
-                    banner_option, initialize_target_results, service_detection, version, ttl, hlim, sport, payload, id,
-                    flags,I,fragsize,D):
-        for attempt in range(max_retries):
-            try:
-                if D:
-                    mach = decoy(D, version)
-                    first, last, index = decoy_order(mach)
-                else:
-                    first, last = None, None
-                Proto = "tcp"
-                scan_type = "window"
-                if payload == None:
-                    payloads = mirage.random_payloads()
-                else:
-                    payloads = [payload]
-                if ttl:
-                    TTL = ttl
-                else:
-                    TTL = mirage.ipv4_ttl()
+    def Ack_ping(target, port, socket_timeout, targets_num, target_results, targetss,
+                 ttl, hlim, sport, id, flags, version, D):
+        mach, first, last, index = Payloads._decoy_meta(D, version)
 
-                if hlim:
-                    HLIM = hlim
-                else:
-                    HLIM = mirage.ipv6_hlim()
+        TTL = ttl if ttl else mirage.ipv4_ttl()
+        HLIM = hlim if hlim else mirage.ipv6_hlim()
+        SPORT = sport if sport else mirage.tcp_sport()
+        ID = id if id else mirage.ipv4_id()
+        FLAGS = flags if flags is not None else mirage.ipv4_flags()
 
-                if sport:
-                    SPORT = sport
-                else:
-                    SPORT = mirage.tcp_sport()
-                if version == 6:
-                    packet = IPv6(dst=target, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="A") / scapy.Raw(
-                        load=random.choice(payloads))
-                else:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    packet = scapy.IP(dst=target, id=ID, ttl=TTL,
-                                      flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                               seq=mirage.tcp_seq(),
-                                                               window=mirage.tcp_window(),
-                                                               options=mirage.Stealth_tcp_options(),
-                                                               flags="A") / scapy.Raw(load=random.choice(payloads))
-                if first:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    for ma in mach[:index]:
-                        if version == 4:
-                            scapy.send(scapy.IP(dst=target,src=ma, id=ID, ttl=TTL,
-                                      flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                               seq=mirage.tcp_seq(),
-                                                               window=mirage.tcp_window(),
-                                                               options=mirage.Stealth_tcp_options(),
-                                                               flags="A") / scapy.Raw(load=random.choice(payloads)), verbose=0)
-                        else:
-                            scapy.send(IPv6(dst=target,src=ma, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="A") / scapy.Raw(
-                        load=random.choice(payloads)), verbose=0)
-
-                if fragmente:
-                    if recursively:
-                        if version == 6:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize, v6=True)
-                        else:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize)
-                        if verbose:
-                            print(
-                                "\n[+] Demo Fragementation (if you find an error while using it leave it in our github for future updates)\n")
-                    else:
-                        if verbose:
-                            print(
-                                f"\n{yellow}[+] Fragmentation is Forbiden with WINDOW packets (if you want use flag -Rc){reset}\n")
-                        response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
-                else:
-                    response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
-
-                if last:
-                    for ma in mach[index:]:
-                        if version == 4:
-                            packet[scapy.IP].src = ma
-                            scapy.send(packet, verbose=0)
-                        else:
-                            packet[IPv6].src = ma
-                            scapy.send(packet, verbose=0)
-
-                service = service_detection(port)
-
-                if response is None:
-
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-
-                    if banner_option:
-                        banner = Banner.grab(
-                            target,
-                            port,
-                            protocol="tcp",
-                            timeout=3,
-                            verbose=verbose,
-                            version=version
-                        )
-
-                        if banner:
-                            with lock:
-                                target_results[target]['banners'].append(banner['banner'])
-                                target_results[target]['banners_ports'].append(port)
-                                target_results[target]['filtered_ports_services'].append(banner['service'])
-                        else:
-                            target_results[target]['filtered_ports_services'].append(service)
-                    else:
-                        target_results[target]['filtered_ports_services'].append(service)
-
-                elif response.haslayer(scapy.TCP):
-                    flags = response.getlayer(scapy.TCP).flags
-
-                    if flags == 0x14 or flags == 0x04:
-                        window = response.getlayer(scapy.TCP).window
-                        if window == 0:
-                            with lock:
-                                if target not in target_results:
-                                    initialize_target_results(target)
-                                target_results[target]['closed_ports'].append(port)
-                                target_results[target]['closed_ports_services'].append(service)
-                        else:
-                            if I:
-                                print(f"[+] Port {port} is open .")
-                            with lock:
-                                if target not in target_results:
-                                    initialize_target_results(target)
-                                target_results[target]['open_ports'].append(port)
-
-                                if banner_option:
-                                    banner = Banner.grab(
-                                        target,
-                                        port,
-                                        protocol="tcp",
-                                        timeout=3,
-                                        verbose=verbose,
-                                        version=version
-                                    )
-
-                                    if banner:
-                                        with lock:
-                                            target_results[target]['banners'].append(banner['banner'])
-                                            target_results[target]['banners_ports'].append(port)
-                                            target_results[target]['opened_ports_services'].append(service)
-                                    else:
-                                        target_results[target]['opened_ports_services'].append(service)
-                                else:
-                                    target_results[target]['opened_ports_services'].append(service)
-
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                elif response.haslayer(ICMPv6DestUnreach):
-                    code = response.getlayer(ICMPv6DestUnreach).code
-                    if code == 4:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_ports'].append(port)
-                            target_results[target]['closed_ports_services'].append(service)
-                        break
-                    elif code == 1:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                elif response.haslayer(scapy.ICMP):
-                    icmp_type = response.getlayer(scapy.ICMP).type
-                    icmp_code = response.getlayer(scapy.ICMP).code
-
-                    if icmp_type == 3 and icmp_code in [1, 2, 3, 9, 10, 13]:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                else:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-                    break
-
-            except Exception as e:
-                if verbose:
-                    print(f"{red}[!] Error scanning port {port}: {e}{reset}")
-                if attempt == max_retries - 1:
-                    service = service_detection(port)
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-                else:
-                    time.sleep(0.1)
-                    continue
-
-    @staticmethod
-    def threaded_window_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout, target_results,
-                             banner_option, max_threads, targetss, ports_to_scan, i, s, version, ttl, hlim, sport,
-                             payload, id, flags, interval, I, fg,d):
-
-        if max_threads == 1:
-            for target in targetss:
-                for port in ports_to_scan:
-                    Payloads.Window_Scan(target, port, max_retries, fragmente, recursively,
-                                         verbose, socket_timeout, lock, target_results,
-                                         banner_option, i, s, version, ttl, hlim, sport, payload,
-                                         id, flags, I, fg,d)
-        else:
-            with ThreadPoolExecutor(max_workers=max_threads) as executor:
-                futures = []
-                for target in targetss:
-                    for port in ports_to_scan:
-                        future = executor.submit(
-                            Payloads.Window_Scan,
-                            target, port, max_retries, fragmente, recursively,
-                            verbose, socket_timeout, lock, target_results,
-                            banner_option, i, s, version, ttl, hlim, sport, payload, id, flags, I, fg, d
-                        )
-                        time.sleep(interval)
-                        futures.append(future)
-
-                for future in as_completed(futures):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        if verbose:
-                            print(f"{red}[!] Window scan error: {e}{reset}")
-
-    @staticmethod
-    def Ack_ping(target, port, socket_timeout, targets_num, target_results, targetss, ttl, hlim, sport, id, flags,
-                 version,D):
-        if is_loopback(target):
-            target_results[target]['up'] += 1
-            print(f"[SYS] Host {target} is up! ")
-            return
-        if D:
-            mach = decoy(D, version)
-            first, last, index = decoy_order(mach)
-        else:
-            first, last = None, None
-        Proto = "tcp"
-        if ttl:
-            TTL = ttl
-        else:
-            TTL = mirage.ipv4_ttl()
-
-        if hlim:
-            HLIM = hlim
-        else:
-            HLIM = mirage.ipv6_hlim()
-
-        if sport:
-            SPORT = sport
-        else:
-            SPORT = mirage.tcp_sport()
         if version == 6:
-            from scapy.layers.inet6 import IPv6
-            packet = IPv6(
-                dst=target,
-                hlim=HLIM,
-                nh=6
-            ) / scapy.TCP(
-                dport=port,
-                sport=SPORT,
-                seq=mirage.tcp_seq(),
-                window=mirage.tcp_window(),
-                options=mirage.Stealth_tcp_options(),
-                flags="A"
-            )
+            packet = IPv6(dst=target, hlim=HLIM, nh=6) / scapy.TCP(
+                dport=port, sport=SPORT, seq=mirage.tcp_seq(),
+                window=mirage.tcp_window(), options=mirage.Stealth_tcp_options(), flags="A")
         else:
-            if id:
-                ID = id
-            else:
-                ID = mirage.ipv4_id()
-            if flags:
-                FLAGS = flags
-            else:
-                FLAGS = mirage.ipv4_flags()
-            packet = scapy.IP(
-                dst=target,
-                id=ID,
-                ttl=TTL,
-                flags=FLAGS
-            ) / scapy.TCP(
-                dport=port,
-                sport=SPORT,
-                seq=mirage.tcp_seq(),
-                window=mirage.tcp_window(),
-                options=mirage.Stealth_tcp_options(),
-                flags="A"
-            )
+            packet = scapy.IP(dst=target, id=ID, ttl=TTL, flags=FLAGS) / scapy.TCP(
+                dport=port, sport=SPORT, seq=mirage.tcp_seq(),
+                window=mirage.tcp_window(), options=mirage.Stealth_tcp_options(), flags="A")
 
         if first:
             for ma in mach[:index]:
                 if version == 4:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    scapy.send(scapy.IP(
-                                dst=target,
-                                src=ma,
-                                id=ID,
-                                ttl=TTL,
-                                flags=FLAGS
-                            ) / scapy.TCP(
-                                dport=port,
-                                sport=SPORT,
-                                seq=mirage.tcp_seq(),
-                                window=mirage.tcp_window(),
-                                options=mirage.Stealth_tcp_options(),
-                                flags="A"
-                            ), verbose=0)
+                    scapy.send(scapy.IP(dst=target, src=ma, id=mirage.ipv4_id(),
+                                        ttl=TTL, flags=mirage.ipv4_flags()) / scapy.TCP(
+                        dport=port, sport=SPORT, seq=mirage.tcp_seq(),
+                        window=mirage.tcp_window(), options=mirage.Stealth_tcp_options(),
+                        flags="A"), verbose=0)
                 else:
-                    from scapy.layers.inet6 import IPv6
-                    scapy.send(IPv6(
-                        dst=target,
-                        src=ma,
-                        hlim=HLIM,
-                        nh=6
-                    ) / scapy.TCP(
-                        dport=port,
-                        sport=SPORT,
-                        seq=mirage.tcp_seq(),
-                        window=mirage.tcp_window(),
-                        options=mirage.Stealth_tcp_options(),
-                        flags="A"
-                    ), verbose=0)
+                    scapy.send(IPv6(dst=target, src=ma, hlim=HLIM, nh=6) / scapy.TCP(
+                        dport=port, sport=SPORT, seq=mirage.tcp_seq(),
+                        window=mirage.tcp_window(), options=mirage.Stealth_tcp_options(),
+                        flags="A"), verbose=0)
+
         response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
+
         if last:
             for ma in mach[index:]:
                 if version == 4:
                     packet[scapy.IP].src = ma
-                    scapy.send(packet, verbose=0)
                 else:
                     packet[IPv6].src = ma
-                    scapy.send(packet, verbose=0)
+                scapy.send(packet, verbose=0)
 
-        if len(targets_num) == 1:
-            if response:
+        if response:
+            target_results[target]['up'] += 1
+            with_lock = target not in targetss
+            if len(targets_num) == 1:
                 if version == 6 and response.haslayer(ICMPv6DestUnreach):
                     print(f"[ACK] Host {target}:{port} is up! (ICMPv6)")
-                    if target not in targetss:
-                        targetss.append(target)
-                    target_results[target]['up'] += 1
                 elif response.haslayer(scapy.TCP):
-                    flags = response.getlayer(scapy.TCP).flags
-                    if flags == 0x04 or flags == 0x14:
+                    fl = response.getlayer(scapy.TCP).flags
+                    if fl in (0x04, 0x14):
                         print(f"[ACK] Host {target}:{port} is up! (RST response)")
-                        if target not in targetss:
-                            targetss.append(target)
-                        target_results[target]['up'] += 1
                     else:
-                        print(f"[ACK] Host {target}:{port} is up! (Unexpected flags: {flags})")
-                        if target not in targetss:
-                            targetss.append(target)
-                        target_results[target]['up'] += 1
+                        print(f"[ACK] Host {target}:{port} is up! (Unexpected flags: {fl})")
                 elif response.haslayer(scapy.ICMP):
                     print(f"[ACK] Host {target}:{port} is up! (ICMP response)")
-                    if target not in targetss:
-                        targetss.append(target)
-                    target_results[target]['up'] += 1
                 else:
                     print(f"[ACK] Host {target}:{port} is up! (Unknown response)")
-                    if target not in targetss:
-                        targetss.append(target)
-                    target_results[target]['up'] += 1
-            else:
-                if target not in targetss:
-                    targetss.append(target)
 
+            if target not in targetss:
+                targetss.append(target)
         else:
-            if response:
-                if version == 6 and response.haslayer(ICMPv6DestUnreach):
-                    if target not in targetss:
-                        targetss.append(target)
-                    target_results[target]['up'] += 1
-                elif response.haslayer(scapy.TCP):
-                    flags = response.getlayer(scapy.TCP).flags
-                    if flags == 0x04 or flags == 0x14:
-                        if target not in targetss:
-                            targetss.append(target)
-                        target_results[target]['up'] += 1
-                    else:
-                        if target not in targetss:
-                            targetss.append(target)
-                        target_results[target]['up'] += 1
-                elif response.haslayer(scapy.ICMP):
-                    if target not in targetss:
-                        targetss.append(target)
-                    target_results[target]['up'] += 1
-                else:
-                    if target not in targetss:
-                        targetss.append(target)
-                    target_results[target]['up'] += 1
+            if len(targets_num) == 1 and target not in targetss:
+                targetss.append(target)
 
     @staticmethod
-    def threaded_ack_ping(max_threads, targets, ping_port, pp, target_results, socket_timeout, targetss, verbose, num,
-                          version, ttl, hlim, sport, id, flags, interval,d):
+    def threaded_ack_ping(max_threads, targets, ping_port, pp, target_results, socket_timeout,
+                          targetss, verbose, num, version, ttl, hlim, sport, id, flags, interval, d):
         if max_threads == 1:
             for Target in targets:
                 if ping_port:
                     for port in pp:
-                        Payloads.Ack_ping(Target, port, socket_timeout, num, target_results, targetss, ttl, hlim, sport,
-                                          id, flags, version,d)
+                        Payloads.Ack_ping(Target, port, socket_timeout, num, target_results,
+                                          targetss, ttl, hlim, sport, id, flags, version, d)
                 else:
                     for port in top_20_tcp_ports:
-                        Payloads.Ack_ping(Target, port, socket_timeout, targets, target_results, targetss, ttl, hlim,
-                                          sport, id, flags, version,d)
-
-            for target in targets:
-                if target_results[target]['up'] >= 1:
-                    pass
-                else:
-                    print(f"[ACK] Host {target} is shown to be down or not responding")
-
+                        Payloads.Ack_ping(Target, port, socket_timeout, targets, target_results,
+                                          targetss, ttl, hlim, sport, id, flags, version, d)
         else:
             with ThreadPoolExecutor(max_workers=max_threads) as executor:
                 futures = []
                 for Target in targets:
-                    if ping_port:
-                        for port in pp:
-                            future = executor.submit(
-                                Payloads.Ack_ping, Target, port, socket_timeout, targets, target_results, targetss, ttl,
-                                hlim, sport, id, flags, version, d
-                            )
-                            time.sleep(interval)
-                            futures.append(future)
-                    else:
-                        for port in top_20_tcp_ports:
-                            future = executor.submit(
-                                Payloads.Ack_ping, Target, port, socket_timeout, targets, target_results, targetss, ttl,
-                                hlim, sport, id, flags, version, d
-                            )
-                            time.sleep(interval)
-                            futures.append(future)
+                    ports = pp if ping_port else top_20_tcp_ports
+                    num_arg = num if ping_port else targets
+                    for port in ports:
+                        future = executor.submit(
+                            Payloads.Ack_ping, Target, port, socket_timeout, num_arg,
+                            target_results, targetss, ttl, hlim, sport, id, flags, version, d)
+                        time.sleep(interval)
+                        futures.append(future)
 
                 for future in as_completed(futures):
                     try:
@@ -2285,734 +1222,22 @@ class Payloads:
                 print(f"[ACK] Host {target} is shown to be down or not responding")
 
     @staticmethod
-    def Maimon_Scan(target, port, max_retries, fragmente, recursively, verbose, socket_timeout, lock, target_results,
-                    banner_option, initialize_target_results, service_detection, version, ttl, hlim, sport, payload, id,
-                    flags,fragsize,D):
-        for attempt in range(max_retries):
-            try:
-                if D:
-                    mach = decoy(D, version)
-                    first, last, index = decoy_order(mach)
-                else:
-                    first, last = None, None
-                Proto = "tcp"
-                scan_type = "maimon"
-                if payload == None:
-                    payloads = mirage.random_payloads()
-                else:
-                    payloads = [payload]
-                if ttl:
-                    TTL = ttl
-                else:
-                    TTL = mirage.ipv4_ttl()
-
-                if hlim:
-                    HLIM = hlim
-                else:
-                    HLIM = mirage.ipv6_hlim()
-
-                if sport:
-                    SPORT = sport
-                else:
-                    SPORT = mirage.tcp_sport()
-                if version == 6:
-                    packet = IPv6(dst=target, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="FA") / scapy.Raw(
-                        load=random.choice(payloads))
-                else:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    packet = scapy.IP(dst=target, id=ID, ttl=TTL,
-                                      flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                               seq=mirage.tcp_seq(),
-                                                               window=mirage.tcp_window(),
-                                                               options=mirage.Stealth_tcp_options(),
-                                                               flags="FA") / scapy.Raw(load=random.choice(payloads))
-                if first:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    for ma in mach[:index]:
-                        if version == 4:
-                            scapy.send(scapy.IP(dst=target,src=ma, id=ID, ttl=TTL,
-                                      flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                               seq=mirage.tcp_seq(),
-                                                               window=mirage.tcp_window(),
-                                                               options=mirage.Stealth_tcp_options(),
-                                                               flags="FA") / scapy.Raw(load=random.choice(payloads)), verbose=0)
-                        else:
-                            scapy.send(IPv6(dst=target,src=ma, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="FA") / scapy.Raw(
-                        load=random.choice(payloads)), verbose=0)
-                if fragmente:
-                    if recursively:
-                        if version == 6:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize, v6=True)
-                        else:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize)
-                        if verbose:
-                            print(
-                                "\n[+] Demo Fragementation (if you find an error while using it leave it in our github for future updates)\n")
-                    else:
-                        if verbose:
-                            print(
-                                f"\n{yellow}[+] Fragmentation is Forbiden with MAIMON packets (if you want use flag -Rc){reset}\n")
-                        response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
-                else:
-                    response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
-
-                if last:
-                    for ma in mach[index:]:
-                        if version == 4:
-                            packet[scapy.IP].src = ma
-                            scapy.send(packet, verbose=0)
-                        else:
-                            packet[IPv6].src = ma
-                            scapy.send(packet, verbose=0)
-
-                service = service_detection(port)
-
-                if response is None:
-
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['open_filtered_ports'].append(port)
-
-                    if banner_option:
-                        banner = Banner.grab(
-                            target,
-                            port,
-                            protocol="tcp",
-                            timeout=3,
-                            verbose=verbose,
-                            version=version
-                        )
-
-                        if banner:
-                            with lock:
-                                target_results[target]['banners'].append(banner['banner'])
-                                target_results[target]['banners_ports'].append(port)
-                                target_results[target]['open_filtered_ports_services'].append(banner['service'])
-                        else:
-                            target_results[target]['open_filtered_ports_services'].append(service)
-                    else:
-                        target_results[target]['open_filtered_ports_services'].append(service)
-
-                elif response.haslayer(scapy.TCP):
-                    flags = response.getlayer(scapy.TCP).flags
-
-                    if flags == 0x14 or flags == 0x04:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_ports'].append(port)
-                            target_results[target]['closed_ports_services'].append(service)
-
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                elif response.haslayer(ICMPv6DestUnreach):
-                    code = response.getlayer(ICMPv6DestUnreach).code
-                    if code == 4:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_ports'].append(port)
-                            target_results[target]['closed_ports_services'].append(service)
-                        break
-                    elif code == 1:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                elif response.haslayer(scapy.ICMP):
-                    icmp_type = response.getlayer(scapy.ICMP).type
-                    icmp_code = response.getlayer(scapy.ICMP).code
-
-                    if icmp_type == 3 and icmp_code in [1, 2, 3, 9, 10, 13]:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                else:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-                    break
-
-            except Exception as e:
-                if verbose:
-                    print(f"{red}[!] Error scanning port {port}: {e}{reset}")
-                if attempt == max_retries - 1:
-                    service = service_detection(port)
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-                else:
-                    time.sleep(0.1)
-                    continue
-
-    @staticmethod
-    def threaded_maimon_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout, target_results,
-                             banner_option, max_threads, targetss, ports_to_scan, i, s, version, ttl, hlim, sport,
-                             payload, id, flags, interval, fg,d):
-
-        if max_threads == 1:
-            for target in targetss:
-                for port in ports_to_scan:
-                    Payloads.Maimon_Scan(target, port, max_retries, fragmente, recursively,
-                                         verbose, socket_timeout, lock, target_results,
-                                         banner_option, i, s, version, ttl, hlim, sport, payload,
-                                         id, flags, fg,d)
-        else:
-            with ThreadPoolExecutor(max_workers=max_threads) as executor:
-                futures = []
-                for target in targetss:
-                    for port in ports_to_scan:
-                        future = executor.submit(
-                            Payloads.Maimon_Scan,
-                            target, port, max_retries, fragmente, recursively,
-                            verbose, socket_timeout, lock, target_results,
-                            banner_option, i, s, version, ttl, hlim, sport, payload,
-                            id, flags, fg, d
-                        )
-                        time.sleep(interval)
-                        futures.append(future)
-
-                for future in as_completed(futures):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        if verbose:
-                            print(f"{red}[!] Maimon scan error: {e}{reset}")
-
-    @staticmethod
-    def Fdd_Scan(target, port, max_retries, fragmente, recursively, verbose, socket_timeout, lock, target_results,
-                 banner_option, initialize_target_results, service_detection, version, ttl, hlim, sport, payload, id,
-                 flags,fragsize,D):
-        for attempt in range(max_retries):
-            try:
-                if D:
-                    mach = decoy(D, version)
-                    first, last, index = decoy_order(mach)
-                else:
-                    first, last = None, None
-                Proto = "tcp"
-                scan_type = "fdd"
-                if payload == None:
-                    payloads = mirage.random_payloads()
-                else:
-                    payloads = [payload]
-                if ttl:
-                    TTL = ttl
-                else:
-                    TTL = mirage.ipv4_ttl()
-
-                if hlim:
-                    HLIM = hlim
-                else:
-                    HLIM = mirage.ipv6_hlim()
-
-                if sport:
-                    SPORT = sport
-                else:
-                    SPORT = mirage.tcp_sport()
-                if version == 6:
-                    packet = IPv6(dst=target, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="U") / scapy.Raw(
-                        load=random.choice(payloads))
-                else:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    packet = scapy.IP(dst=target, id=ID, ttl=TTL,
-                                      flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                               seq=mirage.tcp_seq(),
-                                                               window=mirage.tcp_window(),
-                                                               options=mirage.Stealth_tcp_options(),
-                                                               flags="U") / scapy.Raw(load=random.choice(payloads))
-                if first:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
-                    for ma in mach[:index]:
-                        if version == 4:
-                            scapy.send(scapy.IP(dst=target,src=ma, id=ID, ttl=TTL,
-                                      flags=FLAGS) / scapy.TCP(dport=port, sport=SPORT,
-                                                               seq=mirage.tcp_seq(),
-                                                               window=mirage.tcp_window(),
-                                                               options=mirage.Stealth_tcp_options(),
-                                                               flags="U") / scapy.Raw(load=random.choice(payloads)), verbose=0)
-                        else:
-                            scapy.send(IPv6(dst=target,src=ma, nh=6, hlim=HLIM) / scapy.TCP(dport=port, sport=SPORT,
-                                                                           seq=mirage.tcp_seq(),
-                                                                           window=mirage.tcp_window(),
-                                                                           options=mirage.Stealth_tcp_options(),
-                                                                           flags="U") / scapy.Raw(
-                        load=random.choice(payloads)), verbose=0)
-                if fragmente:
-                    if recursively:
-                        if version == 6:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize, v6=True)
-                        else:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize)
-                        if verbose:
-                            print(
-                                "\n[+] Demo Fragementation (if you find an error while using it leave it in our github for future updates)\n")
-                    else:
-                        if verbose:
-                            print(
-                                f"\n{yellow}[+] Fragmentation is Forbiden with FDD packets (if you want use flag -Rc){reset}\n")
-                        response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
-                else:
-                    response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
-                if last:
-                    for ma in mach[index:]:
-                        if version == 4:
-                            packet[scapy.IP].src = ma
-                            scapy.send(packet, verbose=0)
-                        else:
-                            packet[IPv6].src = ma
-                            scapy.send(packet, verbose=0)
-
-                service = service_detection(port)
-
-                if response is None:
-
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['defended_ports'].append(port)
-
-                    if banner_option:
-                        banner = Banner.grab(
-                            target,
-                            port,
-                            protocol="tcp",
-                            timeout=3,
-                            verbose=verbose,
-                            version=version
-                        )
-
-                        if banner:
-                            with lock:
-                                target_results[target]['banners'].append(banner['banner'])
-                                target_results[target]['banners_ports'].append(port)
-                                target_results[target]['defended_ports_services'].append(banner['service'])
-                        else:
-                            target_results[target]['defended_ports_services'].append(service)
-                    else:
-                        target_results[target]['defended_ports_services'].append(service)
-
-                elif response.haslayer(scapy.TCP):
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['undefended_ports'].append(port)
-                        target_results[target]['undefended_ports_services'].append(service)
-
-                elif response.haslayer(ICMPv6DestUnreach):
-                    code = response.getlayer(ICMPv6DestUnreach).code
-                    if code == 4:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['defended_ports'].append(port)
-                            target_results[target]['defended_ports_services'].append(service)
-                        break
-                    elif code == 1:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['defended_ports'].append(port)
-                            target_results[target]['defended_ports_services'].append(service)
-                        break
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['defended_ports'].append(port)
-                            target_results[target]['defended_ports_services'].append(service)
-                        break
-
-                elif response.haslayer(scapy.ICMP):
-                    icmp_type = response.getlayer(scapy.ICMP).type
-                    icmp_code = response.getlayer(scapy.ICMP).code
-
-                    if icmp_type == 3 and icmp_code in [1, 2, 3, 9, 10, 13]:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['defended_ports'].append(port)
-                            target_results[target]['defended_ports_services'].append(service)
-                        break
-
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['defended_ports'].append(port)
-                            target_results[target]['defended_ports_services'].append(service)
-                        break
-
-                else:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['defended_ports'].append(port)
-                        target_results[target]['defended_ports_services'].append(service)
-                    break
-
-            except Exception as e:
-                if verbose:
-                    print(f"{red}[!] Error scanning port {port}: {e}{reset}")
-                if attempt == max_retries - 1:
-                    service = service_detection(port)
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['defended_ports'].append(port)
-                        target_results[target]['defended_ports_services'].append(service)
-                else:
-                    time.sleep(0.1)
-                    continue
-
-    @staticmethod
-    def threaded_fdd_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout, target_results,
-                          banner_option, max_threads, targetss, ports_to_scan, i, s, version, ttl, hlim, sport, payload,
-                          id, flags, interval, fg,d):
-
-        if max_threads == 1:
-            for target in targetss:
-                for port in ports_to_scan:
-                    Payloads.Fdd_Scan(target, port, max_retries, fragmente, recursively,
-                                      verbose, socket_timeout, lock, target_results,
-                                      banner_option, i, s, version, ttl, hlim, sport, payload,
-                                      id, flags, fg, d)
-        else:
-            with ThreadPoolExecutor(max_workers=max_threads) as executor:
-                futures = []
-                for target in targetss:
-                    for port in ports_to_scan:
-                        future = executor.submit(
-                            Payloads.Fdd_Scan,
-                            target, port, max_retries, fragmente, recursively,
-                            verbose, socket_timeout, lock, target_results,
-                            banner_option, i, s, version, ttl, hlim, sport, payload,
-                            id, flags, fg, d
-                        )
-                        time.sleep(interval)
-                        futures.append(future)
-
-                for future in as_completed(futures):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        if verbose:
-                            print(f"{red}[!] Fdd scan error: {e}{reset}")
-
-    @staticmethod
-    def FTPBounceScan(target, ftpserver, ftp_port, port_range, interval, max_retries=2, imediate=None, fragment=False, recursively=False,
-                      verbose=False, socket_timeout=5, lock=None, target_results=None, banner_option=False,
-                      initialize_target_results=None, service_detection=None, version=4):
-
-        import socket
-        import time
-        import ipaddress
-
-        def encode_ip(ip, ver=4):
-            if ver == 6:
-                return f"|2|{ip}|"
-            else:
-                return ",".join(ip.split("."))
-
-        def encode_port(p):
-            return f"{p // 256},{p % 256}"
-
-        def read_until_response(sock, timeout=5):
-            sock.settimeout(timeout)
-            response = ""
-            while True:
-                try:
-                    data = sock.recv(1024).decode(errors='ignore')
-                    if not data:
-                        break
-                    response += data
-                    if len(response) >= 4 and response[3] == ' ':
-                        break
-                    if len(response) >= 4 and response[3] == '-' and '\n' + response[:3] + ' ' in response:
-                        break
-                except socket.timeout:
-                    break
-            return response
-
-        def send_eprt(ftp_control, target_ip, target_port, ver=4):
-            if ver == 6:
-                eprt_cmd = f"EPRT |2|{target_ip}|{target_port}\r\n"
-                ftp_control.send(eprt_cmd.encode())
-                resp = read_until_response(ftp_control, socket_timeout)
-                return "200" in resp
-            else:
-                ip_comma = encode_ip(target_ip, ver=4)
-                port_code = encode_port(target_port)
-                port_cmd = f"PORT {ip_comma},{port_code}\r\n"
-                ftp_control.send(port_cmd.encode())
-                resp = read_until_response(ftp_control, socket_timeout)
-                return "200" in resp
-
-        def setup_data_channel(ftp_control, target_ip, target_port, ver=4):
-            try:
-                listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                listen_sock.settimeout(socket_timeout)
-                listen_sock.bind(('', 0))
-                listen_sock.listen(1)
-                local_port = listen_sock.getsockname()[1]
-
-                if ver == 6:
-                    if not send_eprt(ftp_control, target_ip, local_port, ver=6):
-                        listen_sock.close()
-                        return None
-                else:
-                    if not send_eprt(ftp_control, target_ip, local_port, ver=4):
-                        listen_sock.close()
-                        return None
-
-                ftp_control.send(b"LIST\r\n")
-                list_resp = read_until_response(ftp_control, socket_timeout)
-
-                if "150" not in list_resp:
-                    listen_sock.close()
-                    return ("filtered", target_port)
-
-                try:
-                    data_sock, addr = listen_sock.accept()
-                    data_sock.settimeout(socket_timeout)
-                    data = data_sock.recv(1024)
-                    data_sock.close()
-                except socket.timeout:
-                    listen_sock.close()
-                    return ("filtered", target_port)
-
-                final_resp = read_until_response(ftp_control, socket_timeout)
-                listen_sock.close()
-
-                if "226" in final_resp:
-                    return ("open", target_port)
-                elif "425" in final_resp:
-                    return ("closed", target_port)
-                else:
-                    return ("filtered", target_port)
-
-            except Exception as e:
-                try:
-                    listen_sock.close()
-                except:
-                    pass
-                return None
-
-        if isinstance(port_range, tuple):
-            ports = list(range(port_range[0], port_range[1] + 1))
-        elif isinstance(port_range, list):
-            ports = port_range
-        else:
-            ports = [port_range]
-
-        results = []
-
-        if version == 6:
-            try:
-                ipaddress.IPv6Address(target)
-            except:
-                if verbose:
-                    print(f"{red}[!] Invalid IPv6 address: {target}{reset}")
-                return False
-
-        if verbose:
-            print(f"\n{cyan}[+] FTP Bounce Scan: {ftpserver}:{ftp_port} -> {target} (IPv{version}){reset}")
-            print(f"{cyan}[+] Testing {len(ports)} ports{reset}")
-
-        ftp_control = None
-        for attempt in range(max_retries):
-            try:
-                if version == 6:
-                    ftp_control = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-                else:
-                    ftp_control = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-                ftp_control.settimeout(socket_timeout)
-                ftp_control.connect((ftpserver, ftp_port))
-
-                banner = read_until_response(ftp_control, socket_timeout)
-                if verbose and attempt == 0:
-                    print(f"{green}[+] FTP Banner: {banner.splitlines()[0] if banner else 'None'}{reset}")
-
-                ftp_control.send(b"USER anonymous\r\n")
-                resp = read_until_response(ftp_control, socket_timeout)
-                ftp_control.send(b"PASS test@\r\n")
-                resp = read_until_response(ftp_control, socket_timeout)
-
-                if "230" not in resp:
-                    raise Exception("FTP login failed - anonymous not allowed")
-
-                if verbose:
-                    print(f"{green}[+] Connected to FTP server {ftpserver}:{ftp_port} (anonymous){reset}")
-                break
-
-            except Exception as e:
-                if ftp_control:
-                    ftp_control.close()
-                    ftp_control = None
-                if verbose:
-                    print(f"{yellow}[-] FTP connection attempt {attempt + 1} failed: {e}{reset}")
-                if attempt == max_retries - 1:
-                    print(f"{red}[-] Cannot connect to FTP server {ftpserver}:{ftp_port}{reset}")
-                    return False
-                time.sleep(1)
-
-        if ftp_control is None:
-            return False
-
-        for idx, port in enumerate(ports):
-            try:
-                if verbose:
-                    print(f"  [{idx + 1}/{len(ports)}] Testing port {port}...", end=" ")
-
-                result = setup_data_channel(ftp_control, target, port, version)
-
-                if result:
-                    status, port_num = result
-                else:
-                    status = "filtered"
-                    port_num = port
-
-                service = service_detection(port_num) if service_detection else f"port_{port_num}"
-
-                if lock and target_results and initialize_target_results:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-
-                        if status == "open":
-                            if imediate:
-                                print(f"[+] Port {port_num} is open .")
-                            target_results[target]['open_ports'].append(port_num)
-                            target_results[target]['open_ports_services'].append(service)
-                        elif status == "closed":
-                            target_results[target]['closed_ports'].append(port_num)
-                            target_results[target]['closed_ports_services'].append(service)
-                        else:
-                            target_results[target]['filtered_ports'].append(port_num)
-                            target_results[target]['filtered_ports_services'].append(service)
-
-                results.append({"port": port_num, "status": status, "service": service})
-
-            except Exception as e:
-                if verbose:
-                    print(f"{red}[!] Error testing port {port}: {e}{reset}")
-                results.append({"port": port, "status": "error", "service": "unknown"})
-
-            time.sleep(interval)
-
-        try:
-            ftp_control.send(b"QUIT\r\n")
-            read_until_response(ftp_control, socket_timeout)
-            ftp_control.close()
-        except:
-            pass
-
-        return True
-
-    @staticmethod
     def Idle_Scan(target, port, zombie_ip, max_retries, verbose, socket_timeout,
                   lock, target_results, banner_option, initialize_target_results,
-                  service_detection, version, ttl, sport, payload, id, flags, I,D):
-
+                  service_detection, version, ttl, sport, payload, id, flags, I, D):
         for attempt in range(max_retries):
             try:
-                if D:
-                    mach = decoy(D, version=4)
-                    first, last, index = decoy_order(mach)
-                else:
-                    first, last = None, None
-                if payload == None:
-                    pass
-                else:
-                    P = [payload]
-                if ttl:
-                    TTL = ttl
-                else:
-                    TTL = mirage.ipv4_ttl()
+                mach, first, last, index = Payloads._decoy_meta(D, version=4)
 
-                if sport:
-                    SPORT = sport
-                else:
-                    SPORT = mirage.tcp_sport()
+                TTL = ttl if ttl else mirage.ipv4_ttl()
+                SPORT = sport if sport else mirage.tcp_sport()
 
-                if payload != None:
-                    probe_pkt = scapy.IP(dst=zombie_ip) / scapy.TCP(dport=445, flags="SA") / scapy.Raw(load=P)
+                if payload is not None:
+                    probe_pkt = scapy.IP(dst=zombie_ip) / scapy.TCP(dport=445, flags="SA") \
+                        / scapy.Raw(load=payload)
                 else:
                     probe_pkt = scapy.IP(dst=zombie_ip) / scapy.TCP(dport=445, flags="SA")
+
                 if first:
                     for ma in mach[:index]:
                         Pipo = deepcopy(probe_pkt)
@@ -3020,126 +1245,59 @@ class Payloads:
                         scapy.send(Pipo, verbose=0)
 
                 reply1 = scapy.sr1(probe_pkt, timeout=socket_timeout, verbose=0)
-                if last:
-                    for ma in mach[index:]:
-                        Pipo = deepcopy(probe_pkt)
-                        Pipo[scapy.IP].src = ma
-                        scapy.send(Pipo, verbose=0)
                 service = service_detection(port)
 
                 if not reply1 or not reply1.haslayer(scapy.IP):
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
+                    Payloads._record(target, port, "filtered_ports", service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
                     return
 
                 if version == 6:
-                    with lock:
+                    if verbose:
                         print(f"\n{yellow}[!] Idle Scan doesn't work with IPv6 {reset}\n")
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
+                    Payloads._record(target, port, "filtered_ports", service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
                     return
 
                 id1 = reply1[scapy.IP].id
+                ID = id if id else mirage.ipv4_id()
+                FLAGS = flags if flags is not None else mirage.ipv4_flags()
 
-                if id:
-                    ID = id
-                else:
-                    ID = mirage.ipv4_id()
-
-                if flags:
-                    FLAGS = flags
-                else:
-                    FLAGS = mirage.ipv4_flags()
-
-
-                spoofed_pkt = (scapy.IP(src=zombie_ip, dst=target, id=ID, ttl=TTL, flags=FLAGS) /
-                               scapy.TCP(dport=port, sport=SPORT,
-                                         seq=mirage.tcp_seq(),
-                                         flags="S",
-                                         window=mirage.tcp_window(),
-                                         options=mirage.Stealth_tcp_options()))
-                if first:
-                    for ma in mach[:index]:
-                        Pipo = deepcopy(probe_pkt)
-                        Pipo[scapy.IP].src = ma
-                        scapy.send(Pipo, verbose=0)
-                scapy.send(spoofed_pkt, verbose=0)
-                if last:
-                    for ma in mach[index:]:
-                        probe_pkt[scapy.IP].src = ma
-                        scapy.send(spoofed_pkt, verbose=0)
+                spoofed = scapy.IP(src=zombie_ip, dst=target, id=ID, ttl=TTL, flags=FLAGS) \
+                    / scapy.TCP(dport=port, sport=SPORT, seq=mirage.tcp_seq(), flags="S",
+                                window=mirage.tcp_window(),
+                                options=mirage.Stealth_tcp_options())
+                scapy.send(spoofed, verbose=0)
                 time.sleep(0.3)
 
-                if first:
-                    for ma in mach[:index]:
-                        Pipo = deepcopy(probe_pkt)
-                        Pipo[scapy.IP].src = ma
-                        scapy.send(Pipo, verbose=0)
                 reply2 = scapy.sr1(probe_pkt, timeout=socket_timeout, verbose=0)
-                if last:
-                    for ma in mach[index:]:
-                        probe_pkt[scapy.IP].src = ma
-                        scapy.send(spoofed_pkt, verbose=0)
 
                 if not reply2 or not reply2.haslayer(scapy.IP):
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append("zombie_unreachable_after")
+                    Payloads._record(target, port, "filtered_ports",
+                                     "zombie_unreachable_after",
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
                     return
 
-                id2 = reply2[scapy.IP].id
-
-                diff = (id2 - id1) % 65536
-                service = service_detection(port)
+                diff = (reply2[scapy.IP].id - id1) % 65536
 
                 if diff == 1:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['closed_filtered_ports'].append(port)
-                        target_results[target]['closed_filtered_ports_services'].append(service)
-
+                    Payloads._record(target, port, "closed_filtered_ports", service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
                 elif diff == 2:
                     if I:
                         print(f"[+] Port {port} is open .")
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['open_ports'].append(port)
-
-                    if banner_option:
-                        banner = Banner.grab(
-                            target,
-                            port,
-                            protocol="tcp",
-                            timeout=3,
-                            verbose=verbose,
-                            version=version
-                        )
-                        if banner:
-                            with lock:
-                                target_results[target]['banners'].append(banner['banner'])
-                                target_results[target]['banners_ports'].append(port)
-                                target_results[target]['opened_ports_services'].append(banner['service'])
-                        else:
-                            target_results[target]['opened_ports_services'].append(service)
-                    else:
-                        target_results[target]['opened_ports_services'].append(service)
+                    Payloads._record(target, port, "open_ports", service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
                 else:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-
-                break
+                    Payloads._record(target, port, "filtered_ports", service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
+                return
 
             except Exception as e:
                 if verbose:
@@ -3149,20 +1307,18 @@ class Payloads:
                     with lock:
                         if target not in target_results:
                             initialize_target_results(target)
-                        if port in target_results[target]['open_ports']:
-                            pass
-                        else:
+                        if port not in target_results[target]['open_ports']:
                             target_results[target]['filtered_ports'].append(port)
                             target_results[target]['filtered_ports_services'].append(service)
-                else:
-                    time.sleep(0.2)
-                    continue
+                    return
+                time.sleep(0.2)
+                continue
 
     @staticmethod
     def threaded_idle_scan(max_retries, lock, verbose, socket_timeout, target_results,
                            banner_option, max_threads, targetss, ports_to_scan,
                            initialize_target_results, service_detection, version,
-                           zombie_ips, ttl, sport, payload, id, flags, interval, I,d):
+                           zombie_ips, ttl, sport, payload, id, flags, interval, I, d):
 
         if isinstance(zombie_ips, str):
             zombie_ips = [zombie_ips]
@@ -3209,7 +1365,7 @@ class Payloads:
                                            socket_timeout, lock, target_results,
                                            banner_option, initialize_target_results,
                                            service_detection, version, ttl, sport,
-                                           payload, id, flags,I,d)
+                                           payload, id, flags, I, d)
         else:
             with ThreadPoolExecutor(max_workers=max_threads) as executor:
                 futures = []
@@ -3217,12 +1373,11 @@ class Payloads:
                     for zombie, ports in zombie_ports.items():
                         for port in ports:
                             future = executor.submit(
-                                Payloads.Idle_Scan,
-                                target, port, zombie, max_retries, verbose,
-                                socket_timeout, lock, target_results,
+                                Payloads.Idle_Scan, target, port, zombie, max_retries,
+                                verbose, socket_timeout, lock, target_results,
                                 banner_option, initialize_target_results,
                                 service_detection, version, ttl, sport,
-                                payload, id, flags,I,d)
+                                payload, id, flags, I, d)
                             time.sleep(interval)
                             futures.append(future)
 
@@ -3234,181 +1389,93 @@ class Payloads:
                             print(f"{red}[!] Idle scan thread error: {e}{reset}")
 
     @staticmethod
-    def Sctp_init_Scan(target, port, max_retries, fragmente, recursively, verbose, socket_timeout, lock, target_results,
-                       banner_option, initialize_target_results, service_detection, version, ttl, hlim, sport, payload,
-                       id, flags, fragsize,D):
+    def Sctp_init_Scan(target, port, max_retries, fragmente, recursively, verbose,
+                       socket_timeout, lock, target_results, banner_option,
+                       initialize_target_results, service_detection, version, ttl, hlim,
+                       sport, payload, id, flags, fragsize, D):
         for attempt in range(max_retries):
             try:
-                if D:
-                    mach = decoy(D, version)
-                    first, last, index = decoy_order(mach)
-                else:
-                    first, last = None, None
-                Proto = "sctp"
-                scan_type = "init"
-                if payload == None:
-                    pass
-                else:
-                    payloads = [payload]
-                if ttl:
-                    TTL = ttl
-                else:
-                    TTL = mirage.ipv4_ttl()
+                mach, first, last, index = Payloads._decoy_meta(D, version)
 
-                if hlim:
-                    HLIM = hlim
-                else:
-                    HLIM = mirage.ipv6_hlim()
+                TTL = ttl if ttl else mirage.ipv4_ttl()
+                HLIM = hlim if hlim else mirage.ipv6_hlim()
+                SPORT = sport if sport else mirage.sctp_sport()
+                ID = id if id else mirage.ipv4_id()
+                FLAGS = flags if flags is not None else mirage.ipv4_flags()
 
-                if sport:
-                    SPORT = sport
-                else:
-                    SPORT = mirage.sctp_sport()
+                init_chunk = scapy.SCTPChunkInit(
+                    a_rwnd=65535, init_tag=12345678,
+                    n_out_streams=10, n_in_streams=10, init_tsn=1000)
+
                 if version == 6:
-                    if payload:
-                        packet = IPv6(dst=target, nh=6, hlim=HLIM) / scapy.SCTP(sport=SPORT,dport=port, tag=0) / scapy.SCTPChunkInit(a_rwnd=65535,init_tag=12345678,n_out_streams=10,n_in_streams=10,init_tsn=1000) / scapy.Raw(
-                            load=random.choice(payloads))
-                    else:
-                        packet = IPv6(dst=target, nh=6, hlim=HLIM) / scapy.SCTP(sport=SPORT,dport=port, tag=0) / scapy.SCTPChunkInit(a_rwnd=65535,init_tag=12345678,n_out_streams=10,n_in_streams=10,init_tsn=1000)
+                    packet = IPv6(dst=target, nh=6, hlim=HLIM) \
+                        / scapy.SCTP(sport=SPORT, dport=port, tag=0) / init_chunk
                 else:
-                    if id:
-                        ID = id
-                    else:
-                        ID = mirage.ipv4_id()
-                    if flags:
-                        FLAGS = flags
-                    else:
-                        FLAGS = mirage.ipv4_flags()
+                    packet = scapy.IP(dst=target, id=ID, ttl=TTL, flags=FLAGS) \
+                        / scapy.SCTP(sport=SPORT, dport=port, tag=0) / init_chunk
 
-                    if payload:
-                        packet = scapy.IP(dst=target, id=ID, ttl=TTL,
-                                          flags=FLAGS) / scapy.SCTP(sport=SPORT,dport=port, tag=0) / scapy.SCTPChunkInit(a_rwnd=65535,init_tag=12345678,n_out_streams=10,n_in_streams=10,init_tsn=1000) / scapy.Raw(
-                            load=random.choice(payloads))
-                    else:
-                        packet = scapy.IP(dst=target, id=ID, ttl=TTL,
-                                          flags=FLAGS) / scapy.SCTP(sport=SPORT,dport=port, tag=0) / scapy.SCTPChunkInit(a_rwnd=65535,init_tag=12345678,n_out_streams=10,n_in_streams=10,init_tsn=1000)
+                if payload is not None:
+                    packet = packet / scapy.Raw(load=payload)
+
                 if first:
-                   for ma in mach[:index]:
-                      if version == 4:
-                          Pipo = deepcopy(packet)
-                          Pipo[scapy.IP].src = ma
-                          scapy.send(Pipo, verbose=0)
-                      else:
-                          Pipo = deepcopy(packet)
-                          Pipo[IPv6].src = ma
-                          scapy.send(Pipo, verbose=0)
-                if fragmente:
-                    if recursively:
+                    for ma in mach[:index]:
+                        Pipo = deepcopy(packet)
                         if version == 6:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize,v6=True)
+                            Pipo[IPv6].src = ma
                         else:
-                            response = Payloads.fragementation(packet, Proto, scan_type, verbose, fragsize=fragsize)
-                        if verbose:
-                            print(
-                                "\n[+] Demo Fragementation (if you find an error while using it leave it in our github for future updates)\n")
+                            Pipo[scapy.IP].src = ma
+                        scapy.send(Pipo, verbose=0)
+
+                if fragmente and recursively:
+                    if version == 6:
+                        response = Payloads.fragementation(packet, "sctp", "init", verbose,
+                                                           fragsize=fragsize, v6=True)
                     else:
-                        if verbose:
-                            print(
-                                f"\n{yellow}[+] Fragmentation is Forbiden with SCTP-INIT packets (if you want use flag -Rc){reset}\n")
-                        response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
+                        response = Payloads.fragementation(packet, "sctp", "init", verbose,
+                                                           fragsize=fragsize)
                 else:
                     response = scapy.sr1(packet, timeout=socket_timeout, verbose=0)
+
                 if last:
                     for ma in mach[index:]:
                         if version == 4:
                             packet[scapy.IP].src = ma
-                            scapy.send(packet, verbose=0)
                         else:
                             packet[IPv6].src = ma
-                            scapy.send(packet, verbose=0)
+                        scapy.send(packet, verbose=0)
 
                 service = service_detection(port)
 
                 if response is None:
+                    Payloads._record(target, port, "filtered_ports", service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
+                    return
 
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
+                if response.haslayer(scapy.SCTPChunkInitAck):
+                    Payloads._record(target, port, "open_ports", service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
+                    return
 
-                elif response.haslayer(scapy.SCTPChuckInitAck):
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['open_ports'].append(port)
-
-                        if banner_option:
-                            banner = Banner.grab(
-                                target,
-                                port,
-                                protocol="sctp",
-                                timeout=3,
-                                verbose=verbose,
-                                version=version
-                            )
-
-                            if banner:
-                                with lock:
-                                    target_results[target]['banners'].append(banner['banner'])
-                                    target_results[target]['banners_ports'].append(port)
-                                    target_results[target]['opened_ports_services'].append(banner['service'])
-                            else:
-                                target_results[target]['opened_ports_services'].append(service)
-                        else:
-                            target_results[target]['opened_ports_services'].append(service)
-
-                elif response.haslayer(ICMPv6DestUnreach):
+                if response.haslayer(ICMPv6DestUnreach):
                     code = response.getlayer(ICMPv6DestUnreach).code
-                    if code == 4:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['closed_ports'].append(port)
-                            target_results[target]['closed_ports_services'].append(service)
-                        break
-                    elif code == 1:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
+                    bucket = "closed_ports" if code == 4 else "filtered_ports"
+                    Payloads._record(target, port, bucket, service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
+                    return
 
-                elif response.haslayer(scapy.ICMP):
-                    icmp_type = response.getlayer(scapy.ICMP).type
-                    icmp_code = response.getlayer(scapy.ICMP).code
+                if response.haslayer(scapy.ICMP):
+                    Payloads._record(target, port, "filtered_ports", service,
+                                     banner_option, verbose, version,
+                                     lock, target_results, initialize_target_results)
+                    return
 
-                    if icmp_type == 3 and icmp_code in [1, 2, 3, 9, 10, 13]:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                    else:
-                        with lock:
-                            if target not in target_results:
-                                initialize_target_results(target)
-                            target_results[target]['filtered_ports'].append(port)
-                            target_results[target]['filtered_ports_services'].append(service)
-                        break
-
-                else:
-                    with lock:
-                        if target not in target_results:
-                            initialize_target_results(target)
-                        target_results[target]['filtered_ports'].append(port)
-                        target_results[target]['filtered_ports_services'].append(service)
-                    break
+                Payloads._record(target, port, "filtered_ports", service,
+                                 banner_option, verbose, version,
+                                 lock, target_results, initialize_target_results)
+                return
 
             except Exception as e:
                 if verbose:
@@ -3418,40 +1485,34 @@ class Payloads:
                     with lock:
                         if target not in target_results:
                             initialize_target_results(target)
-
-                        if port in target_results[target]['open_ports']:
-                            pass
-                        else:
+                        if port not in target_results[target]['open_ports']:
                             target_results[target]['filtered_ports'].append(port)
                             target_results[target]['filtered_ports_services'].append(service)
-                else:
-                    time.sleep(0.1)
-                    continue
+                    return
+                time.sleep(0.1)
+                continue
 
     @staticmethod
-    def threaded_sctp_init_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout, target_results,
-                                banner_option, max_threads, targetss, ports_to_scan, i, s, version, ttl, hlim, sport,
-                                payload, id, flags, interval, fg, d):
-
+    def threaded_sctp_init_scan(max_retries, lock, verbose, fragmente, recursively, socket_timeout,
+                                target_results, banner_option, max_threads, targetss, ports_to_scan,
+                                i, s, version, ttl, hlim, sport, payload, id, flags, interval, fg, d):
         if max_threads == 1:
             for target in targetss:
                 for port in ports_to_scan:
                     Payloads.Sctp_init_Scan(target, port, max_retries, fragmente, recursively,
                                             verbose, socket_timeout, lock, target_results,
-                                            banner_option, i, s, version, ttl, hlim, sport, payload,
-                                            id, flags, fg, d)
+                                            banner_option, i, s, version, ttl, hlim, sport,
+                                            payload, id, flags, fg, d)
         else:
             with ThreadPoolExecutor(max_workers=max_threads) as executor:
                 futures = []
                 for target in targetss:
                     for port in ports_to_scan:
                         future = executor.submit(
-                            Payloads.Sctp_init_Scan,
-                            target, port, max_retries, fragmente, recursively,
-                            verbose, socket_timeout, lock, target_results,
-                            banner_option, i, s, version, ttl, hlim, sport, payload,
-                            id, flags, fg, d
-                        )
+                            Payloads.Sctp_init_Scan, target, port, max_retries,
+                            fragmente, recursively, verbose, socket_timeout, lock,
+                            target_results, banner_option, i, s, version, ttl, hlim,
+                            sport, payload, id, flags, fg, d)
                         time.sleep(interval)
                         futures.append(future)
 
@@ -3461,3 +1522,226 @@ class Payloads:
                     except Exception as e:
                         if verbose:
                             print(f"{red}[!] SCTP INIT scan error: {e}{reset}")
+
+    @staticmethod
+    def FTPBounceScan(target, ftpserver, ftp_port, port_range, interval, max_retries=2,
+                      imediate=None, fragment=False, recursively=False,
+                      verbose=False, socket_timeout=5, lock=None, target_results=None,
+                      banner_option=False, initialize_target_results=None,
+                      service_detection=None, version=4):
+
+        import socket
+
+        def encode_ip(ip, ver=4):
+            if ver == 6:
+                return f"|2|{ip}|"
+            return ",".join(ip.split("."))
+
+        def encode_port(p):
+            return f"{p // 256},{p % 256}"
+
+        def read_until_response(sock, timeout=5):
+            sock.settimeout(timeout)
+            response = ""
+            while True:
+                try:
+                    data = sock.recv(1024).decode(errors='ignore')
+                    if not data:
+                        break
+                    response += data
+                    if len(response) >= 4 and response[3] == ' ':
+                        break
+                    if len(response) >= 4 and response[3] == '-' and '\n' + response[:3] + ' ' in response:
+                        break
+                except socket.timeout:
+                    break
+            return response
+
+        def send_eprt(ftp_control, target_ip, target_port, ver=4):
+            if ver == 6:
+                eprt_cmd = f"EPRT |2|{target_ip}|{target_port}\r\n"
+                ftp_control.send(eprt_cmd.encode())
+                resp = read_until_response(ftp_control, socket_timeout)
+                return "200" in resp
+            else:
+                ip_comma = encode_ip(target_ip, ver=4)
+                port_code = encode_port(target_port)
+                port_cmd = f"PORT {ip_comma},{port_code}\r\n"
+                ftp_control.send(port_cmd.encode())
+                resp = read_until_response(ftp_control, socket_timeout)
+                return "200" in resp
+
+        def setup_data_channel(ftp_control, target_ip, target_port, ver=4):
+            listen_sock = None
+            try:
+                listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                listen_sock.settimeout(socket_timeout)
+                listen_sock.bind(('', 0))
+                listen_sock.listen(1)
+                local_port = listen_sock.getsockname()[1]
+
+                if not send_eprt(ftp_control, target_ip, local_port, ver=ver):
+                    listen_sock.close()
+                    return None
+
+                ftp_control.send(b"LIST\r\n")
+                list_resp = read_until_response(ftp_control, socket_timeout)
+
+                if "150" not in list_resp:
+                    listen_sock.close()
+                    return ("filtered", target_port)
+
+                try:
+                    data_sock, addr = listen_sock.accept()
+                    data_sock.settimeout(socket_timeout)
+                    data_sock.recv(1024)
+                    data_sock.close()
+                except socket.timeout:
+                    listen_sock.close()
+                    return ("filtered", target_port)
+
+                final_resp = read_until_response(ftp_control, socket_timeout)
+                listen_sock.close()
+
+                if "226" in final_resp:
+                    return ("open", target_port)
+                elif "425" in final_resp:
+                    return ("closed", target_port)
+                return ("filtered", target_port)
+
+            except Exception:
+                try:
+                    listen_sock.close()
+                except Exception:
+                    pass
+                return None
+
+        if isinstance(port_range, tuple):
+            ports = list(range(port_range[0], port_range[1] + 1))
+        elif isinstance(port_range, list):
+            ports = port_range
+        else:
+            ports = [port_range]
+
+        if version == 6:
+            try:
+                ipaddress.IPv6Address(target)
+            except Exception:
+                if verbose:
+                    print(f"{red}[!] Invalid IPv6 address: {target}{reset}")
+                return False
+
+        if verbose:
+            print(f"\n{cyan}[+] FTP Bounce Scan: {ftpserver}:{ftp_port} -> {target} (IPv{version}){reset}")
+            print(f"{cyan}[+] Testing {len(ports)} ports{reset}")
+
+        ftp_control = None
+        for attempt in range(max_retries):
+            try:
+                family = socket.AF_INET6 if version == 6 else socket.AF_INET
+                ftp_control = socket.socket(family, socket.SOCK_STREAM)
+                ftp_control.settimeout(socket_timeout)
+                ftp_control.connect((ftpserver, ftp_port))
+
+                banner = read_until_response(ftp_control, socket_timeout)
+                if verbose and attempt == 0:
+                    first_line = banner.splitlines()[0] if banner else 'None'
+                    print(f"{green}[+] FTP Banner: {first_line}{reset}")
+
+                ftp_control.send(b"USER anonymous\r\n")
+                read_until_response(ftp_control, socket_timeout)
+                ftp_control.send(b"PASS test@\r\n")
+                resp = read_until_response(ftp_control, socket_timeout)
+
+                if "230" not in resp:
+                    raise Exception("FTP login failed - anonymous not allowed")
+
+                if verbose:
+                    print(f"{green}[+] Connected to FTP server {ftpserver}:{ftp_port} (anonymous){reset}")
+                break
+
+            except Exception as e:
+                if ftp_control:
+                    ftp_control.close()
+                    ftp_control = None
+                if verbose:
+                    print(f"{yellow}[-] FTP connection attempt {attempt + 1} failed: {e}{reset}")
+                if attempt == max_retries - 1:
+                    print(f"{red}[-] Cannot connect to FTP server {ftpserver}:{ftp_port}{reset}")
+                    return False
+                time.sleep(1)
+
+        if ftp_control is None:
+            return False
+
+        for idx, port in enumerate(ports):
+            try:
+                if verbose:
+                    print(f"  [{idx + 1}/{len(ports)}] Testing port {port}...", end=" ")
+
+                result = setup_data_channel(ftp_control, target, port, version)
+
+                if result:
+                    status, port_num = result
+                else:
+                    status = "filtered"
+                    port_num = port
+
+                service = service_detection(port_num) if service_detection else f"port_{port_num}"
+
+                if lock and target_results and initialize_target_results:
+                    bucket = {"open": "open_ports",
+                              "closed": "closed_ports"}.get(status, "filtered_ports")
+                    if status == "open" and imediate:
+                        print(f"[+] Port {port_num} is open .")
+                    Payloads._record(target, port_num, bucket, service,
+                                     False, verbose, version,
+                                     lock, target_results, initialize_target_results)
+
+            except Exception as e:
+                if verbose:
+                    print(f"{red}[!] Error testing port {port}: {e}{reset}")
+            time.sleep(interval)
+        try:
+            ftp_control.send(b"QUIT\r\n")
+            read_until_response(ftp_control, socket_timeout)
+            ftp_control.close()
+        except Exception:
+            pass
+
+        return True
+
+_IP_PROTOCOL_NAMES = {
+    0: "HOPOPT", 1: "ICMP", 2: "IGMP", 3: "GGP", 4: "IPv4", 5: "ST", 6: "TCP",
+    7: "CBT", 8: "EGP", 9: "IGP", 10: "BBN-RCC-MON", 11: "NVP-II", 12: "PUP",
+    13: "ARGUS", 14: "EMCON", 15: "XNET", 16: "CHAOS", 17: "UDP", 18: "MUX",
+    19: "DCN-MEAS", 20: "HMP", 21: "PRM", 22: "XNS-IDP", 23: "TRUNK-1",
+    24: "TRUNK-2", 25: "LEAF-1", 26: "LEAF-2", 27: "RDP", 28: "IRTP",
+    29: "ISO-TP4", 30: "NETBLT", 31: "MFE-NSP", 32: "MERIT-INP", 33: "DCCP",
+    34: "3PC", 35: "IDPR", 36: "XTP", 37: "DDP", 38: "IDPR-CMTP", 39: "TP++",
+    40: "IL", 41: "IPv6", 42: "SDRP", 43: "IPv6-Route", 44: "IPv6-Frag",
+    45: "IDRP", 46: "RSVP", 47: "GRE", 48: "DSR", 49: "BNA", 50: "ESP",
+    51: "AH", 52: "I-NLSP", 53: "SWIPE", 54: "NARP", 55: "MOBILE", 56: "TLSP",
+    57: "SKIP", 58: "ICMPv6", 59: "IPv6-NoNxt", 60: "IPv6-Opts", 61: "AnyHost",
+    62: "CFTP", 63: "AnyLocal", 64: "SAT-EXPAK", 65: "KRYPTOLAN", 66: "RVD",
+    67: "IPPC", 68: "AnyDistFS", 69: "SAT-MON", 70: "VISA", 71: "IPCV",
+    72: "CPNX", 73: "CPHB", 74: "WSN", 75: "PVP", 76: "BR-SAT-MON",
+    77: "SUN-ND", 78: "WB-MON", 79: "WB-EXPAK", 80: "ISO-IP", 81: "VMTP",
+    82: "SECURE-VMTP", 83: "VINES", 84: "TTP", 85: "NSFNET-IGP", 86: "DGP",
+    87: "TCF", 88: "EIGRP", 89: "OSPF", 90: "Sprite-RPC", 91: "LARP",
+    92: "MTP", 93: "AX.25", 94: "IPIP", 95: "MICP", 96: "SCC-SP",
+    97: "ETHERIP", 98: "ENCAP", 99: "AnyPrivate", 100: "GMTP", 101: "IFMP",
+    102: "PNNI", 103: "PIM", 104: "ARIS", 105: "SCPS", 106: "QNX", 107: "A/N",
+    108: "IPComp", 109: "SNP", 110: "Compaq-Peer", 111: "IPX-in-IP",
+    112: "VRRP", 113: "PGM", 114: "Any0-hop", 115: "L2TP", 116: "DDX",
+    117: "IATP", 118: "STP", 119: "SRP", 120: "UTI", 121: "SMP", 122: "SM",
+    123: "PTP", 124: "ISIS-over-IPv4", 125: "FIRE", 126: "CRTP", 127: "CRUDP",
+    128: "SSCOPMCE", 129: "IPLT", 130: "SPS", 131: "PIPE", 132: "SCTP",
+    133: "FC", 134: "RSVP-E2E-IGNORE", 135: "Mobility-Header", 136: "UDPLite",
+    137: "MPLS-in-IP", 138: "manet", 139: "HIP", 140: "Shim6", 141: "WESP",
+    142: "ROHC", 143: "Ethernet", 144: "AGGFRAG", 145: "NSH",
+}
+
+for _p in range(146, 255):
+    _IP_PROTOCOL_NAMES.setdefault(_p, "unassigned")
+_IP_PROTOCOL_NAMES[255] = "RAW"

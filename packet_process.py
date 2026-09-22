@@ -63,18 +63,6 @@ def apply_filter(packets, filt):
     return filtered
 
 
-def export_hex_and_bin(packets, args):
-    if not packets:
-        return
-
-    if args.hex_save:
-        save_hexdump(packets, args.hex_save)
-        print(f"{GREEN}[+] Saved {len(packets)} packets to {args.hex_save}{RESET}")
-
-    if args.bin_save:
-        save_binary(args.bin_save, packets, compress=args.compress, args=args)
-
-
 def export_stats_to_file(stats, filename):
     if not stats:
         return

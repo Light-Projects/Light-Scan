@@ -1,15 +1,11 @@
 scapy
 argparse
-pyfiglet
 requests
 urllib3
 beautifulsoup4
 pyopenssl
-customtkinter
-CTkMessagebox
-CTkMenuBarPlus
+pyside6
 dnspython
-reportlab
 pyyaml
 paramiko
 toml

@@ -1,0 +1,13 @@
+{
+  "name": "myside",
+  "description": "Light-Scan profile: myside",
+  "settings": {
+    "target": "google.com",
+    "scan_type": "SYN",
+    "speed": "light-mode",
+    "ports": 443,
+    "max_retries": 1,
+    "save": "TXT",
+    "interval": 0.02
+  }
+}
