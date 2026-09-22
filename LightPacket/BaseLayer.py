@@ -5,7 +5,6 @@
 from typing import Optional, Union, Any
 import copy
 
-
 class BaseLayer:
 
     def __init__(self):
@@ -18,6 +17,7 @@ class BaseLayer:
 
         new_layer.set_payload(other)
         return new_layer
+
 
     def __bool__(self) -> bool:
         return True
@@ -44,10 +44,17 @@ class BaseLayer:
             else:
                 self.payload = payload
         elif isinstance(payload, bytes):
-            self.payload = None
-            self._raw_payload = payload
+            from LightPacket.Raw import Raw
+            if self.payload is not None:
+                last = self.payload
+                while last.payload is not None:
+                    last = last.payload
+                last.payload = Raw(payload=payload)
+            else:
+                self.payload = Raw(payload=payload)
         else:
             raise TypeError(f"Payload must be BaseLayer or bytes, got {type(payload)}")
+
 
     def get_payload_bytes(self) -> bytes:
         if self.payload is not None:

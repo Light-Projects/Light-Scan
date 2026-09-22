@@ -3,11 +3,11 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import struct
-from .Layers.Mac import MacAddress
-from .BaseLayer import BaseLayer
+from LightPacket.Layers.Mac import MacAddress
+from LightPacket.BaseLayer import BaseLayer
 from typing import Union
-from .Logger.LightLogger import Logger, ErrorCode
-from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
+from LightPacket.Logger.LightLogger import Logger, ErrorCode
+from LightPacket.Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
 
 LLogger = Logger()
 
@@ -199,6 +199,7 @@ class STPParser:
 
         stp = STP(
             protocol_version=protocol_version,
+            protocol_id=protocol_id,
             bpdu_type=bpdu_type,
             flags=flags,
             root_priority=root_priority,

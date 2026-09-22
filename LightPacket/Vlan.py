@@ -3,16 +3,15 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import struct
-from .BaseLayer import BaseLayer
-from .Logger.LightLogger import Logger, ErrorCode
-from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
+from LightPacket.BaseLayer import BaseLayer
+from LightPacket.Logger.LightLogger import Logger, ErrorCode
+from LightPacket.Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
 
 LLogger = Logger()
 
 """
 VLAN Layer Creation (class VLAN)
 """
-
 
 class VLAN(BaseLayer):
 

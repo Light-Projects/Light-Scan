@@ -9,12 +9,17 @@ from LightPacket.eapol import (
     EAP_NAK,EAP_NOTIFICATION,EAP_PWD,EAP_GTC,
     EAP_OTP
 )
+from LightPacket.platforms.linux.sll import (
+    SLLv2,SLLv1
+)
 from LightPacket.Wireless.wlan import (
     WiFi,Beacon,Element,ProbeRequest,
     ProbeResponse
 )
 from LightPacket.Raw import Raw
-from LightPacket.EthernetII import Ethernet
+from LightPacket.EthernetII import (
+    Ethernet,Loopback
+)
 from LightPacket.Arp import ARP
 from LightPacket.ppp import (
     PPP,PPP2b,PPPoE

@@ -3,10 +3,10 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import struct
-from .BaseLayer import BaseLayer
-from .Consts import ARP_var, ETHERTYPE, OUI_MAP
-from .Logger.LightLogger import Logger, ErrorCode
-from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
+from LightPacket.BaseLayer import BaseLayer
+from LightPacket.Consts import ARP_var, ETHERTYPE, OUI_MAP, IPv6_var, IPv4_var
+from LightPacket.Logger.LightLogger import Logger, ErrorCode
+from LightPacket.Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
 
 LLogger = Logger()
 
@@ -32,6 +32,10 @@ class SNAP(BaseLayer):
                 self.pid = 0x880B
             elif layer == 'EAPOL':
                 self.pid = 0x888E
+            elif layer == 'IPv4':
+                self.pid = IPv4_var
+            elif layer == 'IPv6':
+                self.pid = IPv6_var
             else:
                 self.pid = ARP_var
 
@@ -115,22 +119,32 @@ class SNAPParser:
         )
 
         if len(payload) > 0:
-            if pid == ARP_var or pid == 0x8035:
-                from .Arp import ArpParser
-                prelayer = ArpParser.load_as_arp_layer(payload,Alr=1,verbose=verbose)
-            elif pid == 0x888E:
-                from .eapol import EAPOLParser
-                prelayer = EAPOLParser.load_as_eapol_layer(payload,verbose=verbose)
-            elif pid == 0x8863 or pid == 0x8864:
-                from .ppp import PPPoEParser
-                prelayer = PPPoEParser.load_as_pppoe_layer(payload, Alr=0, verbose=verbose)
-            elif pid == 0x880B:
-                from .ppp import PPP2bParser
-                prelayer = PPP2bParser.load_as_ppp2b_layer(payload, Alr=0, verbose=verbose)
-            else:
-                from .Detect_layer import DetectLayer
-                d = DetectLayer()
-                prelayer = d.start(payload, previous_layer="SNAP",verbose=verbose)
+            if pid == ARP_var:
+                from LightPacket.Arp import ArpParser
+                return snap / ArpParser.load_as_arp_layer(payload,Alr=1,verbose=verbose)
 
-            return snap / prelayer
+            if pid == 0x888E:
+                from LightPacket.eapol import EAPOLParser
+                return snap / EAPOLParser.load_as_eapol_layer(payload,verbose=verbose)
+
+            if pid == 0x8863 or pid == 0x8864:
+                from LightPacket.ppp import PPPoEParser
+                return snap / PPPoEParser.load_as_pppoe_layer(payload, Alr=0, verbose=verbose)
+
+            if pid == 0x880B:
+                from LightPacket.ppp import PPP2bParser
+                return snap / PPP2bParser.load_as_ppp2b_layer(payload, Alr=0, verbose=verbose)
+
+            if pid == IPv4_var:
+                from LightPacket.ipv4 import IPv4Parser
+                return snap / IPv4Parser.load_as_ip_layer(payload, verbose=verbose)
+
+            if pid == IPv6_var:
+                from LightPacket.ipv6 import IPv6Parser
+                return snap / IPv6Parser.load_as_ip_layer(payload, verbose=verbose)
+
+            from LightPacket.Raw import RawParser
+            return snap / RawParser.load_as_Raw_layer(payload, verbose=verbose)
+
+
         return snap

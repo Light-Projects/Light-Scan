@@ -3,11 +3,22 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import struct
-from .BaseLayer import BaseLayer
-from .Logger.LightLogger import Logger, ErrorCode
-from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
+from LightPacket.BaseLayer import BaseLayer
+from LightPacket.Logger.LightLogger import Logger, ErrorCode
+from LightPacket.Layers.register import registry
+from LightPacket.Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
 
 LLogger = Logger()
+
+v4 = 0x0021
+v6 = 0x0057
+eap = 0xC227
+
+_EAP_METHOD_LAYERS = {
+    'EAP_STATE', 'EAP_IDENTITY', 'EAP_PEAP', 'EAP_MD5',
+    'EAP_TLS', 'EAP_TTLS', 'EAP_FAST', 'EAP_LEAP', 'EAP_MSCHAPv2',
+    'EAP_NAK', 'EAP_NOTIFICATION', 'EAP_PWD', 'EAP_GTC', 'EAP_OTP',
+}
 
 """
 PPP Layer Creation (class PPP)
@@ -22,6 +33,16 @@ class PPP(BaseLayer):
         self.proto = proto
 
     def build(self) -> bytes:
+        if self.payload.__class__.__name__ in ('EAPOL', 'EAP_Key'):
+            self.proto = 0
+
+        if self.proto == v4:
+            layer = self.payload.__class__.__name__
+            if layer == 'IPv6':
+                self.proto = v6
+            elif layer in _EAP_METHOD_LAYERS:
+                self.proto = eap
+
         result = struct.pack('!BBH', self.address, self.control, self.proto)
 
         if self.payload:
@@ -94,11 +115,20 @@ class PPPParser:
         )
 
         if len(payload) > 0:
-            from .Detect_layer import DetectLayer
-            d = DetectLayer()
-            prelayer = d.start(payload, previous_layer="PPP",verbose=verbose)
-
-            return llc / prelayer
+            custom = registry.get_parser('ppp_proto', proto)
+            if custom:
+                return llc /  custom['parser'](payload, verbose=verbose)
+            elif proto == v4:
+                from LightPacket.ipv4 import IPv4Parser
+                return llc / IPv4Parser.load_as_ip_layer(payload, verbose=verbose)
+            elif proto == v6:
+                from LightPacket.ipv6 import IPv6Parser
+                return llc / IPv6Parser.load_as_ip_layer(payload, verbose=verbose)
+            elif proto == eap:
+                return llc / parse_eap_methods(payload, verbose=verbose)
+            else:
+                from LightPacket.Raw import RawParser
+                return llc / RawParser.load_as_Raw_layer(payload, verbose=verbose)
 
         return llc
 
@@ -112,6 +142,16 @@ class PPP2b(BaseLayer):
         self.proto = proto
 
     def build(self) -> bytes:
+        if self.payload.__class__.__name__ in ('EAPOL', 'EAP_Key'):
+            self.proto = 0
+
+        if self.proto == v4:
+            layer = self.payload.__class__.__name__
+            if layer == 'IPv6':
+                self.proto = v6
+            elif 'EAP' in layer:
+                self.proto = eap
+
         result = struct.pack('!H', self.proto)
 
         if self.payload:
@@ -175,11 +215,20 @@ class PPP2bParser:
         )
 
         if len(payload) > 0:
-            from .Detect_layer import DetectLayer
-            d = DetectLayer()
-            prelayer = d.start(payload, previous_layer="PPP",verbose=verbose)
-
-            return llc / prelayer
+            custom = registry.get_parser('ppp_proto', proto)
+            if custom:
+                return llc / custom['parser'](payload, verbose=verbose)
+            elif proto[0] == v4:
+                from LightPacket.ipv4 import IPv4Parser
+                return llc / IPv4Parser.load_as_ip_layer(payload, verbose=verbose)
+            elif proto[0] == v6:
+                from LightPacket.ipv6 import IPv6Parser
+                return llc / IPv6Parser.load_as_ip_layer(payload, verbose=verbose)
+            elif proto[0] == eap:
+                return llc / parse_eap_methods(payload, verbose=verbose)
+            else:
+                from LightPacket.Raw import RawParser
+                return llc / RawParser.load_as_Raw_layer(payload, verbose=verbose)
 
         return llc
 
@@ -303,3 +352,7 @@ def is_ppp_frame(packet) -> bool:
     if packet[0] == 0xFF and packet[1] == 0x03:
         return True
     return False
+
+def parse_eap_methods(payload, verbose=False):
+    from LightPacket.eapol import dispatch_eap_payload
+    return dispatch_eap_payload(payload, verbose=verbose)

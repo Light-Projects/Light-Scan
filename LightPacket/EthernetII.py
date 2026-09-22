@@ -1,16 +1,17 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+from LightPacket.Arp import ArpParser
+from LightPacket.Layers.Mac import MacAddress
+from LightPacket.Logger.LightLogger import Logger, ErrorCode, WarningCode
+from LightPacket.BaseLayer import BaseLayer
+from LightPacket.Layers.register import registry
+from LightPacket.Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
+from LightPacket.Consts import OUI_MAP,ARP_var,BROADCAST_MAC,IPv4_var,ETHERTYPE,MC,IPv6_var
+from LightPacket.GetMac import GetMac
 
-from .Arp import ArpParser
-from .Layers.Mac import MacAddress
-from .Logger.LightLogger import Logger, ErrorCode, WarningCode
-from .BaseLayer import BaseLayer
 from typing import Union
 import struct
-from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
-from .Consts import OUI_MAP,ARP_var,BROADCAST_MAC,IPv4,ETHERTYPE,MC
-from .GetMac import GetMac
 
 LLogger = Logger()
 
@@ -31,19 +32,11 @@ class Ethernet(BaseLayer):
         self.numofvlan = 0
         layer = self.payload.__class__.__name__
         if self.ethertype is None:
-            if layer == 'ARP':
-                self.ethertype =  ARP_var
-            elif layer == 'PPPoE':
-                self.ethertype = 0x8864
-            elif layer == 'PPP2b':
-                self.ethertype = 0x880B
-            elif layer == 'EAPOL':
-                self.ethertype = 0x888E
-            elif layer == 'VLAN':
+            if layer == 'VLAN':
                 self.numofvlan, layer = self.vlanhandler()
                 self.ethertype = self.check_layers_fromvar(layer)
             else:
-                self.ethertype =  IPv4
+                self.ethertype =  self.check_layers_fromvar(layer)
         else:
             pass
 
@@ -80,8 +73,14 @@ class Ethernet(BaseLayer):
             return 0x880B
         elif var == 'EAPOL':
             return 0x888E
+        elif var == 'Loopback':
+            return 0x9000
+        elif var == 'IPv4':
+            return IPv4_var
+        elif var == 'IPv6':
+            return IPv6_var
         else:
-            return IPv4
+            return IPv4_var
 
     def vlanhandler(self):
         return self.payload.num()
@@ -115,127 +114,245 @@ class Ethernet(BaseLayer):
 Ethernet Parser (separate from the builder)
 """
 
+MIN_ETH_HEADER_LEN = 14
+
+ETHERTYPE_LEN_MAX = 1500
+ETHERTYPE_MIN = 0x0600
+
+ETHERTYPE_VLAN = 0x8100
+ETHERTYPE_QINQ = 0x88A8
+ETHERTYPE_ARP = 0x0806
+ETHERTYPE_ARP_ALT = 0x8035
+ETHERTYPE_EAPOL = 0x888E
+ETHERTYPE_PPPOE_DISCOVERY = 0x8863
+ETHERTYPE_PPPOE_SESSION = 0x8864
+ETHERTYPE_PPP_2B = 0x880B
+ETHERTYPE_LOOPBACK = 0x9000
+
 class EthernetParser:
 
     @staticmethod
-    def load_as_ethernet_layer(raw_packet,Alr=0,verbose=False):
+    def load_as_ethernet_layer(raw_packet, Alr=0, verbose=False):
         if type(raw_packet) is not list:
             raw_packet = [raw_packet]
             if hasattr(raw_packet[0], 'build') and type(raw_packet[0]) is not bytes:
                 raw_packet[0] = raw_packet[0].build()
 
-        if len(raw_packet[0]) < 14:
-            LLogger.error(error_code=ErrorCode.INVALID_DATA_LENGTH,message="Ethernet required header is 14 bytes")
+        packet = raw_packet[0]
 
-        EtherHeader = raw_packet[0][:14]
-        Length = len(EtherHeader)
-        mac_dst = EtherHeader[:6]
-        mac_src = EtherHeader[6:12]
-        mac_dst_str = ':'.join(f'{b:02x}' for b in mac_dst)
-        mac_src_str = ':'.join(f'{b:02x}' for b in mac_src)
-        ether_type_raw = EtherHeader[12:14]
-        ether_type = struct.unpack('>H', ether_type_raw)[0]
-        payload = raw_packet[0][14:]
-        Total = len(payload) + Length
+        if len(packet) < MIN_ETH_HEADER_LEN:
+            LLogger.error(error_code=ErrorCode.INVALID_DATA_LENGTH,
+                          message="Ethernet required header is 14 bytes")
+            return None
 
-        if ether_type <= 1500:
-            from .Dot3 import Dot3Parser
-            Dot3Parser.load_as_dot3_layer(raw_packet,verbose=verbose)
+        header = packet[:MIN_ETH_HEADER_LEN]
+        mac_dst = header[:6]
+        mac_src = header[6:12]
+        raw_type = EthernetParser._read_ethertype(header, offset=12)
 
-        elif ether_type == 33024 or ether_type == 34984:
-            from .Vlan import vlannum, VLANParser
-            vl = None
-            prelayer = None
-            number = vlannum(raw_packet[0][12:])
-            ethertype = raw_packet[0][12 + (4 * number):14 + (4 * number)]
-            ethertype = struct.unpack('>H', ethertype)[0]
-            payload = raw_packet[0][14+(number * 4):]
+        if raw_type <= ETHERTYPE_LEN_MAX:
+            from LightPacket.Dot3 import Dot3Parser
+            return Dot3Parser.load_as_dot3_layer(raw_packet, verbose=verbose)
 
-            if ethertype <= 0x05DC:
-                from .Dot3 import Dot3Parser
-                Dot3Parser.load_as_dot3_layer(raw_packet, verbose=verbose)
-            else:
-                if verbose:
-                    print(
-                        f"\n{BOLD}ETHERNET LAYER : {RESET}Len({PURPLE}{Length}{RESET}) Total Len({PURPLE}{Total}{RESET}) >")
-                    print(f'   {BLUE}MAC DST:{CYAN} {mac_dst_str} ({'Multicast' if mac_dst_str[:2] in MC else OUI_MAP.get(mac_dst_str.replace(":", "")[:6],'?')})')
-                    print(f'   {BLUE}MAC SRC:{CYAN} {mac_src_str} ({'Multicast' if mac_src_str[:2] in MC else OUI_MAP.get(mac_src_str.replace(":", "")[:6],'?')})')
-                    print(f'   {BLUE}ETHER TYPE:{CYAN} {hex(ethertype)} '
-                          f'{ETHERTYPE.get(ethertype, "Unknown")}{RESET}')
+        vlan_layer = None
+        if raw_type in (ETHERTYPE_VLAN, ETHERTYPE_QINQ):
+            from LightPacket.Vlan import vlannum, VLANParser
 
+            num_tags = vlannum(packet[12:])
+            inner_offset = 12 + (4 * num_tags)
+            ethertype = EthernetParser._read_ethertype(packet, offset=inner_offset)
+            payload = packet[14 + (num_tags * 4):]
 
-                vl = VLANParser.load_as_vlan_layer(raw_packet[0][12:14 + (number * 4)],verbose=verbose)
+            if ethertype <= ETHERTYPE_LEN_MAX:
+                from LightPacket.Dot3 import Dot3Parser
+                return Dot3Parser.load_as_dot3_layer(raw_packet, verbose=verbose)
 
-                if len(payload) > 0 and Alr != 1 and payload != b'':
-                    if ethertype == ARP_var or ether_type == 0x8035:
-                        prelayer = ArpParser.load_as_arp_layer(payload, Alr=1, verbose=verbose)
-                    elif ethertype == 0x888E:
-                        from .eapol import EAPOLParser
-                        prelayer = EAPOLParser.load_as_eapol_layer(payload, verbose=verbose)
-                    elif ethertype == 0x8863 or ethertype == 0x8864:
-                        from .ppp import PPPoEParser
-                        prelayer = PPPoEParser.load_as_pppoe_layer(payload, Alr=0, verbose=verbose)
-                    elif ethertype == 0x880B:
-                        from .ppp import PPP2bParser
-                        prelayer = PPP2bParser.load_as_ppp2b_layer(payload, Alr=0, verbose=verbose)
-                    else:
-                        from .Detect_layer import DetectLayer
-                        d = DetectLayer()
-                        prelayer = d.start(payload, Alr=0, previous_layer="Ethernet", verbose=verbose)
-
-
-                ether = Ethernet(
-                    dst=mac_dst_str,
-                    src=mac_src_str,
-                    ethertype=ethertype,
-                )
-
-                if vl != None:
-                    if prelayer != None:
-                        return ether / vl / prelayer
-                    return ether / vl
-                elif prelayer != None:
-                    return ether / prelayer
-                else:
-                    return ether
-
+            vlan_layer = VLANParser.load_as_vlan_layer(
+                packet[12:14 + (num_tags * 4)], verbose=verbose
+            )
         else:
-            if ether_type >= 0x0600:
-                if verbose:
-                    print(f"\n{BOLD}ETHERNET LAYER : {RESET}Len({PURPLE}{Length}{RESET}) Total Len({PURPLE}{Total}{RESET}) >")
-                    print(f'   {BLUE}MAC DST:{CYAN} {mac_dst_str} ({'Multicast' if mac_dst_str[:2] in MC else OUI_MAP.get(mac_dst_str.replace(":", "")[:6],'?')})')
-                    print(f'   {BLUE}MAC SRC:{CYAN} {mac_src_str} ({'Multicast' if mac_src_str[:2] in MC else OUI_MAP.get(mac_src_str.replace(":", "")[:6],'?')})')
-                    print(f'   {BLUE}ETHER TYPE:{CYAN} {hex(ether_type)} '
-                          f'{ETHERTYPE.get(ether_type, "Unknown")}{RESET}')
+            ethertype = raw_type
+            payload = packet[14:]
 
-                ether = Ethernet(
-                    dst=mac_dst_str,
-                    src=mac_src_str,
-                    ethertype=ether_type,
-                )
+        if verbose:
+            EthernetParser._print_verbose(mac_dst, mac_src, ethertype, len(header), len(payload) + len(header))
 
-                if len(payload) > 0 and Alr == 0:
-                    if ether_type == ARP_var or ether_type == 0x8035:
-                        prelayer = ArpParser.load_as_arp_layer(payload, Alr=1,verbose=verbose)
-                    elif ether_type == 0x888E:
-                        from .eapol import EAPOLParser
-                        prelayer = EAPOLParser.load_as_eapol_layer(payload, verbose=verbose)
-                    elif ether_type == 0x8863 or ether_type == 0x8864:
-                        from .ppp import PPPoEParser
-                        prelayer = PPPoEParser.load_as_pppoe_layer(payload, Alr=0, verbose=verbose)
-                    elif ether_type == 0x880B:
-                        from .ppp import PPP2bParser
-                        prelayer = PPP2bParser.load_as_ppp2b_layer(payload, Alr=0, verbose=verbose)
-                    else:
-                        from .Detect_layer import DetectLayer
-                        d = DetectLayer()
-                        prelayer = d.start(payload, Alr=0, previous_layer="Ethernet",verbose=verbose)
-                    return ether / prelayer
-                return ether
-            else:
-                from .Raw import RawParser
-                l = RawParser.load_as_Raw_layer(raw_packet,verbose=verbose)
-                return l
+        ether = Ethernet(
+            dst=EthernetParser._mac_to_str(mac_dst),
+            src=EthernetParser._mac_to_str(mac_src),
+            ethertype=ethertype,
+        )
+
+        should_parse_payload = len(payload) > 0 and payload != b'' and Alr != 1
+        prelayer = None
+        if should_parse_payload:
+            prelayer = EthernetParser._parse_payload(ethertype, payload, verbose)
+
+        return EthernetParser._assemble(ether, vlan_layer, prelayer)
+
+    @staticmethod
+    def _assemble(ether, vlan_layer, prelayer):
+        result = ether
+        if vlan_layer is not None:
+            result = result / vlan_layer
+        if prelayer is not None:
+            result = result / prelayer
+        return result
+
+    @staticmethod
+    def _read_ethertype(data, offset):
+        return struct.unpack('>H', data[offset:offset + 2])[0]
+
+    @staticmethod
+    def _mac_to_str(mac_bytes):
+        return ':'.join(f'{b:02x}' for b in mac_bytes)
+
+    @staticmethod
+    def _print_verbose(mac_dst, mac_src, ethertype, header_len, total_len):
+        mac_dst_str = EthernetParser._mac_to_str(mac_dst)
+        mac_src_str = EthernetParser._mac_to_str(mac_src)
+
+        def vendor(mac_str):
+            if mac_str[:2] in MC:
+                return 'Multicast'
+            return OUI_MAP.get(mac_str.replace(":", "")[:6], '?')
+
+        print(f"\n{BOLD}ETHERNET LAYER : {RESET}Len({PURPLE}{header_len}{RESET}) "
+              f"Total Len({PURPLE}{total_len}{RESET}) >")
+        print(f'   {BLUE}MAC DST:{CYAN} {mac_dst_str} ({vendor(mac_dst_str)})')
+        print(f'   {BLUE}MAC SRC:{CYAN} {mac_src_str} ({vendor(mac_src_str)})')
+        print(f'   {BLUE}ETHER TYPE:{CYAN} {hex(ethertype)} '
+              f'{ETHERTYPE.get(ethertype, "Unknown")}{RESET}')
+
+    @staticmethod
+    def _parse_payload(ethertype, payload, verbose):
+
+        from LightPacket.Layers.register import registry
+        custom = registry.get_parser('ethertype', ethertype)
+        if custom:
+            return custom['parser'](payload, verbose=verbose)
+
+        if ethertype in (ETHERTYPE_ARP, ETHERTYPE_ARP_ALT):
+            from LightPacket.Arp import ArpParser
+            return ArpParser.load_as_arp_layer(payload, Alr=1, verbose=verbose)
+
+        if ethertype == ETHERTYPE_EAPOL:
+            from LightPacket.eapol import EAPOLParser
+            return EAPOLParser.load_as_eapol_layer(payload, verbose=verbose)
+
+        if ethertype in (ETHERTYPE_PPPOE_DISCOVERY, ETHERTYPE_PPPOE_SESSION):
+            from LightPacket.ppp import PPPoEParser
+            return PPPoEParser.load_as_pppoe_layer(payload, Alr=0, verbose=verbose)
+
+        if ethertype == ETHERTYPE_PPP_2B:
+            from LightPacket.ppp import PPP2bParser
+            return PPP2bParser.load_as_ppp2b_layer(payload, Alr=0, verbose=verbose)
+
+        if ethertype == ETHERTYPE_LOOPBACK:
+            return LoopbackParser.load_as_loopback_layer(payload, verbose=verbose)
+
+        if ethertype == IPv4_var:
+            from LightPacket.ipv4 import IPv4Parser
+            return IPv4Parser.load_as_ip_layer(payload, verbose=verbose)
+
+        if ethertype == IPv6_var:
+            from LightPacket.ipv6 import IPv6Parser
+            return IPv6Parser.load_as_ip_layer(payload, verbose=verbose)
+
+        from LightPacket.Raw import RawParser
+        return RawParser.load_as_Raw_layer(payload, verbose=verbose)
+
+
+"""
+Loopback Layer Creation (Loopback class)
+"""
+
+class Loopback(BaseLayer):
+    def __init__(self, skipcount:int = 1,func:int = 1,fmac:bytes = b'\x00' * 6,data:bytes = b'\x00\x00Ping'):
+        super().__init__()
+        self.skipcount = skipcount
+        self.func = func
+        self.fmac = fmac
+        self.data = data
+
+    def build(self):
+        payload_bytes = self.get_payload_bytes()
+        result = struct.pack('HH',self.skipcount,self.func)
+        if self.func == 2:
+            result += self.fmac
+        result += self.data
+        if payload_bytes:
+            result += payload_bytes
+        return result
+
+    def __repr__(self):
+        return (f"<Loopback skipcount={self.skipcount} func={self.func} fmac={self.fmac}"
+                f"data={self.data} >")
+
+    def copy(self) -> 'Loopback':
+        new_layer = Loopback(
+            skipcount=self.skipcount,
+            func=self.func,
+            fmac=self.fmac,
+            data=self.data,
+        )
+
+        if self.payload:
+            new_layer.payload = self.payload.copy() if hasattr(self.payload, 'copy') else self.payload
+        if self._raw_payload:
+            new_layer._raw_payload = self._raw_payload
+        return new_layer
+
+    def _show_fields(self) -> list:
+        return [f"skipcount={self.skipcount}", f"func={self.func} ",f"fmac={self.fmac} ",
+                f"data={self.data}"]
+
+"""
+Loopback Parser (separate from the builder)
+"""
+
+class LoopbackParser:
+
+    @staticmethod
+    def load_as_loopback_layer(raw_packet,Alr=0,verbose=False):
+        if type(raw_packet) is not list:
+            raw_packet = [raw_packet]
+            if hasattr(raw_packet[0], 'build') and type(raw_packet[0]) is not bytes:
+                raw_packet[0] = raw_packet[0].build()
+
+        if len(raw_packet[0]) < 4:
+            LLogger.error(error_code=ErrorCode.INVALID_DATA_LENGTH,message="Loopback required header is 4 bytes")
+
+
+        LH = raw_packet[0][:4]
+
+        skipcount, func = struct.unpack('<HH', LH)
+
+        payload = raw_packet[0][4:]
+        Lenght = len(LH)
+        Total = len(payload) + Lenght
+        fmac = b'\x00' * 6
+
+        if verbose:
+            print(f"\n{BOLD}LOOPBACK LAYER : {RESET}Len({PURPLE}{Lenght}{RESET}) Total Len({PURPLE}{Total}{RESET}) >")
+            print(f'   {BLUE}SKIPCOUNT:{CYAN} {skipcount} ')
+            print(f'   {BLUE}FUNC:{CYAN} {func} {RESET}')
+            if func == 2:
+                print(f'   {BLUE}FMAC:{CYAN} {payload[:6]} {RESET}')
+                fmac = payload[:6]
+                payload = payload[6:]
+
+            if payload != b'':
+                print(f'   {BLUE}DATA:{CYAN} {payload}{RESET}')
+
+        lpb = Loopback(
+            skipcount=skipcount,
+            func=func,
+            data=payload,
+            fmac=fmac
+        )
+
+        return lpb
 
 
 def EthertypeHex(ether_type):

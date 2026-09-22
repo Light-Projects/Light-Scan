@@ -3,13 +3,12 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import struct
-from .Decoration.Colors import BOLD, RESET, PURPLE, BLUE, CYAN
-from .Consts import BROADCAST_MAC,OUI_MAP,MC
-from .Layers.Mac import MacAddress
-from .Layers.IS_LLC import is_llc
-from .Logger.LightLogger import Logger, ErrorCode
-from .BaseLayer import BaseLayer
-from .EthernetII import GetMac
+from LightPacket.Decoration.Colors import BOLD, RESET, PURPLE, BLUE, CYAN
+from LightPacket.Consts import BROADCAST_MAC,OUI_MAP,MC
+from LightPacket.Layers.Mac import MacAddress
+from LightPacket.Logger.LightLogger import Logger, ErrorCode
+from LightPacket.BaseLayer import BaseLayer
+from LightPacket.EthernetII import GetMac
 from typing import Union
 
 LLogger = Logger()
@@ -97,7 +96,7 @@ Dot3 (802.3) Parser (separate from the builder)
 class Dot3Parser:
 
     @staticmethod
-    def load_as_dot3_layer(raw_packet,Alr=0,verbose=False):
+    def load_as_dot3_layer(raw_packet,verbose=False):
         if type(raw_packet) is not list:
             raw_packet = [raw_packet]
             if hasattr(raw_packet[0], 'build') and type(raw_packet[0]) is not bytes:
@@ -119,13 +118,12 @@ class Dot3Parser:
 
         if length == 0x8100 or length == 0x88a8:
             from .Vlan import vlannum, VLANParser
-            prelayer = None
             number = vlannum(raw_packet[0][12:])
             ethertype = raw_packet[0][12 + (4 * number):14 + (4 * number)]
             ethertype = struct.unpack('>H', ethertype)[0]
             payload = raw_packet[0][14 + (number * 4):]
             if ethertype > 0x05DC:
-                from .EthernetII import EthernetParser
+                from LightPacket.EthernetII import EthernetParser
                 EthernetParser.load_as_ethernet_layer(raw_packet, verbose=verbose)
             else:
                 if verbose:
@@ -144,20 +142,14 @@ class Dot3Parser:
                 )
 
                 if len(payload) > 0 and payload != b'':
-                    if is_llc(payload):
-                        from .LLC import LLCParser
-                        prelayer = LLCParser.load_as_llc_layer(payload, Alr=1, verbose=verbose)
-                    else:
-
-                        from .Detect_layer import DetectLayer
-                        d = DetectLayer()
-                        prelayer = d.start(packet=payload, previous_layer="Dot3", verbose=verbose)
+                    from LightPacket.LLC import LLCParser
+                    prelayer = LLCParser.load_as_llc_layer(payload, Alr=1, verbose=verbose)
 
                     return dot3 / vl / prelayer
                 return dot3 / vl
 
         elif length > 0x05DC:
-            from .EthernetII import EthernetParser
+            from LightPacket.EthernetII import EthernetParser
             EthernetParser.load_as_ethernet_layer(raw_packet,verbose=verbose)
         else:
             if verbose:
@@ -173,14 +165,7 @@ class Dot3Parser:
             )
 
             if len(payload) > 0:
-                if is_llc(payload):
-                    from .LLC import LLCParser
-                    prelayer = LLCParser.load_as_llc_layer(payload,Alr=1,verbose=verbose)
-                else:
-                    from .Detect_layer import DetectLayer
-                    d = DetectLayer()
-                    prelayer = d.start(packet=payload, previous_layer="Dot3",verbose=verbose)
-
+                from .LLC import LLCParser
+                prelayer = LLCParser.load_as_llc_layer(payload,Alr=1,verbose=verbose)
                 return dot3 / prelayer
             return dot3
-

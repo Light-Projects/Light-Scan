@@ -2,9 +2,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
-from .Logger.LightLogger import Logger
-from .BaseLayer import BaseLayer
+from LightPacket.Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
+from LightPacket.Logger.LightLogger import Logger
+from LightPacket.BaseLayer import BaseLayer
 from typing import Optional
 
 
@@ -39,8 +39,6 @@ class Raw(BaseLayer):
 
     def __repr__(self):
         payload = self._raw_payload or b''
-        if len(payload) > 32:
-            return f"<Raw payload={payload[:32]}... len={len(payload)}>"
         return f"<Raw payload={payload} len={len(payload)}>"
 
     def copy(self) -> 'Raw':

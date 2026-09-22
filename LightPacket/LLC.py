@@ -3,10 +3,11 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import struct
-from .BaseLayer import BaseLayer
-from .Consts import SAP_VALUES, SAP_LLC_SNAP
-from .Logger.LightLogger import Logger, ErrorCode
-from .Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
+from LightPacket.BaseLayer import BaseLayer
+from LightPacket.Layers.register import registry
+from LightPacket.Consts import SAP_VALUES, SAP_LLC_SNAP
+from LightPacket.Logger.LightLogger import Logger, ErrorCode
+from LightPacket.Decoration.Colors import BOLD, RESET, CYAN, BLUE, PURPLE
 
 LLogger = Logger()
 
@@ -114,7 +115,10 @@ class LLCParser:
         )
 
         if len(payload) > 0:
-            if ssap == SAP_LLC_SNAP and dsap == SAP_LLC_SNAP:
+            custom = registry.get_parser('dsap_ssap', (dsap, ssap))
+            if custom:
+                prelayer = custom['parser'](payload, verbose=verbose)
+            elif ssap == SAP_LLC_SNAP and dsap == SAP_LLC_SNAP:
                 from .Snap import SNAPParser
                 prelayer = SNAPParser.load_as_snap_layer(payload,Alr=1,verbose=verbose)
             elif ssap == 0x42 and dsap == 0x42:

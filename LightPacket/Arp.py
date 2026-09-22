@@ -5,15 +5,15 @@
 
 import struct
 
-from .GetMac import GetMac
-from .GetIPv4 import GetIPv4Gateway,GetIPv4
-from .Decoration.Colors import RESET, CYAN, BLUE, PURPLE, BOLD
-from .Logger.LightLogger import Logger, ErrorCode
-from .BaseLayer import BaseLayer
+from LightPacket.GetMac import GetMac
+from LightPacket.GetIPv4 import GetIPv4Gateway,GetIPv4
+from LightPacket.Decoration.Colors import RESET, CYAN, BLUE, PURPLE, BOLD
+from LightPacket.Logger.LightLogger import Logger, ErrorCode
+from LightPacket.BaseLayer import BaseLayer
 from typing import Union
-from .Layers.Mac import MacAddress
-from .Layers.IPtoa import inet_aton, inet_ntoa
-from .Consts import HWTYPES,ETHERTYPE,BROADCAST_MAC,IPv4,MC,OUI_MAP
+from LightPacket.Layers.Mac import MacAddress
+from LightPacket.helper.ipv4.IPtoa import inet_aton, inet_ntoa
+from LightPacket.Consts import HWTYPES,ETHERTYPE,BROADCAST_MAC,IPv4_var,MC,OUI_MAP
 
 LLogger = Logger()
 
@@ -34,7 +34,7 @@ class ARP(BaseLayer):
         if hwtype is None:
             hwtype = 1
         if ptype is None:
-            ptype = IPv4
+            ptype = IPv4_var
         if maclen is None:
             maclen = 6
         if plen is None:
