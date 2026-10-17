@@ -20,7 +20,7 @@ Scores banners (grabbed from open services -- SSH/HTTP/FTP/SMB headers,
 etc.) and open-service names against every registered signature.
 """
 
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable
 
 from ..signatures import ALL_SIGNATURES
 

@@ -20,11 +20,13 @@ import random
 def ipv4_id():
     return random.randint(1, 65535)
 
-def ipv4_flags():
+def ipv4_flags(num=False):
     """
     MF cause ip-malformed-error when used with normal non fragmente packets
     """
-    flags = ["DF",None]
+
+    flags = [3,None]
+
     return random.choice(flags)
 
 def ipv4_random():

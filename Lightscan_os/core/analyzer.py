@@ -19,13 +19,16 @@
 Turns raw scapy TCP options into the flat dict the signature scorers use.
 """
 
+from LightPacket.helper.tcp.TCPOptions import OPT_MSS, OPT_SACK, OPT_WS, OPT_TS
+
 
 def analyze_tcp_options(options, packet_id=0, version=4):
     if not options:
         return {}
 
+
     analysis = {
-        'order': [opt[0] for opt in options],
+        'order': [opt for opt in options],
         'mss': None,
         'wscale': None,
         'timestamp': None,
@@ -34,14 +37,14 @@ def analyze_tcp_options(options, packet_id=0, version=4):
         'version': version,
     }
 
-    for opt_name, opt_value in options:
-        if opt_name == 'MSS':
-            analysis['mss'] = opt_value
-        elif opt_name == 'WScale':
-            analysis['wscale'] = opt_value
-        elif opt_name == 'Timestamp':
-            analysis['timestamp'] = opt_value
-        elif opt_name == 'SAckOK':
+    for opt in options:
+        if opt.kind == OPT_MSS:
+            analysis['mss'] = int.from_bytes(opt.data,byteorder='big')
+        elif opt.kind == OPT_WS:
+            analysis['wscale'] = int.from_bytes(opt.data,byteorder='big')
+        elif opt.kind == OPT_TS:
+            analysis['timestamp'] = int.from_bytes(opt.data,byteorder='big')
+        elif opt.kind == OPT_SACK:
             analysis['sack'] = True
 
     return analysis

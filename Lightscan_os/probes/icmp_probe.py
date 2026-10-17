@@ -25,27 +25,32 @@ network device or a Unix/Solaris-class host.
 """
 
 try:
-    from scapy.layers.inet import IP, ICMP, sr1
-    SCAPY_AVAILABLE = True
+    from LightPacket.l3 import IPv4, ICMP
+    from LightPacket.l2 import Ethernet
+    from LightPacket import L2Socket, GetMac, is_in_same_network, DetectLayer
+    LIGHTPACKET_AVAILABLE = True
 except ImportError:
-    SCAPY_AVAILABLE = False
+    LIGHTPACKET_AVAILABLE = False
 
 
 def probe_icmp(target, timeout=2):
     """
     Returns {"ttl": int, "code_quirk": str|None} or None if no reply.
     """
-    if not SCAPY_AVAILABLE:
+    if not LIGHTPACKET_AVAILABLE:
         return None
 
-    pkt = IP(dst=target) / ICMP(type=8, code=0)
-    resp = sr1(pkt, timeout=timeout, verbose=False)
+    dstmac = GetMac.GetMacByIP(target) if is_in_same_network(target) else GetMac.GetMacGateway()
+    pkt = Ethernet(dst=str(dstmac)) / IPv4(dst=target) / ICMP()
 
-    if resp is None or not resp.haslayer(ICMP):
+    resp = L2Socket().srp1(pkt, timeout=timeout, filter_str=f'src host {target} and icmp')
+    resp = DetectLayer().start(resp)
+
+    if resp is None:
         return None
 
-    icmp_layer = resp.getlayer(ICMP)
-    ip_layer = resp.getlayer(IP)
+    icmp_layer = resp[ICMP]
+    ip_layer = resp[IPv4]
     ttl = ip_layer.ttl if ip_layer else None
 
     code_quirk = None

@@ -24,49 +24,52 @@ TTL/hop-limit -- the same core idea nmap's TCP-based OS tests use.
 import random
 
 try:
-    from scapy.layers.inet import IP, TCP, sr1
-    from scapy.layers.inet6 import IPv6
-    SCAPY_AVAILABLE = True
+    from LightPacket.helper.tcp.TCPOptions import TCPOptions
+    from LightPacket.l3 import TCP,IPv4,IPv6
+    from LightPacket.l2 import Ethernet
+    from LightPacket import L2Socket, DetectLayer, GetMac, is_in_same_network
+    LIGHTPACKET_AVAILABLE = True
 except ImportError:
-    SCAPY_AVAILABLE = False
+    LIGHTPACKET_AVAILABLE = False
 
 
 def craft_tcp_syn(target, port, version=4):
-    if not SCAPY_AVAILABLE:
+    if not LIGHTPACKET_AVAILABLE:
         raise RuntimeError("scapy is required for TCP probing (pip install scapy)")
 
-    common_opts = [
-        ('MSS', 1460),
-        ('SAckOK', b''),
-        ('Timestamp', (random.randint(1, 1_000_000_000), 0)),
-        ('NOP', None),
-        ('WScale', 8),
+    options = [
+        TCPOptions.mss(1460),
+        TCPOptions.sack_permitted(),
+        TCPOptions.timestamps(random.randint(1, 1_000_000_000), 0),
+        TCPOptions.window_scale(8)
     ]
 
+    dstmac = GetMac.GetMacByIP(target) if is_in_same_network(target) else GetMac.GetMacGateway()
+    sport = random.randint(60000, 65535)
+
     if version == 6:
-        return IPv6(dst=target, hlim=128, nh=6) / TCP(
+        return Ethernet(
+            dst=str(dstmac)) / IPv6(
+            dst=target,
+            hop_limit=128,
+            next_header=6) / TCP(
             dport=port,
-            sport=random.randint(60000, 65535),
-            seq=random.randint(1_000_000_000, 4_294_967_295),
+            sport=sport,
+            seq=random.randint(0, 0xFFFFFFFF),
             window=65535,
-            options=common_opts,
-            flags="S",
-        )
+            options=options,
+            flags=0x02,
+        ), sport
 
-    return IP(dst=target, id=random.randint(1, 65535), ttl=128) / TCP(
+    return Ethernet(
+        dst=str(dstmac)) / IPv4(dst=target, id=random.randint(1, 65535), ttl=128) / TCP(
         dport=port,
-        sport=random.randint(60000, 65535),
-        seq=random.randint(1_000_000_000, 4_294_967_295),
+        sport=sport,
+        seq=random.randint(0, 0xFFFFFFFF),
         window=65535,
-        options=common_opts,
-        flags="S",
-    )
-
-
-def send_tcp_syn(probe, timeout=2):
-    if not SCAPY_AVAILABLE:
-        raise RuntimeError("scapy is required for TCP probing (pip install scapy)")
-    return sr1(probe, timeout=timeout, verbose=False)
+        flags=0x02,
+        options=options,
+    ) , sport
 
 
 def probe_tcp(target, port, version=4, timeout=2):
@@ -74,18 +77,17 @@ def probe_tcp(target, port, version=4, timeout=2):
     Returns a dict with the fields the analyzer/scorer need, or None if
     there was no usable reply.
     """
-    from scapy.layers.inet import IP, TCP
-    from scapy.layers.inet6 import IPv6
 
-    probe = craft_tcp_syn(target, port, version)
-    resp = send_tcp_syn(probe, timeout=timeout)
+    probe,sport = craft_tcp_syn(target, port, version)
+    resp = L2Socket().srp1(probe, timeout=timeout, filter_str=f'tcp and src host {target} and src port {port} and dst port {sport}')
+    resp = DetectLayer().start(resp)
 
-    ip_layer_cls = IPv6 if version == 6 else IP
-    if not resp or not resp.haslayer(TCP) or not resp.haslayer(ip_layer_cls):
+    ip_layer_cls = IPv6 if version == 6 else IPv4
+    if resp is None:
         return None
 
-    tcp_layer = resp.getlayer(TCP)
-    ip_layer = resp.getlayer(ip_layer_cls)
+    tcp_layer = resp[TCP]
+    ip_layer = resp[ip_layer_cls]
 
     if not (tcp_layer.flags & 0x12):
         return None

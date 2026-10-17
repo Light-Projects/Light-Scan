@@ -18,7 +18,7 @@
 import scapy.all as scapy
 import random
 from scapy.layers.inet6 import IPv6
-from ..Transport import Stealth_tcp_options
+from Mimic.Transport import Stealth_tcp_options
 
 def ftp_payload_tcp(target, version):
     ftp_clients = [

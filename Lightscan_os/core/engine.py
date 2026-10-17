@@ -30,7 +30,7 @@ from ..probes.udp_probe import probe_udp
 from ..probes.dns_probe import probe_rdns
 from ..signatures import SIGNATURES_BY_NAME
 from .analyzer import analyze_tcp_options
-from .banner_matcher import score_banners, guess_version
+from .banner_matcher import score_banners
 from .scorer import ScoreBoard, OSMatch
 
 
@@ -57,9 +57,11 @@ class OSFingerprintResult:
 
 
 class OSFingerprintEngine:
-    def __init__(self, min_score: float = 1.0, min_report_confidence: float = 5.0):
+    def __init__(self, min_score: float = 1.0, min_report_confidence: float = 5.0
+                 ,no_root: bool = False):
         self.min_score = min_score
         self.min_report_confidence = min_report_confidence
+        self.no_root = no_root
 
     def fingerprint(
         self,
@@ -83,55 +85,57 @@ class OSFingerprintEngine:
         if not open_ports:
             return OSFingerprintResult([], version, probes_used)
 
-        # --- multi-port TCP SYN probing -------------------------------------
-        for port in open_ports:
-            try:
-                reading = probe_tcp(target, port, version=version, timeout=timeout)
-            except Exception as exc:
-                if verbose:
-                    print(f"[!] TCP probe failed on port {port}: {exc}")
-                continue
+        if not self.no_root:
 
-            if reading is None:
-                continue
+            # --- multi-port TCP SYN probing -------------------------------------
+            for port in open_ports:
+                try:
+                    reading = probe_tcp(target, port, version=version, timeout=timeout)
+                except Exception as exc:
+                    if verbose:
+                        print(f"[!] TCP probe failed on port {port}: {exc}")
+                    continue
 
-            probes_used.append(f"tcp:{port}")
-            analysis = analyze_tcp_options(reading["options"], reading["ip_id"], version)
-            board.add_tcp(analysis, reading["window"], reading["ttl_or_hlim"], version)
+                if reading is None:
+                    continue
 
-            last_tcp_reading = {
-                "order": analysis.get("order", []),
-                "window": reading["window"],
-                "ttl": reading["ttl_or_hlim"],
-                "wscale": analysis.get("wscale"),
-                "mss": analysis.get("mss"),
-                "timestamp": analysis.get("timestamp"),
-                "sack": analysis.get("sack"),
-            }
+                probes_used.append(f"tcp:{port}")
+                analysis = analyze_tcp_options(reading["options"], reading["ip_id"], version)
+                board.add_tcp(analysis, reading["window"], reading["ttl_or_hlim"], version)
 
-        # --- ICMP echo (weak but free extra signal) --------------------------
-        if use_icmp and version == 4:
-            try:
-                icmp_reading = probe_icmp(target, timeout=timeout)
-            except Exception as exc:
-                icmp_reading = None
-                if verbose:
-                    print(f"[!] ICMP probe failed: {exc}")
-            if icmp_reading:
-                probes_used.append("icmp")
-                board.add_icmp(icmp_reading.get("ttl"), icmp_reading.get("code_quirk"))
+                last_tcp_reading = {
+                    "order": analysis.get("order", []),
+                    "window": reading["window"],
+                    "ttl": reading["ttl_or_hlim"],
+                    "wscale": analysis.get("wscale"),
+                    "mss": analysis.get("mss"),
+                    "timestamp": analysis.get("timestamp"),
+                    "sack": analysis.get("sack"),
+                }
 
-        # --- UDP closed-port quirk test ---------------------------------------
-        if use_udp and version == 4:
-            try:
-                udp_reading = probe_udp(target, timeout=timeout)
-            except Exception as exc:
-                udp_reading = None
-                if verbose:
-                    print(f"[!] UDP probe failed: {exc}")
-            if udp_reading:
-                probes_used.append("udp")
-                board.add_udp(udp_reading.get("quirk"))
+            # --- ICMP echo (weak but free extra signal) --------------------------
+            if use_icmp and version == 4:
+                try:
+                    icmp_reading = probe_icmp(target, timeout=timeout)
+                except Exception as exc:
+                    icmp_reading = None
+                    if verbose:
+                        print(f"[!] ICMP probe failed: {exc}")
+                if icmp_reading:
+                    probes_used.append("icmp")
+                    board.add_icmp(icmp_reading.get("ttl"), icmp_reading.get("code_quirk"))
+
+            # --- UDP closed-port quirk test ---------------------------------------
+            if use_udp and version == 4:
+                try:
+                    udp_reading = probe_udp(target, timeout=timeout)
+                except Exception as exc:
+                    udp_reading = None
+                    if verbose:
+                        print(f"[!] UDP probe failed: {exc}")
+                if udp_reading:
+                    probes_used.append("udp")
+                    board.add_udp(udp_reading.get("quirk"))
 
         # --- banner / service fingerprinting -----------------------------------
         if banners or services:
@@ -140,18 +144,19 @@ class OSFingerprintEngine:
             board.add_banner_scores(banner_scores)
 
         rdns_info = None
-        if use_rdns:
-            try:
-                rdns_info = probe_rdns(target, timeout=timeout)
-            except Exception as exc:
-                if verbose:
-                    print(f"[!] RDNS probe failed: {exc}")
+        if not self.no_root:
+            if use_rdns:
+                try:
+                    rdns_info = probe_rdns(target, timeout=timeout)
+                except Exception as exc:
+                    if verbose:
+                        print(f"[!] RDNS probe failed: {exc}")
 
-            if rdns_info:
-                probes_used.append("rdns")
-                board.add_rdns(rdns_info)
-                rdns_server = rdns_info.get("hostname", "")
-                rdns_cloud = rdns_info.get("cloud_provider", "")
+                if rdns_info:
+                    probes_used.append("rdns")
+                    board.add_rdns(rdns_info)
+                    rdns_server = rdns_info.get("hostname", "")
+                    rdns_cloud = rdns_info.get("cloud_provider", "")
 
         matches = board.rank(min_score=self.min_score)
         

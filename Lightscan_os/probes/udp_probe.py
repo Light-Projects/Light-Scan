@@ -25,10 +25,12 @@ back, and the IP ID behaviour -- enough to tag a handful of coarse
 """
 
 try:
-    from scapy.layers.inet import IP, UDP, ICMP, sr1
-    SCAPY_AVAILABLE = True
+    from LightPacket import L2Socket, DetectLayer, GetMac, is_in_same_network
+    from LightPacket.l2 import Ethernet, Raw
+    from LightPacket.l3 import IPv4, UDP, ICMP
+    LIGHTPACKET_AVAILABLE = True
 except ImportError:
-    SCAPY_AVAILABLE = False
+    LIGHTPACKET_AVAILABLE = False
 
 # A high, unlikely-to-be-listening UDP port.
 DEFAULT_CLOSED_PORT = 40125
@@ -41,19 +43,21 @@ def probe_udp(target, port=DEFAULT_CLOSED_PORT, timeout=2):
     drops it -- that absence is itself sometimes informative, but we
     leave that call to the engine rather than guessing here).
     """
-    if not SCAPY_AVAILABLE:
+    if not LIGHTPACKET_AVAILABLE:
         return None
 
-    pkt = IP(dst=target) / UDP(sport=53000, dport=port) / (b"lightscan-probe")
-    resp = sr1(pkt, timeout=timeout, verbose=False)
+    dstmac = GetMac.GetMacByIP(target) if is_in_same_network(target) else GetMac.GetMacGateway()
+    pkt = Ethernet(dst=str(dstmac)) / IPv4(dst=target) / UDP(sport=53000, dport=port) / Raw(payload=b"lightscan-probe")
 
-    if resp is None or not resp.haslayer(ICMP):
+    resp = L2Socket().srp1(pkt, timeout=timeout, filter_str=f'src host {target} and icmp')
+    resp = DetectLayer().start(resp)
+
+    if resp is None:
         return None
 
-    icmp_layer = resp.getlayer(ICMP)
-    ip_layer = resp.getlayer(IP)
+    icmp_layer = resp[ICMP]
+    ip_layer = resp[IPv4]
 
-    # type 3 = destination unreachable, code 3 = port unreachable
     if icmp_layer.type != 3 or icmp_layer.code != 3:
         return None
 

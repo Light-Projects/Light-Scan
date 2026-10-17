@@ -35,3 +35,25 @@ def Stealth_tcp_options():
             options.insert(0, options.pop(i))
             break
     return options
+
+def Stealth_tcp_option_L():
+    from LightPacket.helper.tcp.TCPOptions import TCPOptions
+    options = [
+        TCPOptions.mss(random.randint(1000, 1440)),
+        TCPOptions.sack_permitted(),
+        TCPOptions.timestamps(random.randint(1, 1000000000), 0),
+        TCPOptions.window_scale(random.randint(2, 14)),
+        TCPOptions.nop(),
+        TCPOptions.nop()
+    ]
+    random.shuffle(options)
+    for i, opt in enumerate(options):
+        if opt.kind == 2:
+            options.insert(0, options.pop(i))
+            break
+    options.append(TCPOptions.eol())
+    return options
+
+
+
+

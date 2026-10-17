@@ -35,8 +35,10 @@ def random_payloads():
 
     return payloads
 
-def random_payload():
+def random_payload(bytes=False):
     payloads = random_payloads()
+    if bytes:
+        return random.choice(payloads).encode()
     return random.choice(payloads)
 
 def badsum():
