@@ -1,0 +1,18 @@
+@ Light-Scan 1.2.1
+
+## no-root mode in Lightscan 100%
+## Packet Trace Option 100%
+## added http-security-txt lsse script 100%
+## Stealth TCP Option for LightPacket TCP class 100%
+## Removing LightPanel CTK version 100%
+## SCTP-COOKIE Scan for Lightscan 100%
+## Dot3,STP,LLC,SNAP,SLLv1/SLLv2 and EAPOL Detection in LightSniff 100%
+## LightSniff full switch to LightPacket 100%
+## Performence Optimazations for Lightscan 100%
+## Clean unnecessary exit calls in LSSE 100%
+## ssh-brute and ssh-auth-methods scripts got removed 100%
+## Script Manager Enhancements + .lsse format for LSSE Scripts 100%
+## Running custom scripts without registering 100%
+## Replacing Scapy for LightPacket in OS Detection 100%
+## Removing Mint 100%
+## requiring python 3.8 then 3.13 100%
