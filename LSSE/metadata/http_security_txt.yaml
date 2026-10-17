@@ -1,0 +1,7 @@
+script_name: "http-security-text"
+description: "Fetches and parses security.txt for hidden paths"
+
+args:
+  required: "--domain"
+  optional: null
+  category: "safe/discovery/http_https"

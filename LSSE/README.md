@@ -583,86 +583,9 @@ WHOIS Domain Information: example.com
 
 ## SSH Scripts
 
-### 18. ssh-auth-methods
-**Category:** `safe/extracting/ssh`
-
-Enumerate SSH authentication methods with detailed analysis.
-
-**Required Arguments:**
-- `--starget` - Target host
-- `-sp` - Target port
-
-**Example:**
-```bash
-Lightscan.py --lsse --script ssh-auth-methods --starget example.com -sp 22
-```
-
-**Output:**
-```
-[*] Probing example.com:22
-
-[+] SSH Banner: SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1
-[+] Auth methods (from exception): ['publickey', 'password']
-
-[+] SSH Authentication Methods Summary:
-    Host: example.com:22
-    Banner: SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1
-    Methods: publickey, password
-
-[!] Security Assessment:
-    - Password authentication: ENABLED
-    - Publickey authentication: ENABLED
-```
-
 ---
 
-### 19. ssh-brute
-**Category:** `medium/discovery/ssh`
-
-Run an SSH brute-force to guess correct login credentials.
-
-**Required Arguments:**
-- `--starget` - Target host
-- `-sp` - Target port
-
-**Optional Arguments:**
-- `--username` - Single username
-- `--password` - Single password
-- `--userlist` - Wordlist of usernames
-- `--passwordlist` - Wordlist of passwords
-
-**Example:**
-```bash
-Lightscan.py --lsse --script ssh-brute --starget example.com -sp 22 --userlist users.txt --passwordlist passwords.txt
-```
-
-**Output:**
-```
-============================================================
-SSH Brute-Force
-  Target: example.com:22
-  Usernames: 25
-  Passwords: 40
-  Total Combos: 1000
-  Threads: 10
-  Timeout: 5s
-============================================================
-Progress: 500/1000 (50.0%) | Speed: 5.2/sec | Found: 1 | Errors: 12
-
-============================================================
-SUMMARY
-  Total attempts: 1000
-  Successful: 1
-  Time: 192.5s
-  Speed: 5.2/sec
-
-  Found 1 credentials:
-    admin:password123
-```
-
----
-
-### 20. ssh-info
+### 18. ssh-info
 **Category:** `safe/analysis/ssh`
 
 Grab SSH key-exchange packet (SSH_MSG_KEXINIT) and parse it.
@@ -704,7 +627,7 @@ Lightscan.py --lsse --script ssh-info --starget example.com -sp 22
 
 ## Network Scripts
 
-### 21. dhcp-discover
+### 19. dhcp-discover
 **Category:** `safe/discovery/dhcp`
 
 Discover local DHCP servers and devices.
@@ -736,7 +659,7 @@ Lightscan.py --lsse --script dhcp-discover
 
 ---
 
-### 22. firewall-detect
+### 20. firewall-detect
 **Category:** `medium/analysis/firewall`
 
 Firewall detection using multiple probe techniques on a single port.
@@ -765,7 +688,7 @@ Lightscan.py --lsse --script firewall-detect --starget example.com -sp 80
 
 ---
 
-### 23. eternalblue
+### 21. eternalblue
 **Category:** `safe/discovery/smb`
 
 Scan for EternalBlue (CVE-2017-0144) SMBv1 vulnerability.
@@ -791,6 +714,36 @@ Checking 192.168.1.10 for MS17-010 -- CVE-2017-0144 (EternalBlue)...
 
 [!] 192.168.1.10 is VULNERABLE to MS17-010 (EternalBlue)!
      -> OS Version: b'Windows 7'
+```
+
+---
+
+### 22. http-security-text
+**Category:** `safe/discovery/http_https`
+
+Fetches and parses security.txt for hidden paths .
+
+**Required Arguments:**
+- `--domain` - host domain name
+
+**Example:**
+```bash
+Lightscan.py --lsse --script http-security-text --domain example.com 
+```
+
+**Output:**
+```
+HTTP/11 200 
+
+==================== BODY ====================
+
+Contact: https://g.co/vulnz
+Contact: mailto:security@google.com
+Encryption: https://services.google.com/corporate/publickey.txt
+Acknowledgments: https://bughunters.google.com/
+Policy: https://g.co/vrp
+Hiring: https://g.co/SecurityPrivacyEngJobs
+Expires: 2030-04-01T00:00:00z
 ```
 
 ---

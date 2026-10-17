@@ -2,7 +2,11 @@ import os
 
 def download_zip():
     try:
-        os.system('git clone https://github.com/Light-Projects/LSSE-DB')
+        try:
+            os.system('git clone https://github.com/Light-Projects/LSSE-DB')
+        except:
+            print("[!] Error while downloading LSSE database.")
+            exit(0)
 
         try:
             os.rename('LSSE', 'LSSE_old')
