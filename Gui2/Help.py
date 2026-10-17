@@ -1023,7 +1023,7 @@ def show_quick_help(parent):
         title="Quick Help - Lightscan Guide",
         stitle="⚡ Quick Help",
         subtitle="Lightscan Scanner Guide",
-        version="Lightscan v1.1.9"
+        version="Lightscan v1.2.1"
     )
     dialog.exec()
 

@@ -254,13 +254,13 @@ Capture ARP traffic
   LightSniff -i eth0 --arp
 
 Save to LightBin with compression
-  LightSniff -i eth0 --bin-save capture.lbn -C
+  LightSniff -i eth0 --w capture.lbn -C
 
 Read an existing PCAP
   LightSniff -r capture.pcap -v
 
 Read a LightBin file
-  LightSniff --bin-load capture.lbn
+  LightSniff --w capture.lbn
 
 Filter by MAC address
   LightSniff -i eth0 --mac aa:bb:cc:dd:ee:ff -v
@@ -290,7 +290,7 @@ def show_sniff_help(parent):
         title="Quick Help - LightSniff Guide",
         stitle="📡 Quick Help",
         subtitle="LightSniff Capture Guide",
-        version="LightSniff v1.0.3"
+        version="LightSniff v1.0.4"
     )
     dialog.exec()
 
