@@ -15,25 +15,10 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-from Decoration.Colors import BOLD, RESET, GREEN, RED
-from HexSave.LightHex import save_hexdump
-from HexSave.LightBin import save_binary
-from scapy.layers.inet import TCP, UDP, ICMP
-from scapy.layers.l2 import ARP
+from Decoration.Colors import RESET, GREEN, RED
+from LightPacket.l3 import TCP, UDP
+from LightPacket.l2 import ARP
 import time
-
-def print_table_header(args):
-    if args.verbose:
-        print(f"{BOLD}{'Time':10} {'Proto':6} {'Source IP':16} → {'Dest IP':16} | "
-              f"{'Source MAC':17} → {'Dest MAC':17} | {'Type':8} | {'Details':40} | {'Size':6}{RESET}")
-        print("-" * 145)
-
-    elif args.eth:
-        print(f"{BOLD}{'Time':10} {'Proto':4} {'Source MAC':27} → {'Dest MAC':27} {'Type':8} {'Details':35}{RESET}")
-        print("-" * 105)
-    else:
-        print(f"{BOLD}{'Time':10} {'Proto':4} {'Source':22} {'→':2} {'Destination':22} {'Details':40}{RESET}")
-        print("-" * 95)
 
 def apply_filter(packets, filt):
 
@@ -44,8 +29,6 @@ def apply_filter(packets, filt):
         if 'tcp' in f and TCP in packet:
             return True
         if 'udp' in f and UDP in packet:
-            return True
-        if 'icmp' in f and ICMP in packet:
             return True
         if 'port 80' in f and TCP in packet and 80 in (packet[TCP].sport, packet[TCP].dport):
             return True

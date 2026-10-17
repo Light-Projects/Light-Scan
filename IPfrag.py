@@ -1,4 +1,4 @@
-# Light-Scan Framework - Network Security Scanning Framework
+ # Light-Scan Framework - Network Security Scanning Framework
 # Copyright (C) 2026 Adam Boulaaz
 #
 # This program is free software; you can redistribute it and/or modify

@@ -4,8 +4,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from pathlib import Path
 import shutil
-import sys
-import re
+
 
 class LSSEScriptManager:
     def __init__(self, root):
@@ -67,7 +66,7 @@ class LSSEScriptManager:
         }
 
         self.sub_categories = [
-            'analysis', 'discovery', 'extracting', 'exploitation'
+            'analysis', 'discovery', 'extracting',
         ]
 
         self.protocols = [
@@ -298,7 +297,7 @@ class LSSEScriptManager:
     def browse_script(self):
         file_path = filedialog.askopenfilename(
             title="Select Python Script",
-            filetypes=[("Python files", "*.py"), ("All files", "**")]
+            filetypes=[("LSSE files", "*.lsse"), ("All files", "**")]
         )
         if file_path:
             self.script_file_path.delete(0, tk.END)
@@ -400,12 +399,12 @@ class LSSEScriptManager:
             messagebox.showerror("Error", "Please select a valid script file")
             return False
 
-        dest_path = script_dir / f"{script_name}.py"
+        dest_path = script_dir / f"{script_name}.lsse"
 
         if dest_path.exists():
             overwrite = messagebox.askyesno(
                 "File Exists",
-                f"Script file {script_name}.py already exists. Overwrite?"
+                f"Script file {script_name}.lsse already exists. Overwrite?"
             )
             if not overwrite:
                 return False
@@ -454,7 +453,7 @@ class LSSEScriptManager:
 
         return True
 
-    def add_to_config(self, script_name, required_args, optional_args):
+    def add_to_config(self, script_name, required_args, optional_args=[]):
         try:
             with open(self.config_path, 'r') as f:
                 content = f.read()
@@ -491,6 +490,14 @@ class LSSEScriptManager:
                     elif param_name.startswith('-'):
                         param_name = param_name[1:]
                     args_parts.append(param_name)
+
+            for arg in optional_args:
+                param_name = self.yaml_to_param.get(arg, arg)
+                if param_name.startswith('--'):
+                    param_name = param_name[2:]
+                elif param_name.startswith('-'):
+                    param_name = param_name[1:]
+                args_parts.append(param_name)
 
             args_str = '|'.join(args_parts) if args_parts else ''
 

@@ -15,3 +15,4 @@ else:
     from LightPacket.LightPacketUnix import get_libpcap_devices_bsd
     for i in get_libpcap_devices_bsd():
         interfaces.append(i['name'])
+

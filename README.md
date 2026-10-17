@@ -1,7 +1,7 @@
 
 # Light-Scan Framework Documentation
 
-![Python](https://img.shields.io/badge/python-3.13-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/python-3.8-blue?logo=python&logoColor=white)
 ![OS](https://img.shields.io/badge/Platform-Linux%20|%20Windows%20|%20macOS%20|%20BSD-2d2d2d?style=for-the-badge&logo=linux&logoColor=white)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg?logo=gnu)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 [![Open Source](https://img.shields.io/badge/Open%20Source-❤️-green)](https://opensource.org/)
@@ -17,9 +17,8 @@
 2. Installation
 3. Lightscan - Network Port Scanner
 4. LightSniff - Packet Capture Tool
-5. Mint - Attack Utility
-6. LightPanel - GUI Interface
-7. License
+5. LightPanel - GUI Interface
+6. License
 
 ---
 
@@ -29,13 +28,11 @@ Light-Scan Framework is a comprehensive network security scanning suite develope
 
 ### Framework Components
 
-| Tool        | Description                                          | Version                         |
-|-------------|------------------------------------------------------|---------------------------------|
-| Lightscan   | Advanced network port scanner with 15+ scan types    | 1.2.0                           |
-| LightSniff  | Packet capture and analysis tool                     | 1.0.3                           |
-| Mint        | Network attack utility (SYN flood, MAC flood)        | 1.0.0                           |
-| LightPanel  | Cross-platform GUI interface for Lightscan (CTK)     | 1.0.1 (Linux) / 1.0.3 (Windows) |
-| LightPanel6 | Cross-platform GUI interface for Lightscan (PySide6) | 1.0.0                           |
+| Tool        | Description                                       | Version                         |
+|-------------|---------------------------------------------------|---------------------------------|
+| Lightscan   | Advanced network port scanner with 15+ scan types | 1.2.1                           |
+| LightSniff  | Packet capture and analysis tool                  | 1.0.4                           |
+| LightPanel6 | Cross-platform GUI interface (PySide6)            | 1.0.0                           |
 ---
 
 ## 2. Installation
@@ -63,13 +60,9 @@ pip install -r requirements.txt
 
 ```
 Light-Scan/
-├── Lightscan.py          # Main scanner (v1.1.9)
-├── LightSniff.py         # Packet capture (v1.0.3)
-├── Mint.py               # Attack utility (v1.0.0)
-├── LightPanel.py         # GUI launcher (CTK)
-├── LightPanel6.py         # GUI launcher (PySide6)
-├── LightPanelLin.py      # Linux GUI (v1.0.1)
-├── LightPanelWin.py      # Windows GUI (v1.0.3)
+├── Lightscan.py          # Main scanner (v1.2.1)
+├── LightSniff.py         # Packet capture (v1.0.4)
+├── LightPanel6.py        # GUI launcher (PySide6)
 └── ....
 ```
 
@@ -77,7 +70,7 @@ Light-Scan/
 
 ## 3. Lightscan - Network Port Scanner
 
-**Version: 1.2.0**
+**Version: 1.2.1**
 
 ### Overview
 
@@ -299,7 +292,7 @@ The LightScan Scripting Engine (LSSE) allows extensible scanning functionality.
 
 ## 4. LightSniff - Packet Capture Tool
 
-**Version: 1.0.3**
+**Version: 1.0.4**
 
 ### Overview
 
@@ -327,7 +320,7 @@ sudo python LightSniff.py -i Wi-Fi -c 100 -v
 sudo python LightSniff.py -r capture.pcap
 
 # Read from LightBin format
-sudo python LightSniff.py --bin-load capture.lbn
+sudo python LightSniff.py -r capture.lbn
 
 # Show available interfaces
 sudo python LightSniff.py -I
@@ -353,20 +346,16 @@ sudo python LightSniff.py -I
 
 #### Output Formats
 
-| Option | Description | File Extension |
-|--------|-------------|----------------|
-| -w WRITE | Save to PCAP/PCAPNG file | .pcap |
-| --bin-save SAVE | Save to LightBin binary format | .lbn |
-| --hex-save SAVE | Save to hexadecimal format | .lhex |
+| Option | Description                       | File Extension |
+|--------|-----------------------------------|----------------|
+| -w WRITE | Save to PCAP/PCAPNG/LHEX/LBN file | .pcap |
 | -C | Compress saved output (only .lbn) | -C |
 
 #### Input Formats
 
-| Option | Description | File Extension |
-|--------|-------------|----------------|
-| -r READ | Read from PCAP/PCAPNG file | .pcap |
-| --bin-load LOAD | Load from LightBin format | .lbn |
-| --hex-load LOAD | Load from hexadecimal format | .lhex |
+| Option | Description                         | File Extension |
+|--------|-------------------------------------|----------------|
+| -r READ | Read from PCAP/PCAPNG/LHEX/LBN file | .pcap |
 
 #### Display Options
 
@@ -395,12 +384,12 @@ sudo python LightSniff.py -i eth0 -f 'tcp port 80' -c 50 -v
 
 **Save and compress captured traffic:**
 ```bash
-sudo python LightSniff.py -i wlan0 -c 1000 --bin-save capture.lbn -C
+sudo python LightSniff.py -i wlan0 -c 1000 -w capture.lbn -C
 ```
 
 **Analyze previously captured traffic:**
 ```bash
-python LightSniff.py --bin-load capture.lbn --tcp --verbose
+python LightSniff.py -r capture.lbn --tcp --verbose
 ```
 
 **Filter by specific MAC address:**
@@ -410,142 +399,8 @@ sudo python LightSniff.py -i eth0 --mac aa:bb:cc:dd:ee:ff -v
 
 ---
 
-## 5. Mint - Attack Utility
 
-**Version: 1.0.1**
-
-### Overview
-
-Mint is a lightweight network attack utility designed for security testing and vulnerability assessment. It supports SYN flood and MAC flood attacks for testing network infrastructure resilience.
-
-### Usage
-
-```bash
-sudo python Mint.py [options]
-```
-
-### Basic Examples
-
-```bash
-# SYN flood attack
-sudo python Mint.py -T 192.168.1.1 -c 1000 -p 80 --attack-mode syn-flood
-
-# MAC flood attack
-sudo python Mint.py -T 192.168.1.1 -c 5000 --attack-mode mac-flood
-
-# SYN flood with source IP hiding
-sudo python Mint.py -T 10.0.0.1 -c 10000 -p 80 -hi --attack-mode syn-flood
-
-# Multi-port attack with shuffled order
-sudo python Mint.py -T 192.168.1.1 -c 100 -p 80,443,8080 -s --attack-mode syn-flood
-```
-
-### Command Reference
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| -T TARGET | Target IP or hostname | -T 192.168.1.1 |
-| -c C | Packet count per port | -c 1000 |
-| -p PORT | Ports to attack | -p 80 or -p 80,443,8080 |
-| -hi | Hide source IP using random ones | -hi |
-| -s | Shuffle ports order | -s |
-| --attack-mode MODE | Attack type (syn-flood, mac-flood) | --attack-mode syn-flood |
-
-### Attack Modes
-
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| syn-flood | SYN flood attack | Test firewall/IDS resilience |
-| mac-flood | MAC flood attack | Test switch MAC table security |
-
-### Important Notes
-
-- Both attack modes require root/administrator privileges
-- SYN flood attacks send TCP SYN packets to the target
-- MAC flood attacks send Ethernet frames with random MAC addresses
-- The -hi flag randomizes source IP addresses for SYN floods
-- Use responsibly and only on systems you own or have permission to test
-
----
-
-## 6. LightPanel - GUI Interface
-
-**Version: 1.0.1 (Linux) / 1.0.3 (Windows)**
-
-### Overview
-
-LightPanel provides a graphical user interface for the Light-Scan framework, making it accessible to users who prefer visual tools over command-line interfaces. It supports both Linux and Windows platforms with platform-specific versions.
-
-### Features
-
-- Cross-platform support (Linux and Windows)
-- Dark/Light mode switching
-- GUI-based command construction
-- Real-time output display
-- Profile management
-- Copy and clear output functions
-- Command injection protection
-
-### Usage
-
-**Linux:**
-```bash
-sudo python LightPanel.py
-```
-
-**Windows:**
-```bash
-python LightPanel.py
-```
-
-### Interface Components
-
-#### Command Bar
-- **Command Entry**: Manually type or view generated commands
-- **Start Scan Button**: Execute the configured scan
-- **Copy Output Button**: Copy console output to clipboard
-- **Clear Output Button**: Clear the output display
-
-#### Configuration Options
-- **Target**: IP or hostname to scan
-- **Ports**: Port specification (e.g., 80,443 or 1-1000)
-- **Scan Type**: Select from 15 scan types
-- **Speed**: Choose from 6 speed presets
-- **Profile**: Load or save scan profiles
-- **Saving Format**: Select from 10 output formats
-
-#### Toggle Options
-- **Top 100 Ports (-F)**: Fast scan mode
-- **OS Detect (-O)**: OS fingerprinting
-- **Banner Grab (-b)**: Service banner grabbing
-- **No Ping (-Pn)**: Skip host discovery
-- **IPv6 Target (-V6)**: Enable IPv6 scanning
-- **Fragmentation (-f)**: Packet fragmentation
-- **Recursively (-Rc)**: Recursive scanning
-- **No rDNS (-n)**: Disable reverse DNS
-- **Help Menu (-h)**: Show help
-
-#### Output Display
-- Console output from Lightscan
-- Real-time scan results
-- Error messages and warnings
-- Copy to clipboard functionality
-
-### Platform-Specific Notes
-
-**Linux:**
-- Requires root privileges (sudo)
-- Uses venv environment
-- Version: 1.0.1
-
-**Windows:**
-- No sudo required (administrator may be needed)
-- Uses default Python environment
-- Version: 1.0.3
-
----
-
-## 6.1 LightPanel6 - GUI Interface (PySide6)
+## 5. LightPanel6 - GUI Interface (PySide6)
 
 **Version:** 1.0.0 (Linux / MacOS / BSD / Windows) – rebuilt using **PySide6** for a modern, responsive UI.
 
@@ -593,7 +448,7 @@ The GUI implements command injection protection:
 
 ---
 
-## 7. License
+## 6. License
 
 Light-Scan Framework - Network Security Scanning Framework
 Copyright (C) 2026 Adam Boulaaz
@@ -614,4 +469,4 @@ You should have received a copy of the GNU General Public License along with thi
 
 ---
 
-*Light-Scan Framework v1.2.0*
+*Light-Scan Framework v1.2.1*

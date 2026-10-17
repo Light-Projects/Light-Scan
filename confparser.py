@@ -19,6 +19,12 @@ import configparser
 import importlib
 import sys
 
+from types import ModuleType
+from importlib.util import spec_from_loader, module_from_spec
+from importlib.machinery import SourceFileLoader
+from pathlib import Path
+from LightPacket.GetMac import GetDefInterface
+
 RED = "\033[31m"
 RESET = "\033[0m"
 config = configparser.ConfigParser()
@@ -41,6 +47,17 @@ def speed_parser(name):
     except Exception:
         return {'threads':60,'timeout':2.8}
 
+def sniffer_parser():
+    try:
+        config.read('./Config/sniffer.conf', encoding='utf-8')
+        iface = config['INTERFACE']['default-interface'].replace('"',"").replace("'","")
+        if iface == "NULL":
+            iface = GetDefInterface()
+        count = int(config['INTERFACE']['count'])
+        return iface, count
+    except Exception:
+        return GetDefInterface(), 0
+
 def speed_presets_list():
     config.read("./Config/speed-presets.conf", encoding='utf-8')
 
@@ -51,13 +68,40 @@ def speed_presets_list():
 
     return all_vars
 
+def load_script(path: Path) -> ModuleType:
+    """
+    Load an .lsse (or .py) file as an importable Python module.
+
+    `path` must be an absolute path to an existing file, e.g.
+        Path("/home/adam/.../http_https/http-headers.lsse")
+    """
+    path = Path(path).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(path)
+
+    name = "lsse_" + path.stem.replace("-", "_")
+
+    loader = SourceFileLoader(name, str(path))
+    spec   = spec_from_loader(name, loader)
+    mod    = module_from_spec(spec)
+
+    sys.modules[name] = mod
+    try:
+        spec.loader.exec_module(mod)
+    except Exception:
+        del sys.modules[name]
+        raise
+    return mod
+
 def import_script(module_path: str):
     try:
         module = importlib.import_module(module_path)
         return module
-    except ImportError as e:
-        print(f"Error importing module {module_path}: {e}")
-        return None
+    except Exception as e:
+        try:
+            return load_script(module_path.replace('.','/') + '.lsse')
+        except:
+            return None
 
 def ds_parser():
     config.read("./Config/lsse.conf", encoding='utf-8')
@@ -99,13 +143,6 @@ def clsse_runner(
         ssl: bool | None = None
 ) -> None:
     try:
-        config.read("./Config/lsse.conf", encoding='utf-8')
-        preset = config['SCRIPTS'][sname].replace("{", "").replace("}", "").replace('\n', '').split(",")
-        args = preset[0].replace("args:", "").replace(" ", "").split('|')
-        path = preset[1].replace("script-path:", "").replace(" ", "")
-
-        final_arg_dict = {}
-
         param_map = {
             'ports': ports,
             'redirect': redirect,
@@ -126,68 +163,93 @@ def clsse_runner(
             'req': req,
             'ssl': ssl
         }
-        if args[0].strip() == '':
-            pass
-        else:
-            for arg in args:
-                arg = arg.strip()
-                if "ports" in arg:
-                    P = arg.split("->")
-                    param_name = P[0].strip()
-                    port_spec = P[1].strip() if len(P) > 1 else '0'
 
-                    if port_spec == '1' or port_spec == '0':
-                        final_arg_dict[param_name] = ports[0] if ports else None
-                    else:
-                        final_arg_dict[param_name] = ports
-                elif "=" in arg:
-                    arg_parts = arg.split("=")
-                    param_name = arg_parts[0].strip()
-                    default_value = arg_parts[1].strip() if len(arg_parts) > 1 else None
+        d,s = ds_parser()
+        if sname in d or sname in s:
+            config.read("./Config/lsse.conf", encoding='utf-8')
+            preset = config['SCRIPTS'][sname].replace("{", "").replace("}", "").replace('\n', '').split(",")
+            args = preset[0].replace("args:", "").replace(" ", "").split('|')
+            path = preset[1].replace("script-path:", "").replace(" ", "")
 
-                    if param_name in param_map and param_map[param_name] is not None:
-                        final_arg_dict[param_name] = param_map[param_name]
-                    elif default_value is not None:
+            final_arg_dict = {}
 
-                        try:
-                            if default_value.isdigit():
-                                final_arg_dict[param_name] = int(default_value)
-                            elif default_value.lower() == 'true':
-                                final_arg_dict[param_name] = True
-                            elif default_value.lower() == 'false':
-                                final_arg_dict[param_name] = False
-                            else:
-                                final_arg_dict[param_name] = default_value
-                        except ValueError:
-                            final_arg_dict[param_name] = default_value
-                    else:
-                        final_arg_dict[param_name] = None
-                else:
-
-                    param_name = arg.strip()
-                    if param_name in param_map:
-                        final_arg_dict[param_name] = param_map[param_name]
-                    else:
-                        final_arg_dict[param_name] = None
-
-        script_module = import_script(path)
-        if script_module:
-            if hasattr(script_module, 'main'):
-                script_module.main(**final_arg_dict)
-            elif hasattr(script_module, 'run'):
-                script_module.main(**final_arg_dict)
-            elif hasattr(script_module, 'start'):
-                script_module.main(**final_arg_dict)
+            if args[0].strip() == '':
+                pass
             else:
-                print(f"{RED}[!] No Main Entry Was Found!{RESET}")
-                sys.exit(3)
-        else:
-            print(f"{RED}[!] Cannot Import {path} !{RESET}")
-            sys.exit(4)
+                for arg in args:
+                    arg = arg.strip()
+                    if "ports" in arg:
+                        P = arg.split("->")
+                        param_name = P[0].strip()
+                        port_spec = P[1].strip() if len(P) > 1 else '0'
 
+                        if port_spec == '1' or port_spec == '0':
+                            final_arg_dict[param_name] = ports[0] if ports else None
+                        else:
+                            final_arg_dict[param_name] = ports
+                    elif "=" in arg:
+                        arg_parts = arg.split("=")
+                        param_name = arg_parts[0].strip()
+                        default_value = arg_parts[1].strip() if len(arg_parts) > 1 else None
+
+                        if param_name in param_map and param_map[param_name] is not None:
+                            final_arg_dict[param_name] = param_map[param_name]
+                        elif default_value is not None:
+
+                            try:
+                                if default_value.isdigit():
+                                    final_arg_dict[param_name] = int(default_value)
+                                elif default_value.lower() == 'true':
+                                    final_arg_dict[param_name] = True
+                                elif default_value.lower() == 'false':
+                                    final_arg_dict[param_name] = False
+                                else:
+                                    final_arg_dict[param_name] = default_value
+                            except ValueError:
+                                final_arg_dict[param_name] = default_value
+                        else:
+                            final_arg_dict[param_name] = None
+                    else:
+
+                        param_name = arg.strip()
+                        if param_name in param_map:
+                            final_arg_dict[param_name] = param_map[param_name]
+                        else:
+                            final_arg_dict[param_name] = None
+
+            script_module = import_script(path)
+            if script_module:
+                if hasattr(script_module, 'main'):
+                    script_module.main(**final_arg_dict)
+                elif hasattr(script_module, 'run'):
+                    script_module.main(**final_arg_dict)
+                elif hasattr(script_module, 'start'):
+                    script_module.main(**final_arg_dict)
+                else:
+                    print(f"{RED}[!] No Main Entry Was Found!{RESET}")
+                    sys.exit(3)
+            else:
+                print(f"{RED}[!] Cannot Import {path} !{RESET}")
+                sys.exit(4)
+        else:
+            script_module = import_script(sname)
+            if script_module:
+                if hasattr(script_module, 'main'):
+                    script_module.main(**param_map)
+                elif hasattr(script_module, 'run'):
+                    script_module.main(**param_map)
+                elif hasattr(script_module, 'start'):
+                    script_module.main(**param_map)
+                else:
+                    print(f"{RED}[!] No Main Entry Was Found!{RESET}")
+                    sys.exit(3)
+            else:
+                print(f"{RED}[!] Cannot Import {sname} !{RESET}")
+                sys.exit(4)
 
     except Exception as e:
         print(f"{RED}[!] Custom Script Not Found !{e}{RESET}")
+        sys.exit(4)
 
 
 

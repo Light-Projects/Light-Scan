@@ -47,8 +47,8 @@ from LightEngine import Payloads
 from LightMirage import mirage
 from Lightscan_os.core.engine import OSFingerprintEngine
 from LightPacket.utils.CIDR import parse_targets, TargetParser
-from LightPacket.GetIPv4 import GetIPv4
-
+from LightPacket.GetIPv4 import GetIPv4Gateway, GetIPv4
+from LightPacket import NetworkInterfaces, GetMac
 
 class VersionManager:
     FRAMEWORK = __framework__
@@ -130,6 +130,8 @@ PORT_SECTIONS = {
             ("open_filtered_ports", "open_filtered_ports_services", "(WINDOW Scan) Open|Filtered Ports", False)],
     "fdd": [("defended_ports", "defended_ports_services", "Defended Ports"),
             ("undefended_ports", "undefended_ports_services", "Undefended Ports")],
+    "cookie": [("closed_ports", "closed_ports_services", "Closed Ports"),
+               ("open_filtered_ports", "open_filtered_ports_services", "(SCTP-COOKIE Scan) Open|Filtered Ports")],
 }
 
 PROFILE_FIELDS = {
@@ -182,6 +184,8 @@ conf.L3socket.timeout = 1
 conf.debug_dissector = 0
 conf.use_pcap = True
 
+localip = GetIPv4()
+
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore", message=".*MAC address to reach destination not found.*")
 
@@ -191,10 +195,11 @@ def handle_thread_exception(args):
     print(f"Thread exception: {args.exc_type.__name__}: {args.exc_value}")
 threading.excepthook = handle_thread_exception
 
+
 def is_loopback(target):
     return (target == '127.0.0.1' or target == '::1' or
             target.startswith('127.') or target == 'localhost' or
-            target == GetIPv4())
+            target == localip)
 
 class Lightscan:
     __slots__ = [
@@ -245,9 +250,9 @@ class Lightscan:
         self.saving = None
         self.Proto = "tcp"
         self.scan_type = "tcp"
-        self.version = "1.1.9"
+        self.version = "1.2.1"
         self.dns = None
-        self.interval = 0.02
+        self.interval = 0.0
         self.max_threads = 60
         self.socket_timeout = 0.0
         self.targetss = []
@@ -379,6 +384,7 @@ COMMON EXAMPLES:\n
         basic.add_argument("-s", "--speed", required=False, default="normal",help="Scan speed preset (paranoid,slow,normal,fast,insane,light-mode,etc ...)")
         basic.add_argument("-q","--quiet",action="store_true",help="Quiet mode {does't print the Tool Banner}")
         basic.add_argument("-F",action="store_true",help="Scan The Top 100 ports for fast scanning")
+        basic.add_argument("--no-root",action="store_true",help="Use this flag is you where running on a non-root env")
 
         advanced = self.parser.add_argument_group('Advanced Scanning Options')
 
@@ -388,7 +394,7 @@ COMMON EXAMPLES:\n
         advanced.add_argument("--daemon", required=False, action="store_true",help="Run Lightscan as a background task")
         advanced.add_argument("-I", action="store_true", help="display open ports right after the response")
         advanced.add_argument("-pp", "--ping-port", help="Port/s to Ping on it")
-        advanced.add_argument("-st","--scan-type",default="TCP", help="Scan types {TCP,SYN,UDP,NULL,FIN,ACK,XMAS,WINDOW,MAIMON,FDD,FTP-BOUNCE,IPPROTO,PING,IDLE,SCTP-INIT,CUSTOM}")
+        advanced.add_argument("-st","--scan-type",default="TCP", help="Scan types {TCP,SYN,UDP,NULL,FIN,ACK,XMAS,WINDOW,MAIMON,FDD,FTP-BOUNCE,IPPROTO,PING,IDLE,SCTP-INIT,SCTP-COOKIE,CUSTOM}")
         advanced.add_argument("-D",default=None,help="Decoy machines to use : example {... -D 1.1.1.1,2.2.2.2 }")
         advanced.add_argument("-b","--banner",action="store_true",help="Banner Grabing")
         advanced.add_argument("-O","--os",action="store_true",help="OS Fingerprint ")
@@ -413,6 +419,7 @@ COMMON EXAMPLES:\n
         stealth.add_argument("-id",type=int,help="ID Field for IPv4 packets")
         stealth.add_argument("-ip-flags",type=int,help="IP Flags Field for IPv4 packets (DF=2,MF=1,None=0)")
         stealth.add_argument("-tcp-flag",type=str,help="TCP Flags For Custom Packet Manipulation",default="S")
+        stealth.add_argument("--packet-trace",action="store_true", help="Show every packet that get send or received")
 
         hostdis = self.parser.add_argument_group('Host Discovery Options')
 
@@ -480,7 +487,8 @@ COMMON EXAMPLES:\n
         utility.add_argument("--load-profile", type=str, help="Load the scan profile from Profiles/ directory")
         utility.add_argument("--save-profile", type=str, help="Save the scan profile to Profiles/ directory")
         utility.add_argument("--diff", nargs=2, metavar=("A", "B"),help="Compare two reports (JSON/YAML/TOML/XML)")
-        utility.add_argument("--interfaces",action="store_true",help="Show All System interfaces")
+        utility.add_argument("--interfaces",action="store_true",help="Show Only Active interfaces")
+        utility.add_argument("--all-interfaces",action="store_true", help="Show All System interfaces")
 
         self.args = self.parser.parse_args()
 
@@ -503,22 +511,27 @@ COMMON EXAMPLES:\n
         print("\n[+] Ports : ",self.ports_to_scan,"\n")
         exit(0)
 
-    def loopback_scan_handler(self, target, port, version):
+    def loopback_scan_handler(self, target, port, version,stream=True):
         family = socket.AF_INET6 if self.args.V6 else socket.AF_INET
-        sock = socket.socket(family, socket.SOCK_STREAM)
+        if stream:
+            sock = socket.socket(family, socket.SOCK_STREAM)
+            proto = "tcp"
+        else:
+            sock = socket.socket(family, socket.SOCK_DGRAM)
+            proto = "udp"
         sock.settimeout(self.socket_timeout)
         try:
             result = sock.connect_ex((target, port))
         finally:
             sock.close()
 
-        service = self.service_detection(port)
+        service = self.service_detection(port,proto)
 
         if result == 0:
             self._record(target, 'open_ports', port, service)
 
             if self.args.banner:
-                self._grab_and_record_banner(target, port, service, version)
+                self._grab_and_record_banner(target, port, service, version, protocol=proto)
         else:
             self._record(target, 'closed_ports', port, service)
 
@@ -729,17 +742,12 @@ COMMON EXAMPLES:\n
 
         self.interval = self.args.interval
 
-    def service_detection(self, port):
+    def service_detection(self, port, proto='tcp'):
         try:
             service = Lightscan_Service_List(port,self.Proto)
-            if service is None:
-                try:
-                    service = socket.getservbyport(port, 'tcp')
-                except:
-                    service = "Unknown"
-        except:
+        except OSError:
             try:
-                service = socket.getservbyport(port, 'tcp')
+                service = Lightscan_Service_List(port,self.Proto)
             except:
                 service = "Unknown"
 
@@ -763,6 +771,10 @@ COMMON EXAMPLES:\n
         dns_request = scapy.IP(dst=dns_server) / scapy.UDP(dport=53) / scapy.DNS(rd=1, qd=scapy.DNSQR(qname=reversed_ip, qtype='PTR'))
 
         ans = scapy.sr1(dns_request, verbose=False, timeout=2)
+
+        if self.args.packet_trace:
+            print(f"\nRequest : {dns_request}")
+            print(f"Response : {ans}\n")
 
         if ans and ans.haslayer(scapy.DNS) and ans[scapy.DNS].an:
             domain_name = ans[scapy.DNS].an.rdata.decode()[:-1]
@@ -828,7 +840,7 @@ COMMON EXAMPLES:\n
                 values = list(empty_default)
 
         if shuffle and values:
-            from Mint.portparser import fisher_yates_shuffle
+            from Mimic.fisher import fisher_yates_shuffle
             values = fisher_yates_shuffle(values)
 
         return values
@@ -837,7 +849,7 @@ COMMON EXAMPLES:\n
         if self.args.F:
             self.ports_to_scan = list(top_100_ports)
             if self.args.shuffle:
-                from Mint.portparser import fisher_yates_shuffle
+                from Mimic.fisher import fisher_yates_shuffle
                 self.ports_to_scan = fisher_yates_shuffle(self.ports_to_scan)
             return
 
@@ -875,6 +887,10 @@ COMMON EXAMPLES:\n
         self.Proto = "udp"
         self.scan_type = "udp"
 
+        if self.args.no_root:
+            self.loopback_scan_handler(target, port, version, stream=False)
+            return
+
         mach, first, last, index = self._decoy_meta(version)
 
         timeout = self.socket_timeout if self.args.timeout else 5
@@ -908,10 +924,14 @@ COMMON EXAMPLES:\n
                 else:
                     response = scapy.sr1(packet, timeout=timeout, verbose=0)
 
+                if self.args.packet_trace:
+                    print(f"\nRequest : {packet}")
+                    print(f"Response : {response}\n")
+
                 if last:
                     self._send_decoys(packet, mach, mach[index:], version)
 
-                service = self.service_detection(port)
+                service = self.service_detection(port, 'udp')
 
                 if response is None:
                     if attempt == self.args.max_retries - 1:
@@ -937,11 +957,13 @@ COMMON EXAMPLES:\n
                 if response.haslayer(scapy.UDP):
                     if self.args.I:
                         print(f"\n[+] Port {port} is open .")
-                    self._record(target, 'open_ports', port, service)
+
 
                     if self.args.banner:
                         self._grab_and_record_banner(target, port, service,
                                                      version, protocol="udp")
+                    else:
+                        self._record(target, 'open_ports', port, service)
                     return
 
                 self._record(target, 'filtered_ports', port, service)
@@ -971,10 +993,11 @@ COMMON EXAMPLES:\n
                 for target in self.targetss:
                     for port in self.ports_to_scan:
                         future = executor.submit(
-                            self.udp_scan,port,target
+                            self.udp_scan, port, target
                         )
-                        time.sleep(self.interval)
+
                         futures.append(future)
+                        time.sleep(self.interval)
 
                 for future in as_completed(futures):
                     try:
@@ -1013,6 +1036,8 @@ COMMON EXAMPLES:\n
             else:
                 packet[scapy.IP].src = ma
             scapy.send(packet, verbose=0)
+            if self.args.packet_trace:
+                print(f"Decoy Request: {packet}")
 
     def _resolve_payload(self):
         if self.args.payload is None:
@@ -1097,8 +1122,12 @@ COMMON EXAMPLES:\n
     def _send_rst(self, target, port, version):
         if version == 6:
             scapy.send(IPv6(dst=target) / scapy.TCP(dport=port, flags="R"), verbose=0)
+            if self.args.packet_trace:
+                print(f"Packet : {IPv6(dst=target) / scapy.TCP(dport=port, flags="R")}")
         else:
             scapy.send(scapy.IP(dst=target) / scapy.TCP(dport=port, flags="R"), verbose=0)
+            if self.args.packet_trace:
+                print(f"Packet : {scapy.IP(dst=target) / scapy.TCP(dport=port, flags="R")}")
 
     def _send_ack_handshake(self, target, port, response, version,
                             packet, mach, first, last, index):
@@ -1126,6 +1155,8 @@ COMMON EXAMPLES:\n
             self._send_decoys(ack_packet, mach, mach[:index], version)
 
         scapy.send(ack_packet, verbose=False)
+        if self.args.packet_trace:
+            print(f"Packet : {ack_packet}")
 
         if last:
             self._send_decoys(ack_packet, mach, mach[index:], version)
@@ -1134,12 +1165,12 @@ COMMON EXAMPLES:\n
         try:
             banner = Banner.grab(target, port, protocol=protocol, timeout=3,
                                  verbose=self.args.verbose, version=version)
+            self.target_results[target]['open_ports'].append(port)
         except Exception:
             with self.lock:
                 self._ensure_target(target)
                 self.target_results[target]['opened_ports_services'].append(service)
             return
-
         try:
             if banner and banner.get('banner') is not None and banner.get('service') is not None:
                 with self.lock:
@@ -1159,7 +1190,7 @@ COMMON EXAMPLES:\n
     def _tcp_scan(self, port, target, scan_mode):
         version = 6 if self.args.V6 else 4
 
-        if is_loopback(target):
+        if is_loopback(target) or self.args.no_root:
             self.loopback_scan_handler(target, port, version)
             return
 
@@ -1198,6 +1229,10 @@ COMMON EXAMPLES:\n
                 else:
                     response = scapy.sr1(packet, timeout=self.socket_timeout, verbose=0)
 
+                if self.args.packet_trace:
+                    print(f"\nRequest : {packet}")
+                    print(f"Response : {response}\n")
+
                 if last:
                     self._send_decoys(packet, mach, mach[index:], version)
 
@@ -1219,10 +1254,11 @@ COMMON EXAMPLES:\n
                     if tcp_flags == 0x12:
                         if self.args.I:
                             print(f"\n[+] Port {port} is open .")
-                        self._record(target, 'open_ports', port, service)
 
                         if self.args.banner:
                             self._grab_and_record_banner(target, port, service, version)
+                        else:
+                            self._record(target, 'open_ports', port, service)
 
                         if scan_mode == "tcp":
                             self._send_ack_handshake(target, port, response, version,
@@ -1261,7 +1297,7 @@ COMMON EXAMPLES:\n
     def Udp_host_discovery(self, Target, port):
         if is_loopback(Target):
             self.targetss.append(Target)
-            print(f"[SYS] Host {Target} is up! ")
+            print(f"\n[SYS] Host {Target} is up! ")
             return
 
         response = self._send_udp_ping(Target, port)
@@ -1269,7 +1305,7 @@ COMMON EXAMPLES:\n
             return
 
         if self._is_udp_response_meaningful(response):
-            print(f"[UDP] Host {Target}:{port} is up! ")
+            print(f"\n[UDP] Host {Target}:{port} is up! ")
         self._record_host_up(Target)
 
     def _send_udp_ping(self, Target, port):
@@ -1288,10 +1324,10 @@ COMMON EXAMPLES:\n
                       / scapy.Raw(load=payloads))
 
         if first:
-            self._send_decoys(packet, mach, 0, index, version)
+            self._send_decoys(packet, mach, mach[:index], version)
         response = scapy.sr1(packet, timeout=self.socket_timeout, verbose=0)
         if last:
-            self._send_decoys(packet, mach, index, None, version)
+            self._send_decoys(packet, mach, mach[index:], version)
         return response
 
     def _is_udp_response_meaningful(self, response):
@@ -1317,7 +1353,7 @@ COMMON EXAMPLES:\n
                 if self.target_results[target]['up'] >= 1:
                     pass
                 else:
-                    print(f"[UDP] Host {target} is shown to be down or not responding")
+                    print(f"\n[UDP] Host {target} is shown to be down or not responding")
 
         else:
             with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
@@ -1328,42 +1364,42 @@ COMMON EXAMPLES:\n
                             future = executor.submit(
                                 self.Udp_host_discovery, target, port
                             )
-                            time.sleep(self.interval)
+
                             futures.append(future)
+                            time.sleep(self.interval)
                     else:
                         for port in top_20_udp_ports:
                             future = executor.submit(
                                 self.Udp_host_discovery,target,port
                             )
-                            time.sleep(self.interval)
                             futures.append(future)
-
+                            time.sleep(self.interval)
 
                 for future in as_completed(futures):
                     try:
                         future.result()
                     except Exception as e:
                         if self.args.verbose:
-                            print(f"{red}[!] UDP ping error: {e}{reset}")
+                            print(f"{red}\n[!] UDP ping error: {e}{reset}")
 
         for target in self.targets:
             time.sleep(0.01)
             if self.target_results[target]['up'] >= 1:
                 pass
             else:
-                print(f"[UDP] Host {target} is shown to be down or not responding")
+                print(f"\n[UDP] Host {target} is shown to be down or not responding")
 
     def Syn_host_discovery(self, Target, port):
         if is_loopback(Target):
             self.targetss.append(Target)
-            print(f"[SYS] Host {Target} is up! ")
+            print(f"\n[SYS] Host {Target} is up! ")
             return
 
         response = self._send_syn_ping(Target, port)
 
         if response is not None:
             if self._is_tcp_res(response):
-                print(f"[SYN] Host {Target}:{port} is up! ")
+                print(f"\n[SYN] Host {Target}:{port} is up! ")
             self._record_host_up(Target)
             return
 
@@ -1401,10 +1437,14 @@ COMMON EXAMPLES:\n
                                   seq=mirage.tcp_seq(), window=mirage.tcp_window(),
                                   options=mirage.Stealth_tcp_options(), flags="S"))
         if first:
-            self._send_decoys(packet, mach, 0, index, version)
+            self._send_decoys(packet, mach, mach[:index], version)
         response = scapy.sr1(packet, timeout=self.socket_timeout, verbose=0)
+        if self.args.packet_trace:
+            print(f"\nRequest : {packet}")
+            print(f"Response : {response}\n")
+
         if last:
-            self._send_decoys(packet, mach, index, None, version)
+            self._send_decoys(packet, mach, mach[index:], version)
         return response
 
     def threded_Syn_host_discovery(self):
@@ -1421,7 +1461,7 @@ COMMON EXAMPLES:\n
                 if self.target_results[target]['up'] >= 1:
                     pass
                 else:
-                    print(f"[SYN] Host {target} is shown to be down or not responding")
+                    print(f"\n[SYN] Host {target} is shown to be down or not responding")
 
         else:
             with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
@@ -1432,35 +1472,34 @@ COMMON EXAMPLES:\n
                             future = executor.submit(
                                 self.Syn_host_discovery, target, port
                             )
-                            time.sleep(self.interval)
                             futures.append(future)
+                            time.sleep(self.interval)
                     else:
                         for port in top_20_tcp_ports:
                             future = executor.submit(
                                 self.Syn_host_discovery,target,port
                             )
-                            time.sleep(self.interval)
                             futures.append(future)
-
+                            time.sleep(self.interval)
 
                 for future in as_completed(futures):
                     try:
                         future.result()
                     except Exception as e:
                         if self.args.verbose:
-                            print(f"{red}[!] SYN ping error: {e}{reset}")
+                            print(f"{red}\n[!] SYN ping error: {e}{reset}")
 
         for target in self.targets:
             time.sleep(0.01)
             if self.target_results[target]['up'] >= 1:
                 pass
             else:
-                print(f"[SYN] Host {target} is shown to be down or not responding")
+                print(f"\n[SYN] Host {target} is shown to be down or not responding")
 
     def Tcp_host_discovery(self, Target, port):
         if is_loopback(Target):
             self.targetss.append(Target)
-            print(f"[SYS] Host {Target} is up! ")
+            print(f"\n[SYS] Host {Target} is up! ")
             return
         self.Proto = "tcp"
         family = socket.AF_INET6 if self.args.V6 else socket.AF_INET
@@ -1471,10 +1510,14 @@ COMMON EXAMPLES:\n
         finally:
             sock.close()
 
+        if self.args.packet_trace:
+            print(f"\nRequest : {sock}")
+            print(f"Response : {result}\n")
+
         is_up = (result == 0) or self.args.recursively
 
         if is_up:
-            print(f"[TCP] Host {Target}:{port} is up! ")
+            print(f"\n[TCP] Host {Target}:{port} is up! ")
             with self.lock:
                 if Target not in self.targetss:
                     self.targetss.append(Target)
@@ -1483,14 +1526,14 @@ COMMON EXAMPLES:\n
 
         if not self.ports_to_scan:
             if len(self.targets) == 1:
-                print(f"[TCP] Host {Target} is shown to be down or not responding")
+                print(f"\n[TCP] Host {Target} is shown to be down or not responding")
                 with self.lock:
                     if Target not in self.targetss:
                         self.targetss.append(Target)
                     self.target_results[Target]['up'] += 1
 
             elif self.args.verbose:
-                print(f"[TCP] Host {Target} is shown to be down or not responding, <Skip it>")
+                print(f"\n[TCP] Host {Target} is shown to be down or not responding, <Skip it>")
 
     def threded_Tcp_host_discovery(self):
         if self.max_threads == 1:
@@ -1510,66 +1553,71 @@ COMMON EXAMPLES:\n
                             future = executor.submit(
                                 self.Tcp_host_discovery, target, port
                             )
-                            time.sleep(self.interval)
+
                             futures.append(future)
+                            time.sleep(self.interval)
                     else:
                         for port in top_20_tcp_ports:
                             future = executor.submit(
                                 self.Tcp_host_discovery,target,port
                             )
-                            time.sleep(self.interval)
+
                             futures.append(future)
+                            time.sleep(self.interval)
 
                 for future in as_completed(futures):
                     try:
                         future.result()
                     except Exception as e:
                         if self.args.verbose:
-                            print(f"{red}[!] TCP ping error: {e}{reset}")
+                            print(f"{red}\n[!] TCP ping error: {e}{reset}")
 
         for target in self.targets:
             time.sleep(0.01)
             if self.target_results[target]['up'] >= 1:
                 pass
             else:
-                print(f"[TCP] Host {target} is shown to be down or not responding")
+                print(f"\n[TCP] Host {target} is shown to be down or not responding")
 
     def host_discovery_ipv6(self, Target):
         if is_loopback(Target):
             self.targetss.append(Target)
-            print(f"[SYS] Host {Target} is up! ")
+            print(f"\n[SYS] Host {Target} is up! ")
             return
 
         response = self._send_icmpv6_echo(Target)
         if self._is_ipv6_response_up(response):
-            print(f"[ECHOv6] Host {Target} is up! ")
+            print(f"\n[ECHOv6] Host {Target} is up! ")
             self.targetss.append(Target)
             self.target_results[Target]['up'] += 1
             return
 
         if self.args.recursively:
-            print(f"[ECHOv6] Host {Target} is shown to be down or not responding, <Swithch to TCP Host Discovery>")
+            print(f"\n[ECHOv6] Host {Target} is shown to be down or not responding, <Swithch to TCP Host Discovery>")
             self.targetss.append(Target)
             return
 
         if len(self.targets) == 1:
-            print(f"[ECHOv6] Host {Target} is shown to be down or not responding")
+            print(f"\n[ECHOv6] Host {Target} is shown to be down or not responding")
             return
 
         if self.args.verbose:
-            print(f"[ECHOv6] Host {Target} is shown to be down or not responding, <Skip it>")
+            print(f"\n[ECHOv6] Host {Target} is shown to be down or not responding, <Skip it>")
 
     def _send_icmpv6_echo(self, Target):
         mach, first, last, index = self._decoy_meta(6)
         hlim = self.args.hlim if self.args.hlim else mirage.ipv6_hlim()
         Echo = IPv6(dst=Target, hlim=hlim) / ICMPv6EchoRequest()
         if first:
-            self._send_decoys(Echo, mach, 0, index, 6)
+            self._send_decoys(Echo, mach, mach[:index], 6)
 
         response = scapy.sr1(Echo, timeout=self.socket_timeout, verbose=0)
+        if self.args.packet_trace:
+            print(f"\nRequest : {Echo}")
+            print(f"Response : {response}\n")
 
         if last:
-            self._send_decoys(Echo, mach, index, None, 6)
+            self._send_decoys(Echo, mach, mach[index:], 6)
         return response
 
     def _is_ipv6_response_up(self, response):
@@ -1594,37 +1642,41 @@ COMMON EXAMPLES:\n
                                seq=mirage.icmp_seq(), code=0))
 
         if first:
-            self._send_decoys(packet, mach, 0, index, 4)
+            self._send_decoys(packet, mach, mach[:index], 4)
         response = scapy.sr1(packet, timeout=self.socket_timeout, verbose=0)
+        if self.args.packet_trace:
+            print(f"\nRequest : {packet}")
+            print(f"Response : {response}\n")
+
         if last:
-            self._send_decoys(packet, mach, index, None, 4)
+            self._send_decoys(packet, mach, mach[index:], 4)
         return response
 
     def _handle_discovery_response(self, Target, response, tag):
         if response:
-            print(f"[{tag}] Host {Target} is up! ")
+            print(f"\n[{tag}] Host {Target} is up! ")
             self.targetss.append(Target)
             self.target_results[Target]['up'] += 1
             return
 
         if self.args.recursively:
-            print(f"[{tag}] Host {Target} is shown to be down or not responding, "
+            print(f"\n[{tag}] Host {Target} is shown to be down or not responding, "
                   f"<Swithch to TCP Host Discovery>")
             self.threded_Tcp_host_discovery()
             return
 
         if len(self.targets) == 1:
-            print(f"[{tag}] Host {Target} is shown to be down or not responding")
+            print(f"\n[{tag}] Host {Target} is shown to be down or not responding")
             self.targetss.append(Target)
             return
 
         if self.args.verbose:
-            print(f"[{tag}] Host {Target} is shown to be down or not responding, <Skip it>")
+            print(f"\n[{tag}] Host {Target} is shown to be down or not responding, <Skip it>")
 
     def _handle_icmp_query(self, Target, icmp_type, tag):
         if is_loopback(Target):
             self.targetss.append(Target)
-            print(f"[SYS] Host {Target} is up! ")
+            print(f"\n[SYS] Host {Target} is up! ")
             return
 
         response = self._send_icmp_query(Target, icmp_type)
@@ -1656,6 +1708,9 @@ COMMON EXAMPLES:\n
 
         response = scapy.srp1(packet, timeout=self.socket_timeout,
                               verbose=0, filter="igmp")
+        if self.args.packet_trace:
+            print(f"\nRequest : {packet}")
+            print(f"Response : {response}\n")
 
         if response and IGMP in response:
             src_ip = response[scapy.IP].src
@@ -1676,6 +1731,9 @@ COMMON EXAMPLES:\n
                                id=mirage.icmp_id(), seq=mirage.icmp_seq()))
 
         response = scapy.srp1(packet, timeout=self.socket_timeout, verbose=0)
+        if self.args.packet_trace:
+            print(f"\nRequest : {packet}")
+            print(f"Response : {response}\n")
 
         is_alive = False
         router_ip = None
@@ -1750,15 +1808,16 @@ COMMON EXAMPLES:\n
                         future = executor.submit(
                             self.host_discovery,target
                         )
-                        time.sleep(self.interval)
+
                         futures.append(future)
+                time.sleep(self.interval)
 
                 for future in as_completed(futures):
                     try:
                         future.result()
                     except Exception as e:
                         if self.args.verbose:
-                            print(f"{red}[!] ICMP ECHO ping error: {e}{reset}")
+                            print(f"{red}\n[!] ICMP ECHO ping error: {e}{reset}")
 
     def threaded_host_discovery_ipv6(self):
         if self.max_threads == 1:
@@ -1771,15 +1830,15 @@ COMMON EXAMPLES:\n
                         future = executor.submit(
                             self.host_discovery_ipv6,target
                         )
-                        time.sleep(self.interval)
                         futures.append(future)
+                        time.sleep(self.interval)
 
                 for future in as_completed(futures):
                     try:
                         future.result()
                     except Exception as e:
                         if self.args.verbose:
-                            print(f"{red}[!] ICMPv6 ECHO ping error: {e}{reset}")
+                            print(f"{red}\n[!] ICMPv6 ECHO ping error: {e}{reset}")
 
     def threaded_host_discovery_1(self):
         if self.max_threads == 1:
@@ -1792,15 +1851,15 @@ COMMON EXAMPLES:\n
                         future = executor.submit(
                             self.host_discovery_1,target
                         )
-                        time.sleep(self.interval)
                         futures.append(future)
+                        time.sleep(self.interval)
 
                 for future in as_completed(futures):
                     try:
                         future.result()
                     except Exception as e:
                         if self.args.verbose:
-                            print(f"{red}[!] ICMP TIMESTAMP ping error: {e}{reset}")
+                            print(f"{red}\n[!] ICMP TIMESTAMP ping error: {e}{reset}")
 
     def threaded_host_discovery_2(self):
         if self.max_threads == 1:
@@ -1813,15 +1872,15 @@ COMMON EXAMPLES:\n
                         future = executor.submit(
                             self.host_discovery_2,target
                         )
-                        time.sleep(self.interval)
                         futures.append(future)
+                        time.sleep(self.interval)
 
                 for future in as_completed(futures):
                     try:
                         future.result()
                     except Exception as e:
                         if self.args.verbose:
-                            print(f"{red}[!] ICMP Address ping error: {e}{reset}")
+                            print(f"{red}\n[!] ICMP Address ping error: {e}{reset}")
 
     def threaded_host_discovery_3(self):
         if self.max_threads == 1:
@@ -1834,15 +1893,15 @@ COMMON EXAMPLES:\n
                         future = executor.submit(
                             self.host_discovery_3,target
                         )
-                        time.sleep(self.interval)
                         futures.append(future)
+                        time.sleep(self.interval)
 
                 for future in as_completed(futures):
                     try:
                         future.result()
                     except Exception as e:
                         if self.args.verbose:
-                            print(f"{red}[!] ICMP Information ping error: {e}{reset}")
+                            print(f"{red}\n[!] ICMP Information ping error: {e}{reset}")
 
 
     def threaded_tcp_3_ways_handshake(self):
@@ -1861,15 +1920,15 @@ COMMON EXAMPLES:\n
                         future = executor.submit(
                             self.tcp_3_ways_handshake, port, target
                         )
-                        time.sleep(self.interval)
                         futures.append(future)
+                        time.sleep(self.interval)
 
                 for future in as_completed(futures):
                     try:
                         future.result()
                     except Exception as e:
                         if self.args.verbose:
-                            print(f"{red}[!] TCP scan error: {e}{reset}")
+                            print(f"{red}\n[!] TCP scan error: {e}{reset}")
         self.end_time = time.perf_counter()
 
     def threaded_tcp_syn_scan(self):
@@ -1887,15 +1946,15 @@ COMMON EXAMPLES:\n
                         future = executor.submit(
                             self.tcp_syn_scan, port, target
                         )
-                        time.sleep(self.interval)
-                        futures.append(future)
 
+                        futures.append(future)
+                        time.sleep(self.interval)
                 for future in as_completed(futures):
                     try:
                         future.result()
                     except Exception as e:
                         if self.args.verbose:
-                            print(f"{red}[!] TCP SYN scan error: {e}{reset}")
+                            print(f"{red}\n[!] TCP SYN scan error: {e}{reset}")
 
         self.end_time = time.perf_counter()
 
@@ -1929,12 +1988,13 @@ COMMON EXAMPLES:\n
 
     def _print_target_header(self, target):
         ip_status = Payloads.is_private_ip(target)
-        rdns = None if self.args.n else self.reverse_dns_lookup(target)
+        rdns = None if self.args.n else None if self.args.no_root else self.reverse_dns_lookup(target)
 
         Mac = None
         if ip_status == "Local" and not self.args.mac:
-            Mac = (Payloads.NDP_Get_MAC(target) if self.args.V6
-                   else Payloads.ARP_Scan(target))
+            if not self.args.no_root:
+                Mac = (Payloads.NDP_Get_MAC(target) if self.args.V6
+                       else Payloads.ARP_Scan(target))
 
         print(f"\n{'=' * 60}")
         print(f"[+] Scan result for : {target}")
@@ -1992,7 +2052,6 @@ COMMON EXAMPLES:\n
         print(f"\n[+] {label}: {len(ports)}")
         if not ports:
             return
-
         services = results.get(services_key, [])
         for i in range(min(len(ports), 20)):
             service = services[i].lower() if i < len(services) else "unknown"
@@ -2062,7 +2121,9 @@ COMMON EXAMPLES:\n
         try:
             engine = OSFingerprintEngine(
                 min_score=self.args.min_score,
-                min_report_confidence=self.args.min_confi)
+                min_report_confidence=self.args.min_confi,
+                no_root=self.args.no_root
+            )
 
             version = 6 if self.args.V6 else 4
 
@@ -2088,7 +2149,10 @@ COMMON EXAMPLES:\n
                 use_udp=True,
                 use_rdns=True)
 
-            print(f"\n[+] OS Fingerprint Results (IPv{version}):\n----------------------------------------")
+            if result.matches == []:
+                print(f"\n[!] No OS Fingerprint was identified .... ")
+            else:
+                print(f"\n[+] OS Fingerprint Results (IPv{version}):\n----------------------------------------")
             for match in result.matches:
                 print(f"    [+] {match.name}: {match.confidence:.1f}% (score: {match.score:.1f})")
                 if match.version:
@@ -2105,7 +2169,6 @@ COMMON EXAMPLES:\n
             return
 
         from LSSE import lsse_og
-        from LSSE.slist import sscripts
 
         try:
             scripts = self.args.script.split(",")
@@ -2114,7 +2177,7 @@ COMMON EXAMPLES:\n
 
             for script in scripts:
                 print(f"\n[-] Script : {script}\n")
-                if script in sscripts and alr == 0:
+                if alr == 0:
                     self.script_port_parse()
                     alr = 1
 
@@ -2235,7 +2298,10 @@ COMMON EXAMPLES:\n
             def write(self, message):
                 for output in self.outputs:
                     output.write(message)
-                    output.flush()
+
+                if "\n" in message:
+                    for output in self.outputs:
+                        output.flush()
 
             def flush(self):
                 for output in self.outputs:
@@ -2250,23 +2316,45 @@ COMMON EXAMPLES:\n
 
     def _handle_interfaces(self):
         if self.args.interfaces:
-            print("\n[+] Network Interfaces : \n")
+            self._print_banner()
+            print("[+] Default Gateway :")
+            print(f"  -> {GetIPv4Gateway()}\n")
+            print("[+] Network Interfaces : \n")
             pl = sys.platform
 
+            for i in NetworkInterfaces().values():
+                if pl == "win32":
+                    print(f'-> {i['name']:15} guid:{i['guid']}    {i['mac']:15} | ADDR: {i['ips']}')
+                elif pl == "linux":
+                    print(f'-> {i['name']:15} index:{i['index']}    {i['mac']:15} | ADDR: {i['ips']}')
+                else:
+                    from LightPacket.LightPacketUnix import get_interface_info_bsd
+                    info = get_interface_info_bsd(i['name'])
+                    print(f'-> {info['name']:15} index:{info['index']}    {i['mac']} | ADDR: {info['ips']}')
+            print()
+            sys.exit(0)
+
+        elif self.args.all_interfaces:
+            self._print_banner()
+            print("[+] Default Gateway :")
+            print(f"  -> {GetIPv4Gateway()}\n")
+            print("[+] Network Interfaces : \n")
+            pl = sys.platform
             if pl == 'win32':
                 from LightPacket.LightPacketWin import get_windows_adapter_list_windows
                 for i in get_windows_adapter_list_windows():
-                    print(f"{i['name']:20} ->    {i['description']}")
+                    print(f"-> {i['name']:20} | ADDR: {i['ips']} ")
             elif pl == 'linux':
                 from LightPacket.LightPacketLin import get_libpcap_devices
                 for i in get_libpcap_devices():
-                    print(f"{i['name']:20} ->    {i['description']}")
+                    print(f"-> {i['name']:20} {GetMac.GetMacByInt(i['name']).upper()} | ADDR: {i['addresses']}")
             else:
                 from LightPacket.LightPacketUnix import get_libpcap_devices_bsd
                 for i in get_libpcap_devices_bsd():
-                    print(f"{i['name']:20} ->    {i['description']}")
+                    print(f"-> {i['name']:20} {GetMac.GetMacByInt(i['name']).upper()} | ADDR: {i['addresses']}")
             print()
             sys.exit(0)
+
 
     def _preload_targets_file(self):
         if self.args.rff:
@@ -2298,7 +2386,6 @@ COMMON EXAMPLES:\n
 
     def _run_lsse_only_mode(self):
         from LSSE import lsse_og
-        from LSSE.slist import sscripts
 
         try:
             scripts = self.args.script.split(",")
@@ -2306,7 +2393,7 @@ COMMON EXAMPLES:\n
             alr = 0
             for script in scripts:
                 print(f"\n[-] Script : {script}\n")
-                if script in sscripts and alr == 0:
+                if alr == 0:
                     self.script_port_parse()
                     alr = 1
                 output = lsse_og.Lsse.script_list(
@@ -2416,7 +2503,7 @@ COMMON EXAMPLES:\n
                 self.target_results, self.socket_timeout, self.targetss,
                 self.args.verbose, len(self.targets), self.version,
                 self.args.ttl, self.args.hlim, self.args.sport,
-                self.args.id, self.args.ip_flags, self.interval, self.args.D)
+                self.args.id, self.args.ip_flags, self.interval, self.args.D,self.args.packet_trace)
             self.threaded_host_discovery_1()
             self.threded_Syn_host_discovery()
         else:
@@ -2427,7 +2514,7 @@ COMMON EXAMPLES:\n
                 self.target_results, self.socket_timeout, self.targetss,
                 self.args.verbose, len(self.targets), self.version,
                 self.args.ttl, self.args.hlim, self.args.sport,
-                self.args.id, self.args.ip_flags, self.interval, self.args.D)
+                self.args.id, self.args.ip_flags, self.interval, self.args.D,self.args.packet_trace)
             self.threded_Syn_host_discovery()
         print(f"\n[+] Lightscan Ping scan finnish successfully\n")
 
@@ -2437,7 +2524,10 @@ COMMON EXAMPLES:\n
             self._handle_no_ping()
             return
 
+
         if self.args.tcp_ping:
+            self._safe_discovery(self.threded_Tcp_host_discovery, 'TCP')
+        elif self.args.no_root:
             self._safe_discovery(self.threded_Tcp_host_discovery, 'TCP')
         elif self.args.ack_ping:
             self._safe_discovery(
@@ -2446,7 +2536,8 @@ COMMON EXAMPLES:\n
                     self.target_results, self.socket_timeout, self.targetss,
                     self.args.verbose, len(self.targets), self.version,
                     self.args.ttl, self.args.hlim, self.args.sport,
-                    self.args.id, self.args.ip_flags, self.interval, self.args.D),
+                    self.args.id, self.args.ip_flags, self.interval, self.args.D,
+                    self.args.packet_trace),
                 'ACK')
         elif self.args.udp_ping:
             self._safe_discovery(self.threded_Udp_host_discovery, 'UDP')
@@ -2487,11 +2578,11 @@ COMMON EXAMPLES:\n
             if self.args.V6:
                 Payloads.threaded_ndp_scan(self.max_threads, self.targets,
                                            self.args.verbose, self.targetss,
-                                           len(self.targets), self.interval)
+                                           len(self.targets), self.interval,ptrace=self.args.packet_trace)
             else:
                 Payloads.threaded_arp_scan(self.max_threads, self.targets,
                                            self.args.verbose, self.targetss,
-                                           len(self.targets), self.interval)
+                                           len(self.targets), self.interval,ptrace=self.args.packet_trace)
         except Exception as e:
             print(f"{red}[!] ARP/NDP Ping error: {e}{reset}")
 
@@ -2503,7 +2594,7 @@ COMMON EXAMPLES:\n
                 self.max_threads, self.args.verbose, self.socket_timeout,
                 self.targets, self.targetss, self.protocols, self.target_results,
                 self.args.ttl, self.args.hlim, self.args.id, self.args.ip_flags,
-                self.args.V6, self.interval, self.args.D)
+                self.args.V6, self.interval, self.args.D, self.args.packet_trace)
         except Exception as e:
             print(f"\n{red}[!] IP Ping Error <skip>{e}{reset}\n")
 
@@ -2518,7 +2609,7 @@ COMMON EXAMPLES:\n
         try:
             fn()
         except Exception:
-            print(f"\n{red}[!] Error while {label} Ping <skip>{reset}\n")
+            print(f"\n{red}\n[!] Error while {label} Ping <skip>{reset}\n")
 
 
     def _run_port_scan(self):
@@ -2561,7 +2652,10 @@ COMMON EXAMPLES:\n
             self._run_ipproto_scan()
 
         elif st == "SCTP-INIT":
-            self._run_sctp_scan()
+            self._run_sctp_scan(proto="sctp",stype="init",fn=Payloads.threaded_sctp_init_scan)
+
+        elif st == "SCTP-COOKIE":
+            self._run_sctp_scan(proto="sctp", stype="cookie", fn=Payloads.threaded_sctp_cookie_scan)
 
         elif st == "IDLE":
             self._run_idle_scan()
@@ -2584,7 +2678,7 @@ COMMON EXAMPLES:\n
             self.initialize_target_results, self.service_detection, self.version,
             self.args.ttl, self.args.hlim, self.args.sport, self.args.payload,
             self.args.id, self.args.ip_flags, self.interval,
-            self.args.fragsize, self.args.D,
+            self.args.fragsize, self.args.D, self.args.packet_trace
         )
 
         if custom:
@@ -2593,9 +2687,6 @@ COMMON EXAMPLES:\n
             fn(*base)
 
         self.end_time = time.perf_counter()
-
-
-
 
     def _run_window_scan(self):
         self.start_time = time.perf_counter()
@@ -2608,7 +2699,7 @@ COMMON EXAMPLES:\n
             self.initialize_target_results, self.service_detection, self.version,
             self.args.ttl, self.args.hlim, self.args.sport, self.args.payload,
             self.args.id, self.args.ip_flags, self.interval, self.args.I,
-            self.args.fragsize, self.args.D)
+            self.args.fragsize, self.args.D, self.args.packet_trace)
         self.end_time = time.perf_counter()
 
 
@@ -2644,22 +2735,24 @@ COMMON EXAMPLES:\n
             flags=self.args.ip_flags,
             interval=self.interval,
             fg=self.args.fragsize,
-            d=self.args.D)
+            d=self.args.D,
+            p=self.args.packet_trace
+        )
         self.end_time = time.perf_counter()
 
 
-    def _run_sctp_scan(self):
+    def _run_sctp_scan(self,proto,stype,fn):
         self.start_time = time.perf_counter()
-        self.Proto = "sctp"
-        self.scan_type = "init"
-        Payloads.threaded_sctp_init_scan(
+        self.Proto = proto
+        self.scan_type = stype
+        fn(
             self.args.max_retries, self.lock, self.args.verbose, self.args.fragmente,
             self.args.recursively, self.socket_timeout, self.target_results,
             self.args.banner, self.max_threads, self.targetss, self.ports_to_scan,
             self.initialize_target_results, self.service_detection, self.version,
             self.args.ttl, self.args.hlim, self.args.sport, self.args.payload,
             self.args.id, self.args.ip_flags, self.interval,
-            self.args.fragsize, self.args.D)
+            self.args.fragsize, self.args.D, self.args.packet_trace)
         self.end_time = time.perf_counter()
 
 
@@ -2705,7 +2798,9 @@ COMMON EXAMPLES:\n
             flags=self.args.ip_flags,
             interval=self.interval,
             I=self.args.I,
-            d=self.args.D)
+            d=self.args.D,
+            ptrace=self.args.packet_trace
+        )
         self.end_time = time.perf_counter()
 
 
@@ -2729,7 +2824,9 @@ COMMON EXAMPLES:\n
             target_results=self.target_results,
             initialize_target_results=self.initialize_target_results,
             service_detection=self.service_detection,
-            version=6 if self.args.V6 else 4)
+            version=6 if self.args.V6 else 4,
+            p=self.args.packet_trace
+        )
         self.end_time = time.perf_counter()
 
     def _flush_output_file(self):

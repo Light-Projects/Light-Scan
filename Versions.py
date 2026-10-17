@@ -1,12 +1,12 @@
 
-__framework__ = "1.2.0"
+__framework__ = "1.2.1"
 
 
-__lightscan__ = "1.2.0"
+__lightscan__ = "1.2.1"
 __lsse__ = "1.0.8"
 __lightsave__ = "1.0.4"
-__lightsniff__ = "1.0.3"
-__lightpanel6__ = "1.0.4"
+__lightsniff__ = "1.0.4"
+__lightpanel6__ = "1.0.0"
 __mint__ = "1.0.1"
 __lightpacket__ = "0.0.3"
 __lightbin__ = "1.0"

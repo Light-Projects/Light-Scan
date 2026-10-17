@@ -20,49 +20,40 @@ import time
 import signal
 
 from HexSave.LightHex import load_hexdump, save_hexdump
-from HexSave.ScapyLoader.ScapyPacketsLoader import LoadFromLightHexToScapyPackets
 
-
-# hex_save
 from ch_admin import check_admin
-from Sfaces import get_eth_type_name, detect_file_type
+from Sfaces import get_eth_type_name
+from confparser import sniffer_parser
+
+from LightPacket.file.dtype import detect_file_type
 from Interfaces import interfaces
 
-from packet_process import print_table_header, apply_filter, export_stats_to_file
+from packet_process import apply_filter, export_stats_to_file
 from Decoration.Colors import *
 
 from LightPacket import (
-    Sniffer,PcapWrite,PcapRead,LbnWrite,LbnRead,PcapngWriter,PcapngReader
+    Sniffer,PcapWrite,PcapRead,LbnWrite,LbnRead,PcapngWriter,PcapngReader,
+    DetectLayer, BaseLayer
 )
 
-from scapy.all import Ether, Raw, IP, TCP, UDP, ICMP, ARP, DNS, conf
-from scapy.layers.sctp import (
-    SCTP, SCTPChunkInit, SCTPChunkInitAck, SCTPChunkCookieEcho, SCTPChunkCookieAck,
-    SCTPChunkAbort, SCTPChunkData, SCTPChunkShutdown, SCTPChunkShutdownAck, SCTPChunkShutdownComplete, SCTPChunkSACK,
-    SCTPChunkHeartbeatReq, SCTPChunkHeartbeatAck, SCTPChunkError
+from LightPacket.l3 import (
+    IPv6,IPv4,TCP,UDP
 )
-from scapy.contrib.igmp import IGMP
-from scapy.contrib.igmpv3 import IGMPv3, IGMPv3mq, IGMPv3mr, IGMPv3gr
-from scapy.layers.inet6 import IPv6, ICMPv6EchoRequest, ICMPv6EchoReply
-from scapy.layers.l2 import Dot1Q, CookedLinux
+from LightPacket.l2 import (
+    Ethernet, EAPOL, Raw, ARP, SLLv1, SLLv2, Dot3, LLC,
+    SNAP, VLAN, Fragment, STP
+)
+
+from dquic import detect_quicc
+
 
 def signal_handler(sig,frame):
     raise SystemExit()
 
 signal.signal(signal.SIGTERM,signal_handler)
 
-conf.use_pcap = True
-conf.use_npcap = True
-
-try:
-    from scapy.all import get_if_list
-
-    HAVE_IF_LIST = True
-except:
-    HAVE_IF_LIST = False
-
-Version = "1.0.3"
-
+Version = "1.0.4"
+_iface, count = sniffer_parser()
 
 class FlowStatistics:
     def __init__(self):
@@ -85,30 +76,32 @@ class FlowStatistics:
             proto = "TCP"
         elif UDP in packet:
             proto = "UDP"
-        elif ICMP in packet:
-            proto = "ICMP"
         elif ARP in packet:
             proto = "ARP"
-        elif DNS in packet:
-            proto = "DNS"
-        elif SCTP in packet:
-            proto = "SCTP"
         elif IPv6 in packet:
             proto = "IPv6"
-        elif IP in packet:
-            if packet[IP].proto == 2:
-                proto = "IGMP"
-            else:
-                proto = "IPv4"
+        elif IPv4 in packet:
+            proto = "IPv4"
+        elif STP in packet:
+            proto = "STP"
+        elif SNAP in packet:
+            proto = "SNAP"
+        elif LLC in packet:
+            proto = "LLC"
+        elif Dot3 in packet:
+            proto = "Dot3"
+        elif Ethernet in packet:
+            proto = "Ether"
 
         self.stats['protocols'][proto] = self.stats['protocols'].get(proto, 0) + 1
 
         src = "N/A"
         dst = "N/A"
 
-        if IP in packet:
-            src = packet[IP].src
-            dst = packet[IP].dst
+
+        if IPv4 in packet:
+            src = packet[IPv4].src
+            dst = packet[IPv4].dst
         elif IPv6 in packet:
             src = packet[IPv6].src
             dst = packet[IPv6].dst
@@ -116,9 +109,12 @@ class FlowStatistics:
             src = packet[ARP].psrc
             dst = packet[ARP].pdst
         else:
-            if Ether in packet:
-                src = packet[Ether].src
-                dst = packet[Ether].dst
+            if Ethernet in packet:
+                src = packet[Ethernet].src
+                dst = packet[Ethernet].dst
+            elif Dot3 in packet:
+                src = packet[Dot3].src
+                dst = packet[Dot3].dst
 
         if src != "N/A":
             self.stats['top_src'][src] = self.stats['top_src'].get(src, 0) + 1
@@ -134,9 +130,6 @@ class FlowStatistics:
             elif UDP in packet:
                 src_port = f":{packet[UDP].sport}"
                 dst_port = f":{packet[UDP].dport}"
-            elif SCTP in packet:
-                src_port = f":{packet[SCTP].sport}"
-                dst_port = f":{packet[SCTP].dport}"
 
             flow_key = f"{src}{src_port} -> {dst}{dst_port}"
             self.stats['flows'][flow_key] = self.stats['flows'].get(flow_key, 0) + 1
@@ -235,225 +228,47 @@ def extract_port(packet, direction):
         if direction == "src":
             return packet[UDP].sport
         return packet[UDP].dport
-    elif SCTP in packet:
-        if direction == "src":
-            return packet[SCTP].sport
-        return packet[SCTP].dport
     return ""
 
-
-def analyze_igmp(packet):
-    details = ""
-    if packet.haslayer(Raw):
-        packet = packet[Raw].load
-        packet = IGMPv3(packet)
-
-    if IGMPv3 in packet:
-        igmpv3 = packet[IGMPv3]
-        igmp_type = igmpv3.type
-        max_resp = igmpv3.mrcode
-
-        igmpv3_types = {
-            0x11: "Membership Query (v3)",
-            0x22: "Membership Report (v3)",
-            0x23: "v3 Report (RFC 4604)",
-        }
-
-        type_name = igmpv3_types.get(igmp_type, f"Unknown (0x{igmp_type:02x})")
-
-        if IGMPv3mq in packet:
-            mq = packet[IGMPv3mq]
-            group_addr = str(mq.gaddr)
-            details = f"Type: {type_name}, Group: {group_addr}, MaxResp: {max_resp}"
-
-            if hasattr(mq, 's') and mq.s:
-                details += ", S Flag: ON"
-            if hasattr(mq, 'qrv'):
-                details += f", QRV: {mq.qrv}"
-            if hasattr(mq, 'qqic'):
-                details += f", QQIC: {mq.qqic}s"
-            if hasattr(mq, 'srcaddrs') and mq.srcaddrs:
-                src_count = len(mq.srcaddrs)
-                if src_count > 0:
-                    details += f", {src_count} source(s)"
-                    if src_count <= 3:
-                        src_str = ', '.join(str(s) for s in mq.srcaddrs[:3])
-                        details += f" [{src_str}]"
-
-        elif IGMPv3mr in packet:
-            mr = packet[IGMPv3mr]
-            details = f"Type: {type_name}, MaxResp: {max_resp}"
-
-            if hasattr(mr, 'records') and mr.records:
-                record_count = len(mr.records)
-                details += f", {record_count} record(s)"
-
-                for idx, record in enumerate(mr.records[:2]):
-                    if hasattr(record, 'rtype'):
-                        record_types = {
-                            1: "Current State",
-                            2: "Source List Change",
-                            3: "Source List Change (v3)",
-                            4: "Mode is Include",
-                            5: "Mode is Exclude",
-                            6: "Change to Include",
-                            7: "Change to Exclude",
-                            8: "Allow Sources",
-                            9: "Block Sources",
-                        }
-                        rtype_name = record_types.get(record.rtype, f"Unknown ({record.rtype})")
-
-                        if hasattr(record, 'maddr'):
-                            details += f" [{idx + 1}: {rtype_name} → {record.maddr}"
-                            if hasattr(record, 'srcaddrs') and record.srcaddrs:
-                                src_list = ', '.join(str(s) for s in record.srcaddrs[:3])
-                                if len(record.srcaddrs) > 3:
-                                    src_list += f" +{len(record.srcaddrs) - 3} more"
-                                details += f" Sources: {src_list}"
-                            details += "]"
-        else:
-            details += f"IGMPv3 |Type: {type_name}, MaxResp: {max_resp}"
-
-    elif IGMP in packet:
-        igmp = packet[IGMP]
-        igmp_type = igmp.type
-        max_resp = igmp.mrcode
-        group_addr = str(igmp.gaddr) if hasattr(igmp, 'gaddr') else "0.0.0.0"
-
-        igmp_types = {
-            0x11: "Membership Query",
-            0x12: "v1 Membership Report",
-            0x16: "v2 Membership Report",
-            0x17: "Leave Group",
-            0x13: "Distance Vector Multicast",
-            0x14: "PIM version 1",
-            0x15: "Cisco Trace",
-            0x1E: "RFC 2914",
-        }
-
-        type_name = igmp_types.get(igmp_type, f"Unknown (0x{igmp_type:02x})")
-
-        version = "v2"
-        if igmp_type == 0x12:
-            version = "v1"
-        elif igmp_type == 0x11:
-            version = "v1" if max_resp == 0 else "v2"
-        elif igmp_type == 0x16:
-            version = "v2"
-        elif igmp_type == 0x17:
-            version = "v2"
-
-        details = f"IGMP{version} | Type: {type_name}"
-
-        if max_resp is not None:
-            if max_resp <= 0x7F:
-                resp_time = max_resp / 10.0
-                details += f", MaxResp: {resp_time:.1f}s"
-            else:
-                exponent = (max_resp >> 4) & 0x07
-                mantissa = max_resp & 0x0F
-                if exponent > 0:
-                    resp_time = (mantissa | 0x10) << (exponent + 3)
-                    details += f", MaxResp: {resp_time / 1000.0:.1f}s"
-                else:
-                    details += f", MaxResp: {max_resp / 10.0:.1f}s"
-
-        if group_addr and group_addr != "0.0.0.0":
-            details += f", Group: {group_addr}"
-
-    return details
-
-
-def detect_quicc(payload, dport, sport):
-    if not payload or len(payload) < 1:
-        return False, None, "Empty payload"
-
-    is_long_marker = payload[0] in [0xC0, 0xCD, 0xEA, 0xE2, 0xC6, 0x46]
-    if not (is_long_marker or sport == 443 or dport == 443):
-        return False, None, "Invalid payload"
-
-    first_byte = payload[0]
-    header_form = (first_byte & 0x80) >> 7
-    fixed_bit = (first_byte & 0x40) >> 6
-
-    if fixed_bit != 1:
-        return False, None, "Invalid Fixed Bit"
-
-    if header_form == 1 and len(payload) < 10:
-        return False, None, "Not QUIC: Long header too short"
-    elif header_form == 0 and len(payload) < 5:
-        return False, None, "Not QUIC: Short header too short"
-
-    if header_form == 1:
-        version = int.from_bytes(payload[1:5], 'big')
-
-        version_names = {
-            0x00000001: "QUIC v1 (RFC 9000)",
-            0x51303439: "QUIC Q043",
-            0x51303538: "QUIC Q058",
-            0x51303132: "QUIC Q012",
-            0x51303333: "QUIC Q033",
-            0x51303636: "QUIC Q066",
-            0xff00001d: "Draft 29",
-            0x709a50c4: "Draft 27",
-            0x00000000: "Version Negotiation"
-        }
-
-        version_str = version_names.get(version, f"Unknown (0x{version:08x})")
-        details = f"Long | Version: {version_str}"
-
-        if len(payload) >= 6:
-            dcid_len = payload[5]
-            if len(payload) >= 6 + dcid_len:
-                dcid = payload[6:6 + dcid_len]
-                details += f" | DCID: {dcid.hex()}"
-
-        return True, "Long", details
-
-    pkt_num_len = (first_byte & 0x03) + 1
-    spin_bit = (first_byte & 0x20) >> 5
-    key_phase = (first_byte & 0x04) >> 2
-    details = f"Short | PN Len: {pkt_num_len}"
-    details += f" | Spin:{spin_bit} | K:{key_phase}"
-    return True, "Short", details
 
 
 def packet_callback(packet, verbose, packet_count, args,linktype):
     timestamp = time.strftime('%H:%M:%S')
-    packet = LoadFromLightHexToScapyPackets([packet])[0]
-
-    eth = packet[Ether] if Ether in packet else None
-    src_mac = eth.src if eth else "N/A"
-    dst_mac = eth.dst if eth else "N/A"
-    eth_type = eth.type if eth else 0
-    eth_type_name = get_eth_type_name(eth_type)
-
-    vlan_id = None
-    if Dot1Q in packet and args.vlan:
-        vlan = packet[Dot1Q]
-        vlan_id = vlan.vlan
-
-    src_ip = "N/A"
-    dst_ip = "N/A"
-    proto = "OTHER"
-    proto_color = RED
-    details = ""
-    size = len(packet)
-
-    if Ether in packet:
+    if not isinstance(packet, BaseLayer):
+        packet = DetectLayer().start(packet,linktype=linktype)
+    if Ethernet in packet:
+        eth = packet[Ethernet]
+        src_mac = eth.src if eth else "N/A"
+        dst_mac = eth.dst if eth else "N/A"
+        eth_type = eth.ethertype if eth and Ethernet in packet else "N/A"
+        eth_type_name = get_eth_type_name(eth_type)
         proto = "Ether"
         proto_color = GREY
+        details = ""
+    elif Dot3 in packet:
+        dot3 = packet[Dot3]
+        src_mac = dot3.src if dot3 else "N/A"
+        dst_mac = dot3.dst if dot3 else "N/A"
+        eth_type = dot3.length
+        eth_type_name = f"Len:{dot3.length}"
+        proto = "Dot3"
+        proto_color = GREY
+        details = f"Len:{dot3.length}"
 
-    if CookedLinux in packet:
-        sll = packet[CookedLinux]
-        proto = "SLL"
+    elif SLLv2 in packet or SLLv1 in packet:
+        if SLLv2 in packet:
+            sll = packet[SLLv2]
+            proto = "SLLv2"
+        else:
+            sll = packet[SLLv1]
+            proto = "SLLv1"
         proto_color = CYAN
-        src_mac = sll.src if hasattr(sll, 'src') else "N/A"
+        src_mac = sll.addr if hasattr(sll, 'addr') else "N/A"
         dst_mac = "N/A"
         eth_type = sll.proto
         eth_type_name = get_eth_type_name(eth_type)
 
-        pkttype = sll.pkttype
+        pkttype = sll.packet_type
         pkttype_names = {
             0: "unicast-to-us",
             1: "broadcast",
@@ -465,9 +280,53 @@ def packet_callback(packet, verbose, packet_count, args,linktype):
 
         if eth_type == 0x0800:
             pass
+    else:
+        try:
+            if hasattr(packet, 'build') and callable(packet.build):
+                byt = packet.build()
+            else:
+                byt = bytes(packet)
+        except Exception:
+            byt = b''
+        print(f"[{timestamp}] {RED}Raw{RESET} {GREY}bytes={byt[:20]} size={len(byt)}{RESET}")
+        return
 
-    if IP in packet:
-        ip = packet[IP]
+    vlan_id = None
+    if VLAN in packet and args.vlan:
+        vlan = packet[VLAN]
+        vlan_id = vlan.vlan_id
+
+    src_ip = "N/A"
+    dst_ip = "N/A"
+    size = len(packet)
+
+    if LLC in packet:
+        llc = packet[LLC]
+        proto = "LLC"
+        proto_color = CYAN
+        details = f"DSAP:{hex(llc.dsap)} SSAP:{hex(llc.ssap)}"
+
+    if SNAP in packet:
+        snap = packet[SNAP]
+        proto = "SNAP"
+        proto_color = BLUE
+        eth_type = snap.pid
+        eth_type_name = get_eth_type_name(eth_type)
+        oui_val = snap.oui if isinstance(snap.oui, str) else hex(snap.oui) if isinstance(snap.oui,int) else snap.oui.hex()
+        details = f"OUI:{oui_val} PID:{hex(snap.pid)}"
+
+    if STP in packet:
+        proto = "STP"
+        proto_color = PURPLE
+        details = "STP"
+
+    if EAPOL in packet:
+        proto = "EAPOL"
+        proto_color = YELLOW
+        details = f"ver: {packet[EAPOL].version} code: {packet[EAPOL].code}"
+
+    if IPv4 in packet:
+        ip = packet[IPv4]
         src_ip = ip.src
         dst_ip = ip.dst
         proto = "IPv4"
@@ -482,107 +341,25 @@ def packet_callback(packet, verbose, packet_count, args,linktype):
         proto_color = CYAN
         size = len(ipv6)
 
-        if ICMPv6EchoRequest in packet:
-            proto = "ICMPv6"
-            details = "Echo Request (ping)"
-        elif ICMPv6EchoReply in packet:
-            proto = "ICMPv6"
-            details = "Echo Reply (pong)"
-
-    if SCTP in packet:
-        sctp = packet[SCTP]
-        proto = "SCTP"
-        proto_color = ORANGE
-
-        if IP in packet:
-            src_ip = packet[IP].src
-            dst_ip = packet[IP].dst
-        elif IPv6 in packet:
-            src_ip = packet[IPv6].src
-            dst_ip = packet[IPv6].dst
-        else:
-            src_ip = "N/A"
-            dst_ip = "N/A"
-
-        details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{sctp.tag}"
-        size = len(sctp.payload)
-
-        chunk_types = []
-        if SCTPChunkInit in packet:
-            proto = "SCTP-INIT"
-            init = packet[SCTPChunkInit]
-            details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{init.init_tag} | Out:{init.n_out_streams} | In:{init.n_in_streams}"
-
-        elif SCTPChunkInitAck in packet:
-            proto = "SCTP-INIT-ACK"
-            init_ack = packet[SCTPChunkInitAck]
-            details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{init_ack.init_tag} | Cookie: present"
-
-        elif SCTPChunkCookieEcho in packet:
-            proto = "SCTP-COOKIE-ECHO"
-            details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{sctp.tag}"
-
-        elif SCTPChunkCookieAck in packet:
-            proto = "SCTP-COOKIE-ACK"
-            details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{sctp.tag}"
-
-        elif SCTPChunkAbort in packet:
-            proto = "SCTP-ABORT"
-            abort = packet[SCTPChunkAbort]
-            details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{sctp.tag} | Flags:{abort.flags}"
-
-        elif SCTPChunkData in packet:
-            data = packet[SCTPChunkData]
-            proto = "SCTP-DATA"
-            details = f"S:{sctp.sport} → D:{sctp.dport} | TSN:{data.tsn} | Stream:{data.stream_id}"
-            if args.verbose and data.payload:
-                try:
-                    payload_preview = bytes(data.payload)[:30]
-                    details += f" | Data: {payload_preview.hex()}"
-                except:
-                    pass
-
-        elif SCTPChunkShutdown in packet:
-            proto = "SCTP-SHUTDOWN"
-            details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{sctp.tag}"
-
-        elif SCTPChunkShutdownAck in packet:
-            proto = "SCTP-SHUTDOWN-ACK"
-            details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{sctp.tag}"
-
-        elif SCTPChunkShutdownComplete in packet:
-            proto = "SCTP-SHUTDOWN-COMPLETE"
-            details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{sctp.tag}"
-
-        elif SCTPChunkSACK in packet:
-            sack = packet[SCTPChunkSACK]
-            proto = "SCTP-SACK"
-            details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{sctp.tag} | TSN:{sack.cum_tsn_ack}"
-
-        elif SCTPChunkHeartbeatReq in packet:
-            proto = "SCTP-HEARTBEAT"
-            details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{sctp.tag}"
-
-        elif SCTPChunkHeartbeatAck in packet:
-            proto = "SCTP-HEARTBEAT-ACK"
-            details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{sctp.tag}"
-
-        elif SCTPChunkError in packet:
-            proto = "SCTP-ERROR"
-            details = f"S:{sctp.sport} → D:{sctp.dport} | Tag:{sctp.tag}"
-
     if TCP in packet:
         tcp = packet[TCP]
         proto = "TCP"
         proto_color = GREEN
-        flags = tcp.sprintf("%flags%")
+        flags = tcp.flags
         details = f"S:{tcp.sport} → D:{tcp.dport} Flags:[{flags}]"
-        size = len(tcp.payload)
 
         tls_ports = [443, 465, 587, 993, 995, 8443, 8080]
         is_tls_port = tcp.sport in tls_ports or tcp.dport in tls_ports
-        if tcp.payload and len(tcp.payload) > 5:
-            payload = bytes(tcp.payload)
+        if Raw in packet or Fragment in packet:
+            if Raw in packet:
+                pyl = packet[Raw]
+            else:
+                pyl = packet[Fragment]
+
+            if not len(pyl) > 5:
+                return
+
+            payload = bytes(pyl)
 
             if is_tls_port or (len(payload) >= 6 and payload[0] == 0x16 and payload[1] in [0x03, 0x02, 0x01]):
 
@@ -699,42 +476,16 @@ def packet_callback(packet, verbose, packet_count, args,linktype):
                         alert_desc = desc_map.get(payload[2], f"0x{payload[2]:02x}")
                     details = f"Alert [{alert_level}: {alert_desc}]"
 
-        if tcp.dport == 853 or tcp.sport == 853:
-            proto = "DoT"
-            proto_color = PURPLE
-            details = f"DNS over TLS {details}"
-
-        if tcp.dport == 53 or tcp.sport == 53:
-            proto = "DNS"
-            proto_color = PURPLE
-            try:
-                from scapy.layers.dns import DNS, DNSQR
-                if len(tcp.payload) > 2:
-                    dns_payload = bytes(tcp.payload)[2:]
-                    dns = DNS(dns_payload)
-                    if dns and dns.qr == 0:
-                        if dns.qd:
-                            query_name = dns.qd.qname.decode('utf-8', errors='ignore')
-                            query_type = dns.qd.qtype
-                            type_names = {1: 'A', 28: 'AAAA', 15: 'MX', 2: 'NS', 5: 'CNAME', 12: 'PTR', 16: 'TXT',
-                                          6: 'SOA', 33: 'SRV'}
-                            type_str = type_names.get(query_type, str(query_type))
-                            details = f"Query: {query_name} ({type_str})"
-                    elif dns and dns.qr == 1:
-                        if dns.an:
-                            answer = dns.an
-                            if hasattr(answer, 'rdata'):
-                                details = f"Response: {answer.rdata}"
-                        else:
-                            details = "Response: No answer"
-            except Exception as e:
-                pass
-
         ssh_ports = [22]
         if tcp.dport in ssh_ports or tcp.sport in ssh_ports:
-            if tcp.payload and len(tcp.payload) > 0:
+            if Raw in packet or Fragment in packet:
+                if Raw in packet:
+                    pyl = packet[Raw]
+                else:
+                    pyl = packet[Fragment]
+
                 try:
-                    payload = bytes(tcp.payload)
+                    payload = bytes(pyl)
 
                     if payload.startswith(b'SSH-'):
                         proto = "SSH"
@@ -765,9 +516,14 @@ def packet_callback(packet, verbose, packet_count, args,linktype):
                     pass
 
         ftp_ports = [21, 990]
-        if (tcp.dport in ftp_ports or tcp.sport in ftp_ports) and tcp.payload:
+        if (tcp.dport in ftp_ports or tcp.sport in ftp_ports) and Raw in packet or Fragment in packet:
+            if Raw in packet:
+                pyl = packet[Raw]
+            else:
+                pyl = packet[Fragment]
+
             try:
-                payload = bytes(tcp.payload)
+                payload = bytes(pyl)
                 payload_str = payload.decode('utf-8', errors='ignore').strip()
 
                 if payload_str.startswith('220 '):
@@ -805,9 +561,15 @@ def packet_callback(packet, verbose, packet_count, args,linktype):
 
         http_ports = [80, 8080, 8000, 8888]
         if tcp.dport in http_ports or tcp.sport in http_ports:
-            if tcp.payload and len(tcp.payload) > 0:
+
+            if Raw in packet or Fragment in packet:
+                if Raw in packet:
+                    pyl = packet[Raw]
+                else:
+                    pyl = packet[Fragment]
+
                 try:
-                    payload = bytes(tcp.payload)
+                    payload = bytes(pyl)
                     payload_str = payload.decode('utf-8', errors='ignore')[:200]
 
                     http_methods = ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH', 'TRACE', 'CONNECT']
@@ -868,120 +630,81 @@ def packet_callback(packet, verbose, packet_count, args,linktype):
                     except:
                         pass
 
-
     elif UDP in packet:
         udp = packet[UDP]
         proto = "UDP"
         proto_color = CYAN
         details = f"S:{udp.sport} → D:{udp.dport}"
-        size = len(udp.payload)
 
-        if udp.dport == 53 or udp.sport == 53:
-            proto = "DNS"
-            proto_color = PURPLE
+        try:
+            if Raw in packet or Fragment in packet:
+                if Raw in packet:
+                    pyl = packet[Raw]
+                else:
+                    pyl = packet[Fragment]
 
-            try:
-                from scapy.layers.dns import DNS, DNSQR
+                try:
+                    payload = bytes(pyl)
+                    size = len(pyl)
 
-                if DNS in packet:
-                    dns = packet[DNS]
-                    if dns.qr == 0:
-                        if dns.qd:
-                            query_name = dns.qd.qname.decode('utf-8', errors='ignore')
-                            query_type = dns.qd.qtype
-                            type_names = {1: 'A', 28: 'AAAA', 15: 'MX', 2: 'NS', 5: 'CNAME', 12: 'PTR', 16: 'TXT',
-                                          6: 'SOA', 33: 'SRV'}
-                            type_str = type_names.get(query_type, str(query_type))
-                            details = f"Query: {query_name} ({type_str})"
-                    elif dns.qr == 1:
-                        if dns.an:
-                            answer = dns.an
-                            if hasattr(answer, 'rdata'):
-                                details = f"Response: {answer.rdata}"
-                        else:
-                            details = "Response: No answer"
-            except Exception as e:
-                pass
+                    is_quic, header_type, quic_details = detect_quicc(payload, udp.dport, udp.sport)
 
+                    if is_quic or udp.dport == 443 or udp.sport == 443:
+                        proto = "QUIC"
+                        proto_color = BLUE
+                        details = quic_details
+                        size = len(payload)
 
-        else:
-            try:
+                        details += f" | S:{udp.sport} → D:{udp.dport}"
+                except:
+                    pass
 
-                payload = bytes(udp.payload)
-                is_quic, header_type, quic_details = detect_quicc(payload, udp.dport, udp.sport)
-
-                if is_quic or udp.dport == 443 or udp.sport == 443:
-                    proto = "QUIC"
-                    proto_color = BLUE
-                    details = quic_details
-                    size = len(payload)
-
-                    details += f" | S:{udp.sport} → D:{udp.dport}"
-
-            except Exception as e:
-                if args.verbose:
-                    details = f"QUIC parse error: {e}"
-                pass
-
-    elif ICMP in packet and proto != "ICMPv6":
-        icmp = packet[ICMP]
-        proto = "ICMP"
-        proto_color = YELLOW
-        details = f"Type:{icmp.type} Code:{icmp.code}"
-        size = 0
+        except Exception as e:
+            if args.verbose:
+                details = f"QUIC parse error: {e}"
+            pass
 
     elif ARP in packet:
         arp = packet[ARP]
         proto = "ARP"
         proto_color = PURPLE
-        src_ip = arp.psrc
-        dst_ip = arp.pdst
-        details = f"{arp.psrc} → {arp.pdst}"
+        src_ip = arp.ipsrc
+        dst_ip = arp.ipdst
+        details = f"{arp.ipsrc} → {arp.ipdst}"
         size = 0
-
-    elif IP in packet and packet[IP].proto == 2:
-        proto = "IGMP"
-        proto_color = BLUE
-        src_ip = packet[IP].src if IP in packet else "N/A"
-        dst_ip = packet[IP].dst if IP in packet else "N/A"
-        details = analyze_igmp(packet)
-        size = len(packet) - (len(packet[IP]) if IP in packet else 0)
 
     if vlan_id is not None:
         details += f" [VLAN:{vlan_id}]"
 
     if verbose:
         print(f"{BOLD}[{timestamp}]{RESET} {proto_color}{proto:6}{RESET} "
-              f"{str(src_ip):16} → {str(dst_ip):16} | "
-              f"{src_mac:17} → {dst_mac:17} | "
+              f"{str(src_ip):16} {GREEN}→{RESET} {str(dst_ip):16} | "
+              f"{src_mac} {GREEN}→{RESET} {dst_mac} | "
               f"{eth_type_name:8} | "
-              f"{details} | "
+              f"{details}  "
               f"Size: {size:4} bytes")
     else:
         src_port = extract_port(packet, 'src')
         dst_port = extract_port(packet, 'dst')
 
-        if args.eth:
-            src_display = f"{src_mac}"
+        if args.eth or (src_ip == "N/A" and dst_ip == "N/A"):
+            src_display = f"  {src_mac}"
             dst_display = f"{dst_mac}"
-            if src_port:
-                src_display += f":{src_port}"
-            if dst_port:
-                dst_display += f":{dst_port}"
-        else:
-            src_display = f"{src_ip}:{src_port}" if src_port else str(src_ip)
-            dst_display = f"{dst_ip}:{dst_port}" if dst_port else str(dst_ip)
 
-        if args.eth:
-            print(f"{BOLD}[{timestamp}]{RESET} {proto_color}{proto:4}{RESET} "
-                  f"{src_display:27} {GREEN}→{RESET} "
-                  f"{dst_display:27} "
-                  f"{DIM}{eth_type_name:8} {details[:35]}{RESET}")
+        else:
+            src_display = f"  {src_ip}:{src_port}  " if src_port else str(src_ip)
+            dst_display = f"{dst_ip}:{dst_port}  " if dst_port else str(dst_ip)
+
+        if args.eth or (src_ip == "N/A" and dst_ip == "N/A"):
+            print(f"{BOLD}[{timestamp}]{RESET} {proto_color}{proto}{RESET} "
+                  f" {src_display:28}  "
+                  f" {dst_display:28}  "
+                  f"{DIM}{eth_type_name}        {details[:35]}{RESET}")
         else:
             print(f"{BOLD}[{timestamp}]{RESET} {proto_color}{proto:4}{RESET} "
-                  f"{src_display:22} {GREEN}→{RESET} "
+                  f"{src_display:22}   {GREEN}→{RESET} "
                   f"{dst_display:22} "
-                  f"{DIM}{details}{RESET}")
+                  f"{DIM} {details}{RESET}")
 
 
 def process_packets(packets, args, lightpcap=False,link=1):
@@ -991,22 +714,27 @@ def process_packets(packets, args, lightpcap=False,link=1):
 
     print(f"{GREEN}[+] Analyzing {len(packets)} packets...{RESET}\n")
 
-    if not lightpcap:
-        print_table_header(args)
 
     packet_count = 0
     for idx, packet in enumerate(packets, 1):
-        if lightpcap:
-            packet = LoadFromLightHexToScapyPackets([packet['data']])[0]
+        parsed = packet if isinstance(packet, BaseLayer) else DetectLayer().start(packet, linktype=link)
 
         if args.mac:
-            eth = packet[Ether] if Ether in packet else None
-            if eth:
-                if args.mac.lower() not in (eth.src.lower(), eth.dst.lower()):
-                    continue
+            mac_filter = args.mac.lower()
+            src_m = None
+            dst_m = None
+            if Ethernet in parsed:
+                src_m = str(parsed[Ethernet].src).lower()
+                dst_m = str(parsed[Ethernet].dst).lower()
+            elif Dot3 in parsed:
+                src_m = str(parsed[Dot3].src).lower()
+                dst_m = str(parsed[Dot3].dst).lower()
+
+            if not (src_m and dst_m and (mac_filter in (src_m, dst_m))):
+                continue
 
         packet_count += 1
-        packet_callback(packet, args.verbose, packet_count, args,link)
+        packet_callback(parsed, args.verbose, packet_count, args, link)
 
     print(f"\n{GREEN}[+] Processed {packet_count} packets{RESET}")
 
@@ -1022,20 +750,27 @@ def main():
                 packets = LbnRead(args.read)
                 if packets is None:
                     return
+                link = 1
             elif file_type == 'pcap':
-                packets = [i['data'] for i in PcapRead(args.read)[1]]
+                data = PcapRead(args.read)
+                packets = [i['data'] for i in data[1]]
+                link = data[0][0]['network']
             elif file_type == 'pcapng':
                 packets = []
                 with PcapngReader(args.read) as pcap:
                     p = list(pcap)
                     packets.extend([i.data for i in p])
+                    link = pcap.interfaces[0].link_type
             elif args.read.endswith('.lhex') or args.read.endswith('.hex'):
                 packets = load_hexdump(args.read)
+                link = 1
             else:
                 if file_type == 'unknown':
                     print(f"{YELLOW}[!] Unknown file format: {args.read}{RESET}")
                     print(f"{YELLOW}[!] Trying as PCAP...{RESET}")
-                packets = [i['data'] for i in PcapRead(args.read)[1]]
+                data = PcapRead(args.read)
+                packets = [i['data'] for i in data[1]]
+                link = data[0][0]['network']
                 print(f"{GREEN}[+] Loaded {len(packets)} packets from {args.read}{RESET}")
 
             if not packets:
@@ -1049,21 +784,24 @@ def main():
                 packets = packets[:args.count]
                 print(f"{GREEN}[+] Limited to {args.count} packets{RESET}")
 
-            process_packets(packets, args)
+            process_packets(packets, args, link=link)
 
             if args.write and packets:
                 if args.write.endswith('.pcap'):
-                    PcapWrite(packets, args.write, linktype=1)
+                    PcapWrite(packets, args.write, linktype=link)
                 elif args.write.endswith('.pcapng'):
                     with PcapngWriter(args.write) as pcap:
-                        ifa = pcap.add_interface(1, 65535, args.interface)
+                        ifa = pcap.add_interface(link, 65535, args.interface)
                         for i in packets:
                             pcap.write_packet(ifa, int(time.time()) * 1_000_000, i)
                         pcap.close()
                 elif args.write.endswith('.lhex') or args.write.endswith('.hex'):
                     save_hexdump(packets, args.write)
                 else:
-                    LbnWrite(args.write, packets)
+                    if args.compress:
+                        LbnWrite(args.write, packets, compress=1)
+                    else:
+                        LbnWrite(args.write, packets)
                 print(f"{GREEN}[+] Saved {len(packets)} packets to {args.write}{RESET}")
 
             return
@@ -1127,12 +865,9 @@ def main():
         return
 
     if not args.interface:
-        print(f"{YELLOW}[!] No interface specified{RESET}")
-        print(f"{GREEN}[+] Available interfaces:{RESET}")
-        for iface in interfaces:
-            print(f"    - {iface}")
-        print(f"\n{GREEN}[+] Usage: LightSniff -i eth0 -f 'tcp port 80' -w capture.pcap{RESET}")
-        return
+        if args.verbose:
+            print(f"{YELLOW}[!] No interface specified, (using conf) .{RESET}")
+        args.interface = _iface
 
     if args.mac:
         mac_filter = args.mac.lower()
@@ -1155,8 +890,6 @@ def main():
 
     print()
 
-    print_table_header(args)
-
     packets = []
     packet_count = 0
     _linktype = 1
@@ -1164,19 +897,29 @@ def main():
 
     def callback(packet):
         nonlocal packet_count
-        packet_count += 1
+        parsed_packet = packet if isinstance(packet, BaseLayer) else DetectLayer().start(packet, linktype=_linktype)
 
         if args.mac:
-            eth = packet[Ether] if Ether in packet else None
-            if eth:
-                if args.mac.lower() not in (eth.src.lower(), eth.dst.lower()):
-                    return
+            mac_filter = args.mac.lower()
+            src_m = None
+            dst_m = None
+            if Ethernet in parsed_packet:
+                src_m = str(parsed_packet[Ethernet].src).lower()
+                dst_m = str(parsed_packet[Ethernet].dst).lower()
+            elif Dot3 in parsed_packet:
+                src_m = str(parsed_packet[Dot3].src).lower()
+                dst_m = str(parsed_packet[Dot3].dst).lower()
+
+            if not (src_m and dst_m and (mac_filter in (src_m, dst_m))):
+                return
+
+        packet_count += 1
 
         if stats:
-            stats.update(packet)
+            stats.update(parsed_packet)
 
         packets.append(packet)
-        packet_callback(packet, args.verbose, len(packets), args, _linktype)
+        packet_callback(parsed_packet, args.verbose, len(packets), args, _linktype)
 
 
     try:
@@ -1202,7 +945,10 @@ def main():
             elif args.write.endswith('.lhex') or args.write.endswith('.hex'):
                 save_hexdump(packets,args.write)
             else:
-                LbnWrite(args.write,packets)
+                if args.compress:
+                    LbnWrite(args.write, packets, compress=1)
+                else:
+                    LbnWrite(args.write, packets)
             print(f"\n{GREEN}[+] Saved {len(packets)} packets to {args.write}{RESET}")
 
 
@@ -1226,7 +972,10 @@ def main():
             elif args.write.endswith('.lhex') or args.write.endswith('.hex'):
                 save_hexdump(packets,args.write)
             else:
-                LbnWrite(args.write, packets)
+                if args.compress:
+                    LbnWrite(args.write, packets, compress=1)
+                else:
+                    LbnWrite(args.write, packets)
             print(f"{GREEN}[+] Saved {len(packets)} packets to {args.write}{RESET}")
 
         if stats and args.stats:
@@ -1250,7 +999,10 @@ def main():
             elif args.write.endswith('.lhex') or args.write.endswith('.hex'):
                 save_hexdump(packets,args.write)
             else:
-                LbnWrite(args.write, packets)
+                if args.compress:
+                    LbnWrite(args.write, packets, compress=1)
+                else:
+                    LbnWrite(args.write, packets)
             print(f"{GREEN}[+] Saved {len(packets)} packets to {args.write}{RESET}")
 
         if stats and args.stats:

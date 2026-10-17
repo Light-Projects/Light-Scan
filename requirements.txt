@@ -7,5 +7,4 @@ pyopenssl
 pyside6
 dnspython
 pyyaml
-paramiko
 toml
