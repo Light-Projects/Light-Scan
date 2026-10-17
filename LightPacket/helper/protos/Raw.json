@@ -1,0 +1,9 @@
+{
+  "Proto": {
+    "Name": "Raw",
+    "Description": "Fallback layer that holds arbitrary payload data without parsing. Used when protocol is unknown or for custom data.",
+    "Fields": [
+      "payload         {variable} = b'Test LightPacket Raw Layer'"
+    ]
+  }
+}

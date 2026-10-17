@@ -1,0 +1,13 @@
+{
+  "Proto": {
+    "Name": "EAP_NOTIFICATION",
+    "Description": "Extensible Authentication Protocol - Notification (RFC 3748). Used to send informational messages during EAP authentication. Type 2.",
+    "Fields": [
+      "code                {8 bits}   = 1",
+      "identifier          {8 bits}   = 1",
+      "length              {16 bits}  = auto-calculated",
+      "type                {8 bits}   = 2",
+      "message             {variable} = b'\\x00'"
+    ]
+  }
+}

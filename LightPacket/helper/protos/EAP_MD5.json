@@ -1,0 +1,15 @@
+{
+  "Proto": {
+    "Name": "EAP_MD5",
+    "Description": "Extensible Authentication Protocol MD5 (RFC 3748). Code 1 = Request (challenge), Code 2 = Response (MD5 hash). Value-Size is auto‑calculated.",
+    "Fields": [
+      "code          {8 bits}   = 1",
+      "id            {8 bits}   = 1",
+      "length        {16 bits}  = auto-calculated",
+      "type          {8 bits}   = 4",
+      "value_size    {8 bits}   = auto-calculated",
+      "value         {variable} = b''",
+      "name          {variable} = b'' (optional)"
+    ]
+  }
+}

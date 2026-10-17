@@ -1,0 +1,13 @@
+{
+  "Proto": {
+    "Name"  : "SLLv1",
+    "Description": "Linux Cooked Capture v1 pseudo-header (LINKTYPE_LINUX_SLL = 113). Used when capturing on the Linux 'any' device. 16 bytes, host byte order.",
+    "Fields": [
+      "packet_type   {16 bits}  = 0 ",
+      "arphrd_type   {16 bits}  = 1 ",
+      "addr_len      {16 bits}  = 6 ",
+      "addr          {64 bits}  = None/00:00:00:00:00:00 ",
+      "proto         {16 bits}  = 0x0800 "
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "Proto": {
+    "Name": "ARP",
+    "Description": "Resolves IPv4 addresses to MAC addresses on local networks. Uses broadcast requests and unicast replies.",
+    "Fields": [
+      "hwtype        {16 bits}  = 1",
+      "ptype         {16 bits}  = 0x0800",
+      "maclen        {8 bits}   = 6",
+      "plen          {8 bits}   = 4",
+      "opcode        {16 bits}  = 1",
+      "macsrc        {48 bits}  = ff:ff:ff:ff:ff:ff",
+      "ipsrc         {32 bits}  = auto-detected",
+      "macdst        {48 bits}  = 00:00:00:00:00:00",
+      "ipdst         {32 bits}  = default-gateway"
+    ]
+  }
+}

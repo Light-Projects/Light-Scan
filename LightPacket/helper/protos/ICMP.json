@@ -1,0 +1,23 @@
+{
+  "Proto": {
+    "Name": "ICMP",
+    "Description": "Layer 3 Internet Control Message Protocol (RFC 792) header. 8-byte fixed header (type, code, checksum, and a 4-byte rest-of-header that varies by type) followed by type-specific data. Used for error reporting and diagnostic messages like echo request/reply (ping), destination unreachable, time exceeded, redirect, timestamp, and router discovery.",
+    "Fields": [
+      "type            {8 bits}   = 8 (echo-request) ",
+      "code            {8 bits}   = 0 ",
+      "checksum        {16 bits}  = auto  ",
+      "id              {16 bits}  = 0 (echo-request/reply, timestamp, info, address-mask, extended-echo) ",
+      "seq             {16 bits}  = 0 (echo-request/reply, timestamp, info, address-mask, extended-echo) ",
+      "unused          {32 bits}  = 0 (dest-unreach, source-quench, time-exceeded, and other deprecated types) ",
+      "gateway         {32 bits}  = 0.0.0.0 (redirect only, IPv4 address of preferred gateway) ",
+      "pointer         {8 bits}   = 0 (parameter-problem only, indicates octet where error was detected) ",
+      "num_addrs       {8 bits}   = 0 (router-solicitation/advertisement, number of address entries) ",
+      "addr_entry_size {8 bits}   = 2 (router-solicitation/advertisement, size of each router address entry in 32-bit words) ",
+      "lifetime        {16 bits}  = 0 (router-solicitation/advertisement, lifetime in seconds) ",
+      "orig_ts         {32 bits}  = 0 (timestamp/timestamp-reply, milliseconds since midnight UT of originate time) ",
+      "recv_ts         {32 bits}  = 0 (timestamp/timestamp-reply, milliseconds since midnight UT of receive time) ",
+      "trans_ts        {32 bits}  = 0 (timestamp/timestamp-reply, milliseconds since midnight UT of transmit time) ",
+      "mask            {32 bits}  = 0.0.0.0 (address-mask-request/reply, subnet mask of the requesting host) "
+    ]
+  }
+}

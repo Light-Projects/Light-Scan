@@ -1,0 +1,20 @@
+{
+  "Proto": {
+    "Name": "EAP_MSCHAPv2",
+    "Description": "Extensible Authentication Protocol - Microsoft Challenge Handshake Authentication Protocol version 2 (draft-kamath-pppext-eap-mschapv2-02). Used as inner authentication method in PEAP and EAP-TTLS. EAP Type 26.",
+    "Fields": [
+      "code                {8 bits}   = 1",
+      "identifier          {8 bits}   = 1",
+      "length              {16 bits}  = auto-calculated",
+      "type                {8 bits}   = 26",
+      "opcode              {8 bits}   = 1",
+      "ms_chapv2_id        {8 bits}   = 1",
+      "ms_length           {16 bits}  = auto-calculated",
+      "value_size          {8 bits}   = 0x10",
+      "challenge           {128 bits} = (present for opcode=1)",
+      "response            {392 bits} = (present for opcode=2)",
+      "message             {variable} = b''",
+      "name                {variable} = b''"
+    ]
+  }
+}

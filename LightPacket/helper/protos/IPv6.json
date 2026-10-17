@@ -1,0 +1,16 @@
+{
+  "Proto": {
+    "Name": "IPv6",
+    "Description": "Layer 3 Internet Protocol version 6 header. Fixed 40-byte header with a simplified, non-optional layout; extension headers (routing, fragment, hop-by-hop, etc.) are chained via next_header rather than embedded inline.",
+    "Fields": [
+      "version         {4 bits}   = 6 ",
+      "traffic_class   {8 bits}   = 0 ",
+      "flow_label      {20 bits}  = 0 ",
+      "payload_len     {16 bits}  = auto (length of payload after this header) ",
+      "next_header     {8 bits}   = auto (inferred from payload layer, default TCP=6) ",
+      "hop_limit       {8 bits}   = 64 ",
+      "src             {128 bits} = default-gateway ",
+      "dst             {128 bits} = :: "
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "Proto": {
+    "Name": "EAP_NAK",
+    "Description": "Extensible Authentication Protocol - Legacy Nak (RFC 3748). Used to indicate that the requested authentication method is not supported, and to suggest one or more alternative EAP types. Type 3.",
+    "Fields": [
+      "code                {8 bits}   = 2",
+      "identifier          {8 bits}   = 1",
+      "length              {16 bits}  = auto-calculated",
+      "type                {8 bits}   = 3",
+      "allowed_types       {variable} = b'\\x00'"
+    ]
+  }
+}

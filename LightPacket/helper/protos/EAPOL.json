@@ -1,0 +1,11 @@
+{
+  "Proto": {
+    "Name": "EAPOL",
+    "Description": "Extensible Authentication Protocol over LAN (802.1X). Carries EAP packets, authentication start/logoff, or key descriptors between a supplicant and authenticator over Ethernet.",
+    "Fields": [
+      "version       {8 bits}   = 2",
+      "code          {8 bits}   = 1",
+      "length        {16 bits}  = auto-calculated"
+    ]
+  }
+}

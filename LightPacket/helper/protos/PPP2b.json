@@ -1,0 +1,9 @@
+{
+  "Proto": {
+    "Name": "PPP2b",
+    "Description": "PPP protocol identifier used in PPPoE discovery stage. Represents the PPP payload type before session establishment.",
+    "Fields": [
+      "proto          {16 bits}  = 0x0021"
+    ]
+  }
+}

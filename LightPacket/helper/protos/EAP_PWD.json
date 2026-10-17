@@ -1,0 +1,17 @@
+{
+  "Proto": {
+    "Name": "EAP_PWD",
+    "Description": "Extensible Authentication Protocol - Password Authenticated Exchange (RFC 5931). Uses Dragonfly key exchange. Type 52. Flags: L (Length flag), M (More flag), PWD-Exch (6 bits).",
+    "Fields": [
+      "code                {8 bits}   = 1",
+      "identifier          {8 bits}   = 1",
+      "length              {16 bits}  = auto-calculated",
+      "type                {8 bits}   = 52",
+      "L                   {1 bit}    = 0",
+      "M                   {1 bit}    = 0",
+      "pwd_exchange        {6 bits}   = 0",
+      "total_length        {16 bits}  = 0",
+      "data                {variable} = b''"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "Proto": {
+    "Name": "Fragment",
+    "Description": "Layer for all type of Fragmented data .",
+    "Fields": [
+      "payload         {variable} = b'Test LightPacket Fragment'"
+    ]
+  }
+}

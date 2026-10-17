@@ -1,0 +1,19 @@
+{
+  "Proto": {
+    "Name": "EAP_Key",
+    "Description": "EAP_Key frame used in 4-Way Handshake and Group Key Handshake for 802.11i/WPA2/WPA3. Carries key material and handshake messages.",
+    "Fields": [
+      "descriptor          {8 bits}   = 2",
+      "key_info            {16 bits}  = 0x0000",
+      "key_len             {16 bits}  = 0",
+      "key_replay_counter  {64 bits}  = 0000000000000000",
+      "key_nonce           {256 bits} = 0000000000000000000000000000000000000000000000000000000000000000",
+      "eapol_key_iv        {128 bits} = 00000000000000000000000000000000",
+      "key_rsc             {64 bits}  = 0000000000000000",
+      "key_id              {64 bits}  = 0000000000000000",
+      "key_mic             {128 bits} = 00000000000000000000000000000000",
+      "key_data_len        {16 bits}  = 0",
+      "key_data            {variable} = b''"
+    ]
+  }
+}

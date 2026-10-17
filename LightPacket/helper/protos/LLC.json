@@ -1,0 +1,11 @@
+{
+  "Proto": {
+    "Name": "LLC",
+    "Description": "IEEE 802.2 Logical Link Control",
+    "Fields": [
+      "dsap          {8 bits}   = 0xAA",
+      "ssap          {8 bits}   = 0xAA",
+      "control       {8 bits}   = 0x03"
+    ]
+  }
+}

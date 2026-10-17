@@ -1,0 +1,19 @@
+{
+  "Proto": {
+    "Name": "TCP",
+    "Description": "Connection-oriented transport protocol providing reliable, ordered, error-checked delivery of a byte stream between applications.",
+    "Fields": [
+      "sport         {16 bits}  = 10000",
+      "dport         {16 bits}  = 443",
+      "seq           {32 bits}  = 0",
+      "ack           {32 bits}  = 0",
+      "data_offset   {4 bits}   = 5 (header length in 32-bit words)",
+      "reserved      {3 bits}   = 0",
+      "flags         {9 bits}   = 0x000 (NS CWR ECE URG ACK PSH RST SYN FIN)",
+      "window        {16 bits}  = 65535",
+      "checksum      {16 bits}  = auto (pseudo-header)",
+      "urgent_ptr    {16 bits}  = 0",
+      "options       {variable} = TCPOptions (TLV-encoded, 4-byte padded)"
+    ]
+  }
+}
